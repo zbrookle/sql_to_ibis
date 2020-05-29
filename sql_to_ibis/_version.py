@@ -41,8 +41,8 @@ def get_config():
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = "v"
-    cfg.parentdir_prefix = "dataframe_sql-"
-    cfg.versionfile_source = "dataframe_sql/_version.py"
+    cfg.parentdir_prefix = "sql_to_ibis-"
+    cfg.versionfile_source = "sql_to_ibis/_version.py"
     cfg.verbose = False
     return cfg
 

@@ -88,7 +88,7 @@ conda list
 # Clean up any left-over from a previous build
 # (note workaround for https://github.com/conda/conda/issues/2679:
 #  `conda env remove` issue)
-conda remove --all -q -y -n dataframe_sql
+conda remove --all -q -y -n sql_to_ibis
 
 echo
 echo "conda env create -q --file=${ENV_FILE}"
@@ -100,8 +100,8 @@ if [[ "$BITS32" == "yes" ]]; then
     export CONDA_BUILD=1
 fi
 
-echo "activate dataframe_sql"
-conda activate dataframe_sql
+echo "activate sql_to_ibis"
+conda activate sql_to_ibis
 
 echo
 echo "remove qt"

@@ -9,8 +9,8 @@ from typing import Dict, List, Tuple, Union
 from lark import Token, Transformer, Tree, v_args
 from pandas import DataFrame, Series, concat, merge
 
-from dataframe_sql.exceptions.sql_exception import DataFrameDoesNotExist
-from dataframe_sql.sql_objects import (
+from sql_to_ibis.exceptions.sql_exception import DataFrameDoesNotExist
+from sql_to_ibis.sql_objects import (
     Aggregate,
     AmbiguousColumn,
     Bool,
@@ -590,7 +590,7 @@ class InternalTransformer(TransformerBaseClass):
         self, when_expressions: List[Union[Tuple[Value, Value], Value]]
     ):
         """
-        Handles dataframe_sql case expressions
+        Handles sql_to_ibis case expressions
         :param when_expressions:
         :return:
         """
@@ -961,7 +961,7 @@ class HavingTransformer(TransformerBaseClass):
 @v_args(inline=True)
 class SQLTransformer(TransformerBaseClass):
     """
-    Transformer for the lark dataframe_sql parser
+    Transformer for the lark sql_to_ibis parser
     """
 
     def __init__(

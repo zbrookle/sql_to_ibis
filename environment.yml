@@ -1,4 +1,4 @@
-name: dataframe_sql
+name: sql_to_ibis
 channels:
   - conda-forge
 dependencies:

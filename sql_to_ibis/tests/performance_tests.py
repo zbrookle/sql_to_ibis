@@ -4,7 +4,7 @@ import time
 from types import FunctionType
 from typing import List
 
-from dataframe_sql.tests.pandas_sql_functionality_test import *  # noqa
+from sql_to_ibis.tests.pandas_sql_functionality_test import *  # noqa
 
 DONT_TEST = [
     test_add_remove_temp_table,  # noqa
@@ -82,22 +82,22 @@ def find_end_paren(function_code: str, start: int):
             return i + start
 
 
-def split_into_pandas_and_dataframe_sql(function_code: str):
+def split_into_pandas_and_sql_to_ibis(function_code: str):
     """
-    Returns the code split into the half using dataframe_sql and the half using
+    Returns the code split into the half using sql_to_ibis and the half using
     the direct pandas api
     :param function_code:
     :return:
     """
     data_frame_sql_code_init = "my_frame = query"
-    dataframe_sql_code_start = function_code.find(data_frame_sql_code_init)
+    sql_to_ibis_code_start = function_code.find(data_frame_sql_code_init)
     text_offset = len(data_frame_sql_code_init)
-    dataframe_sql_code_call_first_paren = dataframe_sql_code_start + text_offset
-    end_paren = find_end_paren(function_code, dataframe_sql_code_call_first_paren) + 1
+    sql_to_ibis_code_call_first_paren = sql_to_ibis_code_start + text_offset
+    end_paren = find_end_paren(function_code, sql_to_ibis_code_call_first_paren) + 1
 
-    dataframe_sql_code = function_code[dataframe_sql_code_start:end_paren]
+    sql_to_ibis_code = function_code[sql_to_ibis_code_start:end_paren]
     pandas_code = function_code[end_paren:]
-    return dataframe_sql_code, pandas_code
+    return sql_to_ibis_code, pandas_code
 
 
 def timeit(function: FunctionType):
@@ -119,16 +119,16 @@ def timeit(function: FunctionType):
     return timed
 
 
-def test_performance(dataframe_sql_code: str, pandas_code: str):
+def test_performance(sql_to_ibis_code: str, pandas_code: str):
     @timeit
-    def dataframe_sql_time():
-        exec(dataframe_sql_code)  # noqa
+    def sql_to_ibis_time():
+        exec(sql_to_ibis_code)  # noqa
 
     @timeit
     def pandas_code_time():
         exec(pandas_code)  # noqa
 
-    time_diff = dataframe_sql_time() - pandas_code_time()
+    time_diff = sql_to_ibis_time() - pandas_code_time()
     print(f"Time difference was {time_diff}\n")
 
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
         code = list(filter(lambda x: x, code))
         code_string = "\n".join(code)
 
-        code = split_into_pandas_and_dataframe_sql(code_string)
+        code = split_into_pandas_and_sql_to_ibis(code_string)
         try:
             test_performance(*code)
         except Exception as err:

@@ -13,14 +13,14 @@ from pandas import concat, merge
 import pandas.testing as tm
 import pytest
 
-from dataframe_sql import query, register_temp_table, remove_temp_table
-from dataframe_sql.exceptions.sql_exception import (
+from sql_to_ibis import query, register_temp_table, remove_temp_table
+from sql_to_ibis.exceptions.sql_exception import (
     DataFrameDoesNotExist,
     InvalidQueryException,
 )
-from dataframe_sql.sql_objects import AmbiguousColumn
-from dataframe_sql.sql_select_query import TableInfo
-from dataframe_sql.tests.utils import (
+from sql_to_ibis.sql_objects import AmbiguousColumn
+from sql_to_ibis.sql_select_query import TableInfo
+from sql_to_ibis.tests.utils import (
     AVOCADO,
     DIGIMON_MON_LIST,
     DIGIMON_MOVE_LIST,

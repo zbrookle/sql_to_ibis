@@ -1,3 +1,3 @@
 #!/bin/bash -e
 
-pytest dataframe_sql/tests
+pytest sql_to_ibis/tests

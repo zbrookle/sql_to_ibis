@@ -26,11 +26,11 @@ setup(
     python_requires=">=3.6.1",
     install_requires=["lark-parser==0.8.1", "pandas>=1.0.0"],
     project_urls={
-        "Source": "https://github.com/zbrookle/dataframe_sql",
+        "Source": "https://github.com/zbrookle/sql_to_ibis",
         "Documentation": "",
     },
-    url="https://github.com/zbrookle/dataframe_sql",
-    download_url="https://github.com/zbrookle/dataframe_sql/archive/master.zip",
+    url="https://github.com/zbrookle/sql_to_ibis",
+    download_url="https://github.com/zbrookle/sql_to_ibis/archive/master.zip",
     keywords=["pandas", "data", "dataframe", "sql"],
     classifiers=[
         "Development Status :: 3 - Alpha",

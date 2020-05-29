@@ -1,5 +1,5 @@
 """
-Convert dataframe_sql statement to run on pandas dataframes
+Convert sql_to_ibis statement to run on pandas dataframes
 """
 import os
 from pathlib import Path
@@ -10,12 +10,12 @@ from lark import Lark, UnexpectedToken
 from lark.exceptions import VisitError
 from pandas.core.frame import DataFrame
 
-from dataframe_sql.exceptions.sql_exception import (
+from sql_to_ibis.exceptions.sql_exception import (
     DataFrameDoesNotExist,
     InvalidQueryException,
 )
-from dataframe_sql.parsing.sql_parser import SQLTransformer
-from dataframe_sql.sql_objects import AmbiguousColumn
+from sql_to_ibis.parsing.sql_parser import SQLTransformer
+from sql_to_ibis.sql_objects import AmbiguousColumn
 
 SHOW_TREE = False
 SHOW_DF = False

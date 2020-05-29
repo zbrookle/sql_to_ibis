@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pandas import DataFrame, read_csv
 
-from dataframe_sql import register_temp_table, remove_temp_table
+from sql_to_ibis import register_temp_table, remove_temp_table
 
 DATA_PATH = Path(__file__).parent.parent / "data"
 
