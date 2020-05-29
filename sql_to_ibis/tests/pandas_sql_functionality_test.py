@@ -164,28 +164,29 @@ def test_select_star():
     tm.assert_frame_equal(pandas_frame, my_frame)
 
 
-# @assert_state_not_change
-# def test_case_insensitivity():
-#     """
-#     Tests to ensure that the sql is case insensitive for table names
-#     :return:
-#     """
-#     my_frame = query("select * from FOREST_fires")
-#     pandas_frame = FOREST_FIRES
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_select_specific_fields():
-#     """
-#     Tests selecting specific fields
-#     :return:
-#     """
-#     my_frame = query("select temp, RH, wind, rain as water, area from forest_fires")
-#     pandas_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].rename(
-#         columns={"rain": "water"}
-#     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+@assert_state_not_change
+def test_case_insensitivity():
+    """
+    Tests to ensure that the sql is case insensitive for table names
+    :return:
+    """
+    my_frame = query("select * from FOREST_fires").execute()
+    pandas_frame = FOREST_FIRES
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
+@assert_state_not_change
+def test_select_specific_fields():
+    """
+    Tests selecting specific fields
+    :return:
+    """
+    my_frame = query("select temp, RH, wind, rain as water, area from "
+                     "forest_fires").execute()
+    pandas_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].rename(
+        columns={"rain": "water"}
+    )
+    tm.assert_frame_equal(pandas_frame, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1458,3 +1459,9 @@ def test_select_star():
 #     test_sql_data_types()
 #
 #     remove_env_tables()
+
+if __name__ == '__main__':
+    register_env_tables()
+    test_select_star()
+    remove_env_tables()
+

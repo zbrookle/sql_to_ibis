@@ -7,7 +7,7 @@ from types import FunctionType
 from typing import Dict, List, Tuple, Union
 
 from lark import Token, Transformer, Tree, v_args
-from pandas import DataFrame, Series, concat, merge
+from pandas import Series, concat, merge
 from ibis.expr.types import TableExpr
 
 from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
@@ -28,8 +28,6 @@ from sql_to_ibis.sql_objects import (
     Value,
     ValueWithPlan,
 )
-
-# pd.set_option('display.max_rows', 1000)
 
 ORDER_TYPES = ["asc", "desc", "ascending", "descending"]
 ORDER_TYPES_MAPPING = {
@@ -1423,7 +1421,7 @@ class SQLTransformer(TransformerBaseClass):
                 new_frame: TableExpr = first_frame.loc[where_value, :].copy()
                 execution_plan += f".loc[{where_plan}, :]"
             else:
-                new_frame = first_frame.copy()
+                new_frame = first_frame
         else:
             column_names = []
             final_names = []
@@ -1446,13 +1444,9 @@ class SQLTransformer(TransformerBaseClass):
             if where_value is not None:
                 new_frame = first_frame.loc[where_value, column_names]
             else:
-                new_frame = first_frame.loc[:, column_names]
-            execution_plan += f".loc[{where_plan}, {column_names}]"
+                new_frame = first_frame.drop(set(first_frame.columns) - set(column_names))
             if aliases:
-                # new_frame = new_frame.rename(columns=aliases)
-                new_frame.columns = final_names
-                execution_plan += f".rename(columns={aliases})"
-
+                new_frame = new_frame.relabel(aliases)
         return new_frame, execution_plan
 
     def handle_join(self, join: Join) -> Tuple[TableExpr, str]:
@@ -1486,8 +1480,6 @@ class SQLTransformer(TransformerBaseClass):
         if not query_info.frame_names:
             raise Exception("No table specified")
         first_frame = self.get_frame(frame_names[0])
-        print(first_frame)
-        print(type(first_frame))
 
         if isinstance(first_frame, TableExpr) and not isinstance(
             frame_names[0], Subquery
@@ -1495,7 +1487,6 @@ class SQLTransformer(TransformerBaseClass):
             execution_plan = f"{frame_names[0]}"
         elif isinstance(first_frame, Join):
             first_frame, join_plan = self.handle_join(join=first_frame)
-            execution_plan += join_plan
         elif isinstance(frame_names[0], Subquery):
             execution_plan = frame_names[0].execution_plan
         for frame_name in frame_names[1:]:
@@ -1559,7 +1550,6 @@ class SQLTransformer(TransformerBaseClass):
             execution_plan += f".loc[{having_plan}, :]"
 
         if query_info.distinct:
-            execution_plan += ".drop_duplicates(keep='first', inplace=True)"
             new_frame.drop_duplicates(keep="first", inplace=True)
 
         order_by = query_info.order_by
@@ -1573,7 +1563,7 @@ class SQLTransformer(TransformerBaseClass):
             new_frame = new_frame.head(query_info.limit)
             execution_plan += f".head({query_info.limit})"
 
-        return new_frame, execution_plan
+        return new_frame
 
     def set_expr(self, query_info):
         """
@@ -1581,9 +1571,8 @@ class SQLTransformer(TransformerBaseClass):
         :param query_info:
         :return:
         """
-        frame, plan = self.to_ibis_table(query_info)
-        # TODO Maybe don't always reset index (maybe put into execution plan)
-        return frame.reset_index(drop=True), plan
+        frame = self.to_ibis_table(query_info)
+        return frame
 
     def union_all(
         self,
@@ -1707,16 +1696,11 @@ class SQLTransformer(TransformerBaseClass):
 
         return frame1[~frame1.isin(frame2).all(axis=1)].reset_index(drop=True), plan
 
-    def final(self, dataframe_and_plan):
+    def final(self, table):
         """
         Returns the final dataframe
-        :param dataframe_and_plan:
+        :param table:
         :return:
         """
         DerivedColumn.reset_expression_count()
-        dataframe = dataframe_and_plan[0]
-        plan = dataframe_and_plan[1]
-
-        if self._get_execution_plan:
-            return dataframe, plan
-        return dataframe
+        return table
