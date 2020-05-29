@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple, Union
 from lark import Token, Transformer, Tree, v_args
 from pandas import Series, concat, merge
 from ibis.expr.types import TableExpr
+import ibis
 
 from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
 from sql_to_ibis.sql_objects import (
@@ -1347,29 +1348,29 @@ class SQLTransformer(TransformerBaseClass):
 
     @staticmethod
     def handle_aggregation(
-        aggregates, group_columns, dataframe: TableExpr, execution_plan: str
+        aggregates, group_columns, table: TableExpr, execution_plan: str
     ):
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
         :param aggregates:
         :param group_columns:
-        :param dataframe:
+        :param table:
         :param execution_plan:
         :return:
         """
         if group_columns and not aggregates:
-            for column in dataframe.columns:
+            for column in table.columns:
                 if column not in group_columns:
                     raise Exception(
                         f"For column {column} you must either group or "
                         f"provide and aggregation"
                     )
-            dataframe.drop_duplicates(keep="first", inplace=True)
+            table.drop_duplicates(keep="first", inplace=True)
             execution_plan += ".drop_duplicates(keep='first')"
         elif aggregates and not group_columns:
-            dataframe = (
-                dataframe.assign(__=1)
+            table = (
+                table.assign(__=1)
                 .groupby(["__"])
                 .agg(**aggregates)
                 .reset_index(drop=True)
@@ -1380,13 +1381,13 @@ class SQLTransformer(TransformerBaseClass):
                 f"drop=True)"
             )
         elif aggregates and group_columns:
-            dataframe = (
-                dataframe.groupby(group_columns).aggregate(**aggregates).reset_index()
+            table = (
+                table.groupby(group_columns).aggregate(**aggregates).reset_index()
             )
             execution_plan += (
                 f".groupby({group_columns}).aggregate({aggregates})" f".reset_index()"
             )
-        return dataframe, execution_plan
+        return table, execution_plan
 
     def handle_columns(
         self,
@@ -1418,10 +1419,10 @@ class SQLTransformer(TransformerBaseClass):
         column_names = [column.name for column in columns]
         if self.has_star(column_names):
             if where_value is not None:
-                new_frame: TableExpr = first_frame.loc[where_value, :].copy()
+                new_table: TableExpr = first_frame.loc[where_value, :].copy()
                 execution_plan += f".loc[{where_plan}, :]"
             else:
-                new_frame = first_frame
+                new_table = first_frame
         else:
             column_names = []
             final_names = []
@@ -1442,12 +1443,12 @@ class SQLTransformer(TransformerBaseClass):
                     final_names.append(column.name)
 
             if where_value is not None:
-                new_frame = first_frame.loc[where_value, column_names]
+                new_table = first_frame.loc[where_value, column_names]
             else:
-                new_frame = first_frame.drop(set(first_frame.columns) - set(column_names))
+                new_table = first_frame.drop(set(first_frame.columns) - set(column_names))
             if aliases:
-                new_frame = new_frame.relabel(aliases)
-        return new_frame, execution_plan
+                new_table = new_table.relabel(aliases)
+        return new_table
 
     def handle_join(self, join: Join) -> Tuple[TableExpr, str]:
         """
@@ -1495,7 +1496,7 @@ class SQLTransformer(TransformerBaseClass):
                 first_frame, next_frame, execution_plan, frame_name
             )
 
-        new_frame, execution_plan = self.handle_columns(
+        new_table: TableExpr = self.handle_columns(
             query_info.columns,
             query_info.aliases,
             first_frame,
@@ -1515,28 +1516,24 @@ class SQLTransformer(TransformerBaseClass):
                     f"{expression.alias}={expression.get_plan_representation()}"
                 )
             execution_plan += ")"
-            new_frame = new_frame.assign(**assign_expressions)
+            new_table = new_table.assign(**assign_expressions)
 
         literals = query_info.literals
         if literals:
-            assign_literals = {}
-            execution_plan += ".assign("
             for literal in literals:
-                assign_literals[literal.alias] = literal.value
-                execution_plan += (
-                    f"{literal.alias}={literal.get_plan_representation()}, "
-                )
-
-            execution_plan += ")"
-            new_frame = new_frame.assign(**assign_literals)
+                if literal.alias in new_table.columns:
+                    new_table = new_table.set_column(literal.alias, literal.value)
+                else:
+                    new_table = new_table.mutate([ibis.literal(literal.value).name(
+                        literal.alias)])
 
         conversions = query_info.conversions
-        if conversions:
-            execution_plan += f".astype({conversions})"
-            new_frame = new_frame.astype(conversions)
+        for conversion in conversions:
+            new_table = new_table.set_column(conversion, new_table.get_column(
+                conversion).cast(conversions[conversion]))
 
-        new_frame, execution_plan = self.handle_aggregation(
-            query_info.aggregates, query_info.group_columns, new_frame, execution_plan,
+        new_table, execution_plan = self.handle_aggregation(
+            query_info.aggregates, query_info.group_columns, new_table, execution_plan,
         )
 
         if (
@@ -1546,24 +1543,24 @@ class SQLTransformer(TransformerBaseClass):
             having_eval, having_plan = query_info.having_transformer.transform(
                 query_info.having_expr
             )
-            new_frame = new_frame.loc[having_eval.children[0], :]
+            new_table = new_table.loc[having_eval.children[0], :]
             execution_plan += f".loc[{having_plan}, :]"
 
         if query_info.distinct:
-            new_frame.drop_duplicates(keep="first", inplace=True)
+            new_table.drop_duplicates(keep="first", inplace=True)
 
         order_by = query_info.order_by
         if order_by:
             by_pairs = [pair[0] for pair in order_by]
             ascending_info = [pair[1] for pair in order_by]
-            new_frame = new_frame.sort_values(by=by_pairs, ascending=ascending_info)
+            new_table = new_table.sort_values(by=by_pairs, ascending=ascending_info)
             execution_plan += f".sort_values(by={by_pairs}, ascending={ascending_info})"
 
         if query_info.limit is not None:
-            new_frame = new_frame.head(query_info.limit)
+            new_table = new_table.head(query_info.limit)
             execution_plan += f".head({query_info.limit})"
 
-        return new_frame
+        return new_table
 
     def set_expr(self, query_info):
         """

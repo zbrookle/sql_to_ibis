@@ -187,41 +187,41 @@ def test_select_specific_fields():
         columns={"rain": "water"}
     )
     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_type_conversion():
-#     """
-#     Tests sql as statements
-#     :return:
-#     """
-#     my_frame = query(
-#         """select cast(temp as int64),
-#         cast(RH as float64) my_rh, wind, rain, area,
-#         cast(2.0 as int64) my_int,
-#         cast(3 as float64) as my_float,
-#         cast(7 as object) as my_object,
-#         cast(0 as bool) as my_bool from forest_fires"""
-#     )
-#     fire_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].rename(
-#         columns={"RH": "my_rh"}
-#     )
-#     fire_frame["my_int"] = 2
-#     fire_frame["my_float"] = 3
-#     fire_frame["my_object"] = str(7)
-#     fire_frame["my_bool"] = 0
-#     pandas_frame = fire_frame.astype(
-#         {
-#             "temp": "int64",
-#             "my_rh": "float64",
-#             "my_int": "int64",
-#             "my_float": "float64",
-#             "my_bool": "bool",
-#         }
-#     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
+
+
+@assert_state_not_change
+def test_type_conversion():
+    """
+    Tests sql as statements
+    :return:
+    """
+    my_frame = query(
+        """select cast(temp as int64),
+        cast(RH as float64) my_rh, wind, rain, area,
+        cast(2.0 as int64) my_int,
+        cast(3 as float64) as my_float,
+        cast(7 as object) as my_object,
+        cast(0 as bool) as my_bool from forest_fires"""
+    ).execute()
+    fire_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].rename(
+        columns={"RH": "my_rh"}
+    )
+    fire_frame["my_int"] = 2
+    fire_frame["my_float"] = 3
+    fire_frame["my_object"] = str(7)
+    fire_frame["my_bool"] = 0
+    pandas_frame = fire_frame.astype(
+        {
+            "temp": "int64",
+            "my_rh": "float64",
+            "my_int": "int64",
+            "my_float": "float64",
+            "my_bool": "bool",
+        }
+    )
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
 # @assert_state_not_change
 # def test_for_non_existent_table():
 #     """
