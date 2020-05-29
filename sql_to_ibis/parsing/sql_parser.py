@@ -8,8 +8,9 @@ from typing import Dict, List, Tuple, Union
 
 from lark import Token, Transformer, Tree, v_args
 from pandas import DataFrame, Series, concat, merge
+from ibis.expr.types import TableExpr
 
-from sql_to_ibis.exceptions.sql_exception import DataFrameDoesNotExist
+from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
 from sql_to_ibis.sql_objects import (
     Aggregate,
     AmbiguousColumn,
@@ -124,7 +125,7 @@ class TransformerBaseClass(Transformer):
         self._get_execution_plan = get_execution_plan
         self._execution_plan = ""
 
-    def get_frame(self, frame_name) -> DataFrame:
+    def get_frame(self, frame_name) -> TableExpr:
         """
         Returns the dataframe with the name given
         :param frame_name:
@@ -1010,13 +1011,13 @@ class SQLTransformer(TransformerBaseClass):
     def table(self, table_name, alias=""):
         """
         Check for existence of pandas dataframe with same name
-        If not exists raise DataFrameDoesNotExist
-        Otherwise return the name of the actual DataFrame
+        If not exists raise TableExprDoesNotExist
+        Otherwise return the name of the actual TableExpr
         :return:
         """
         table_name = table_name.lower()
         if table_name not in self.dataframe_name_map:
-            raise DataFrameDoesNotExist(table_name)
+            raise TableExprDoesNotExist(table_name)
         if alias:
             self.dataframe_name_map[alias] = self.dataframe_name_map[table_name]
         return Token("table", self.dataframe_name_map[table_name])
@@ -1071,7 +1072,7 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         alias_name = alias.children[0].value
-        self.dataframe_map[alias_name], subquery_plan = self.to_dataframe(query_info)
+        self.dataframe_map[alias_name], subquery_plan = self.to_ibis_table(query_info)
         subquery = Subquery(
             name=alias_name, query_info=query_info, execution_plan=subquery_plan
         )
@@ -1329,7 +1330,7 @@ class SQLTransformer(TransformerBaseClass):
         return query_info
 
     def cross_join(
-        self, df1: DataFrame, df2: DataFrame, current_plan: str, df2_name: str
+        self, df1: TableExpr, df2: TableExpr, current_plan: str, df2_name: str
     ):
         """
         Returns the crossjoin between two dataframes
@@ -1348,7 +1349,7 @@ class SQLTransformer(TransformerBaseClass):
 
     @staticmethod
     def handle_aggregation(
-        aggregates, group_columns, dataframe: DataFrame, execution_plan: str
+        aggregates, group_columns, dataframe: TableExpr, execution_plan: str
     ):
         """
         Handles all aggregation operations when translating from dictionary info
@@ -1393,7 +1394,7 @@ class SQLTransformer(TransformerBaseClass):
         self,
         columns: list,
         aliases: dict,
-        first_frame: DataFrame,
+        first_frame: TableExpr,
         execution_plan: str,
         where_expr: Tree,
         internal_transformer: Transformer,
@@ -1419,7 +1420,7 @@ class SQLTransformer(TransformerBaseClass):
         column_names = [column.name for column in columns]
         if self.has_star(column_names):
             if where_value is not None:
-                new_frame: DataFrame = first_frame.loc[where_value, :].copy()
+                new_frame: TableExpr = first_frame.loc[where_value, :].copy()
                 execution_plan += f".loc[{where_plan}, :]"
             else:
                 new_frame = first_frame.copy()
@@ -1454,7 +1455,7 @@ class SQLTransformer(TransformerBaseClass):
 
         return new_frame, execution_plan
 
-    def handle_join(self, join: Join) -> Tuple[DataFrame, str]:
+    def handle_join(self, join: Join) -> Tuple[TableExpr, str]:
         """
         Return the dataframe and execution plan resulting from a join
         :param join:
@@ -1476,20 +1477,19 @@ class SQLTransformer(TransformerBaseClass):
             plan,
         )
 
-    def to_dataframe(self, query_info: QueryInfo):
+    def to_ibis_table(self, query_info: QueryInfo):
         """
         Returns the dataframe resulting from the SQL query
         :return:
         """
-        execution_plan = ""
-
-        # Determine/extract the first frame that all dataframe operations will stem from
         frame_names = query_info.frame_names
         if not query_info.frame_names:
             raise Exception("No table specified")
         first_frame = self.get_frame(frame_names[0])
+        print(first_frame)
+        print(type(first_frame))
 
-        if isinstance(first_frame, DataFrame) and not isinstance(
+        if isinstance(first_frame, TableExpr) and not isinstance(
             frame_names[0], Subquery
         ):
             execution_plan = f"{frame_names[0]}"
@@ -1581,14 +1581,14 @@ class SQLTransformer(TransformerBaseClass):
         :param query_info:
         :return:
         """
-        frame, plan = self.to_dataframe(query_info)
+        frame, plan = self.to_ibis_table(query_info)
         # TODO Maybe don't always reset index (maybe put into execution plan)
         return frame.reset_index(drop=True), plan
 
     def union_all(
         self,
-        frame1_and_plan: Tuple[DataFrame, str],
-        frame2_and_plan: Tuple[DataFrame, str],
+        frame1_and_plan: Tuple[TableExpr, str],
+        frame2_and_plan: Tuple[TableExpr, str],
     ):
         """
         Return union all of two dataframes
@@ -1610,8 +1610,8 @@ class SQLTransformer(TransformerBaseClass):
 
     def union_distinct(
         self,
-        frame1_and_plan: Tuple[DataFrame, str],
-        frame2_and_plan: Tuple[DataFrame, str],
+        frame1_and_plan: Tuple[TableExpr, str],
+        frame2_and_plan: Tuple[TableExpr, str],
     ):
         """
         Return union distinct of two dataframes
@@ -1633,8 +1633,8 @@ class SQLTransformer(TransformerBaseClass):
 
     def intersect_distinct(
         self,
-        frame1_and_plan: Tuple[DataFrame, str],
-        frame2_and_plan: Tuple[DataFrame, str],
+        frame1_and_plan: Tuple[TableExpr, str],
+        frame2_and_plan: Tuple[TableExpr, str],
     ):
         """
         Return intersection of two dataframes
@@ -1659,8 +1659,8 @@ class SQLTransformer(TransformerBaseClass):
 
     def except_distinct(
         self,
-        frame1_and_plan: Tuple[DataFrame, str],
-        frame2_and_plan: Tuple[DataFrame, str],
+        frame1_and_plan: Tuple[TableExpr, str],
+        frame2_and_plan: Tuple[TableExpr, str],
     ):
         """
         Return first dataframe excluding everything that's also in the second dataframe,
@@ -1688,8 +1688,8 @@ class SQLTransformer(TransformerBaseClass):
 
     def except_all(
         self,
-        frame1_and_plan: Tuple[DataFrame, str],
-        frame2_and_plan: Tuple[DataFrame, str],
+        frame1_and_plan: Tuple[TableExpr, str],
+        frame2_and_plan: Tuple[TableExpr, str],
     ):
         """
         Return first dataframe excluding everything that's also in the second dataframe,

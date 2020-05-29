@@ -30,7 +30,7 @@ def register_env_tables():
     for variable_name in globals():
         variable = globals()[variable_name]
         if isinstance(variable, DataFrame):
-            register_temp_table(frame=variable, table_name=variable_name)
+            register_temp_table(table=variable, table_name=variable_name)
 
 
 def remove_env_tables():

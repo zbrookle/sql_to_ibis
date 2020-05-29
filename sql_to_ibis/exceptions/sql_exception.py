@@ -21,7 +21,7 @@ class InvalidQueryException(Exception):
         Exception.__init__(self, f"Invalid query!\n{message}")
 
 
-class DataFrameDoesNotExist(Exception):
+class TableExprDoesNotExist(Exception):
     """
     Raised when a DataFrame doesn't exist
     """

@@ -2,16 +2,16 @@
 Convert sql_to_ibis statement to run on pandas dataframes
 """
 import os
+import ibis
 from pathlib import Path
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 from lark import Lark, UnexpectedToken
 from lark.exceptions import VisitError
-from pandas.core.frame import DataFrame
 
 from sql_to_ibis.exceptions.sql_exception import (
-    DataFrameDoesNotExist,
+    TableExprDoesNotExist,
     InvalidQueryException,
 )
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
@@ -26,13 +26,13 @@ with open(file=GRAMMAR_PATH) as sql_grammar_file:
     _GRAMMAR_TEXT = sql_grammar_file.read()
 
 
-def register_temp_table(frame: DataFrame, table_name: str):
+def register_temp_table(table: "IbisTable", table_name: str):
     """
     Registers related metadata from a :class: ~`pandas.DataFrame` for use with SQL
 
     Parameters
     ----------
-    frame : :class: ~`pandas.DataFrame`
+    table : :class: ~`pandas.DataFrame`
         :class: ~`pandas.DataFrame` object to register
     table_name : str
         String that will be used to represent the :class: ~`pandas.DataFrame` in SQL
@@ -48,7 +48,7 @@ def register_temp_table(frame: DataFrame, table_name: str):
     >>> register_temp_table(df, "my_table_name")
     """
     table_info = TableInfo()
-    table_info.register_temporary_table(frame, table_name)
+    table_info.register_temporary_table(table, table_name)
 
 
 def remove_temp_table(table_name: str):
@@ -127,8 +127,8 @@ class SqlToDataFrame:
             table_info = TableInfo()
 
             return SQLTransformer(
-                table_info.dataframe_name_map.copy(),
-                table_info.dataframe_map.copy(),
+                table_info.ibis_table_name_map.copy(),
+                table_info.ibis_table_map.copy(),
                 table_info.column_name_map.copy(),
                 table_info.column_to_dataframe_name.copy(),
                 self._show_execution_plan,
@@ -147,7 +147,7 @@ class SqlToDataFrame:
                 re.MULTILINE,
             )
             if match:
-                raise DataFrameDoesNotExist(table_name=match.group("table"))
+                raise TableExprDoesNotExist(table_name=match.group("table"))
             else:
                 raise err
 
@@ -155,8 +155,8 @@ class SqlToDataFrame:
 class TableInfo:
     column_to_dataframe_name: Dict[str, Any] = {}
     column_name_map: Dict[str, Dict[str, str]] = {}
-    dataframe_name_map: Dict[str, str] = {}
-    dataframe_map: Dict[str, DataFrame] = {}
+    ibis_table_name_map: Dict[str, str] = {}
+    ibis_table_map: Dict[str, Type["IbisTable"]] = {}
 
     def add_column_to_column_to_dataframe_name_map(self, column, table):
         if self.column_to_dataframe_name.get(column) is None:
@@ -169,27 +169,32 @@ class TableInfo:
                 [original_table, table]
             )
 
-    def register_temporary_table(self, frame: DataFrame, table_name: str):
-        if table_name.lower() in self.dataframe_name_map:
+    def register_temporary_table(self, table, table_name: str, framework: str =
+    "pandas"):
+        ibis_table = None
+        if framework == "pandas":
+            ibis_table = ibis.pandas.from_dataframe(table, name=table_name)
+
+        if table_name.lower() in self.ibis_table_name_map:
             raise Exception(
                 f"A table {table_name.lower()} has already been registered. Keep in "
                 f"mind that table names are case insensitive"
             )
 
-        self.dataframe_name_map[table_name.lower()] = table_name
-        self.dataframe_map[table_name] = frame
+        self.ibis_table_name_map[table_name.lower()] = table_name
+        self.ibis_table_map[table_name] = ibis_table
         self.column_name_map[table_name] = {}
-        for column in frame.columns:
+        for column in table.columns:
             lower_column = column.lower()
             self.column_name_map[table_name][lower_column] = column
             self.add_column_to_column_to_dataframe_name_map(lower_column, table_name)
 
     def remove_temp_table(self, table_name: str):
-        if table_name.lower() not in self.dataframe_name_map:
+        if table_name.lower() not in self.ibis_table_name_map:
             raise Exception(f"Table {table_name.lower()} is not registered")
-        real_table_name = self.dataframe_name_map[table_name.lower()]
+        real_table_name = self.ibis_table_name_map[table_name.lower()]
 
-        columns = self.dataframe_map[real_table_name].columns.to_list()
+        columns = self.ibis_table_map[real_table_name].columns
         for column in columns:
             lower_column = column.lower()
             value = self.column_to_dataframe_name[lower_column]
@@ -200,6 +205,6 @@ class TableInfo:
             else:
                 del self.column_to_dataframe_name[lower_column]
 
-        del self.dataframe_name_map[table_name.lower()]
-        del self.dataframe_map[real_table_name]
+        del self.ibis_table_name_map[table_name.lower()]
+        del self.ibis_table_map[real_table_name]
         del self.column_name_map[real_table_name]
