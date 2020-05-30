@@ -80,8 +80,13 @@ TYPE_TO_SQL_TYPE = {
 
 GIVEN_TYPE_TO_IBIS = {"object": "varchar"}
 
-from sql_to_ibis.parsing.aggregation_aliases import AVG_AGGREGATIONS, \
-    MAX_AGGREGATIONS, MIN_AGGREGATIONS, NUMERIC_AGGREGATIONS, SUM_AGGREGATIONS
+from sql_to_ibis.parsing.aggregation_aliases import (
+    AVG_AGGREGATIONS,
+    MAX_AGGREGATIONS,
+    MIN_AGGREGATIONS,
+    NUMERIC_AGGREGATIONS,
+    SUM_AGGREGATIONS,
+)
 
 
 def num_eval(arg):
@@ -106,6 +111,7 @@ def get_wrapper_value(value):
     if isinstance(value, Value):
         return value.get_value()
     return value
+
 
 def to_ibis_type(given_type: str):
     """
@@ -178,23 +184,24 @@ class TransformerBaseClass(Transformer):
         self.set_column_value(column)
         return column
 
-
-def boolean_decorator(boolean_operator: str):
-    """
-    Returns a function that wraps around the given boolean function
-    :param boolean_operator:
-    :return:
-    """
-
-    def boolean_function(function: FunctionType):
-        def wrapper(self, expressions: list):
-            plan = self.create_execution_plan_expression(*expressions, boolean_operator)
-            result = function(self, expressions)
-            return ValueWithPlan(result, plan)
-
-        return wrapper
-
-    return boolean_function
+    @staticmethod
+    def apply_ibis_aggregation(
+        ibis_column: TableColumn, aggregation: str
+    ) -> TableColumn:
+        if aggregation in NUMERIC_AGGREGATIONS:
+            assert isinstance(ibis_column, NumericColumn)
+            if aggregation in AVG_AGGREGATIONS:
+                return ibis_column.mean()
+            if aggregation in SUM_AGGREGATIONS:
+                return ibis_column.sum()
+        if aggregation in MAX_AGGREGATIONS:
+            return ibis_column.max()
+        if aggregation in MIN_AGGREGATIONS:
+            return ibis_column.min()
+        raise Exception(
+            f"Aggregation {aggregation} not implemented for column of "
+            f"type {ibis_column.type()}"
+        )
 
 
 class InternalTransformer(TransformerBaseClass):
@@ -238,6 +245,11 @@ class InternalTransformer(TransformerBaseClass):
         if isinstance(new_tree, Token) and isinstance(new_tree.value, ValueWithPlan):
             new_tree.value = new_tree.value.value
         return new_tree
+
+    def sql_aggregation(self, agg_and_column: list):
+        aggregation, column = agg_and_column
+        return Aggregate(self.apply_ibis_aggregation(column.value, aggregation),
+                         alias=column.alias, typename=column.typename)
 
     def mul(self, args: Tuple[int, int]):
         """
@@ -404,14 +416,13 @@ class InternalTransformer(TransformerBaseClass):
             f"{expression2.get_plan_representation()}"
         )
 
-    @boolean_decorator("==")
     def equals(self, expressions):
         """
         Compares two expressions for equality
         :param expressions:
         :return:
         """
-        return expressions[0] == expressions[1]
+        return ValueWithPlan(expressions[0] == expressions[1])
 
     def not_equals(self, expressions):
         """
@@ -419,46 +430,39 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        plan_expr = self.create_execution_plan_expression(
-            expressions[0], expressions[1], "=="
-        )
-        return ValueWithPlan(~(expressions[0] == expressions[1]), f"~({plan_expr})")
+        return ValueWithPlan(~(expressions[0] == expressions[1]))
 
-    @boolean_decorator(">")
     def greater_than(self, expressions):
         """
         Performs a greater than sql_object
         :param expressions:
         :return:
         """
-        return expressions[0] > expressions[1]
+        return ValueWithPlan(expressions[0] > expressions[1])
 
-    @boolean_decorator(">=")
     def greater_than_or_equal(self, expressions):
         """
         Performs a greater than or equal sql_object
         :param expressions:
         :return:
         """
-        return expressions[0] >= expressions[1]
+        return ValueWithPlan(expressions[0] >= expressions[1])
 
-    @boolean_decorator("<")
     def less_than(self, expressions):
         """
         Performs a less than sql_object
         :param expressions:
         :return:
         """
-        return expressions[0] < expressions[1]
+        return ValueWithPlan(expressions[0] < expressions[1])
 
-    @boolean_decorator("<=")
     def less_than_or_equal(self, expressions):
         """
         Performs a less than or equal sql_object
         :param expressions:
         :return:
         """
-        return expressions[0] <= expressions[1]
+        return ValueWithPlan(expressions[0] <= expressions[1])
 
     def between(self, expressions: List[Value]):
         """
@@ -517,10 +521,7 @@ class InternalTransformer(TransformerBaseClass):
             truth_series_pair_values.append(value.get_value())
             plans.append(value.get_plan_representation())
 
-        return ValueWithPlan(
-            truth_series_pair_values[0] & truth_series_pair_values[1],
-            f"{plans[0]} & {plans[1]}",
-        )
+        return ValueWithPlan(truth_series_pair_values[0] & truth_series_pair_values[1],)
 
     def bool_parentheses(self, bool_expression_in_list: list):
         return bool_expression_in_list[0]
@@ -880,83 +881,6 @@ class InternalTransformer(TransformerBaseClass):
         return new_value
 
 
-# pylint: disable=no-self-use
-class HavingTransformer(TransformerBaseClass):
-    """
-    Transformer for having clauses since group by needs to be applied first
-    """
-
-    # pylint: disable=too-many-arguments
-    def __init__(
-        self, tables, group_by, dataframe_map, column_name_map, column_to_dataframe_name
-    ):
-        self.tables = tables
-        self.group_by = group_by
-        TransformerBaseClass.__init__(
-            self,
-            dataframe_map=dataframe_map,
-            column_name_map=column_name_map,
-            column_to_dataframe_name=column_to_dataframe_name,
-        )
-
-    def transform(self, tree: Tree):
-        new_tree, plan = TransformerBaseClass.transform(self, tree)
-        new_tree.children[0] = new_tree.children[0].value
-        return new_tree, plan
-
-    def aggregate(self, function_name_list_form):
-        """
-        Return the string representation fo aggregate function name instead of list
-        :param function_name_list_form:
-        :return:
-        """
-        return "".join(function_name_list_form)
-
-    def sql_aggregation(self, aggregation_expr: list):
-        """
-        Handles presence of aggregation in an sql_object
-        :param aggregation_expr: Function sql_object
-        :return:
-        """
-        aggregate_token: Token = aggregation_expr[0]
-        aggregate_name: str = aggregate_token.value
-        column = aggregation_expr[1]
-        table = self.dataframe_map[column.table]
-        column_true_name = self.column_name_map[column.table][column.name]
-        aggregates = {column_true_name: aggregate_name}
-        if self.group_by:
-            new_series = (
-                table.groupby(self.group_by).aggregate(aggregates).reset_index()
-            )
-            aggregation_plan = (
-                f"{column.table}.groupby({self.group_by}).aggregate("
-                f"{aggregates}).reset_index()"
-            )
-        else:
-            new_series = table.aggregate(aggregates).to_frame().transpose()
-            aggregation_plan = (
-                f"{column.table}.aggregate({aggregates}).to_frame()" f".transpose()"
-            )
-        aggregation_plan += f"[{column_true_name}]"
-        return ValueWithPlan(new_series[column_true_name], aggregation_plan)
-
-    def having_expr(self, having_expr):
-        """
-        Handles having expressions
-        :param having_expr:
-        :return:
-        """
-        internal_transformer = InternalTransformer(
-            self.tables,
-            self.dataframe_map,
-            self.column_name_map,
-            self.column_to_dataframe_name,
-        )
-        having_expr = Tree("having_expr", having_expr)
-        return internal_transformer.transform(having_expr)
-
-
-# pylint: disable=no-self-use, super-init-not-called
 @v_args(inline=True)
 class SQLTransformer(TransformerBaseClass):
     """
@@ -1230,15 +1154,7 @@ class SQLTransformer(TransformerBaseClass):
             query_info.expressions.append(token)
 
         if isinstance(token, Aggregate):
-            query_info.aggregates[token.final_name] = (
-                token.value.final_name,
-                token.function,
-            )
-            if isinstance(token.value, Column) and not query_info.column_selected.get(
-                token.value.name
-            ):
-                query_info.columns.append(token.get_value())
-                query_info.column_selected[token.value.get_name()] = True
+            query_info.aggregates[token.final_name] = token
 
         if isinstance(token, Literal):
             query_info.literals.append(token)
@@ -1312,15 +1228,6 @@ class SQLTransformer(TransformerBaseClass):
         for token_pos, token in enumerate(select_expressions):
             self.handle_token_or_tree(query_info, token, token_pos)
 
-        if query_info.having_expr is not None:
-            query_info.having_transformer = HavingTransformer(
-                tables,
-                query_info.group_columns,
-                self.dataframe_map,
-                self.column_name_map,
-                self.column_to_dataframe_name,
-            )
-
         return query_info
 
     def cross_join(self, df1: TableExpr, df2: TableExpr):
@@ -1332,22 +1239,10 @@ class SQLTransformer(TransformerBaseClass):
         """
         return df1.assign(__=1).merge(df2.assign(__=1), on="__").drop(columns=["__"])
 
-    @staticmethod
-    def apply_ibis_aggregation(ibis_column: TableColumn, aggregation: str) -> TableColumn:
-        if aggregation in NUMERIC_AGGREGATIONS:
-            assert isinstance(ibis_column, NumericColumn)
-            if aggregation in AVG_AGGREGATIONS:
-                return ibis_column.mean()
-            if aggregation in SUM_AGGREGATIONS:
-                return ibis_column.sum()
-        if aggregation in MAX_AGGREGATIONS:
-            return ibis_column.max()
-        if aggregation in MIN_AGGREGATIONS:
-            return ibis_column.min()
-        raise Exception(f"Aggregation {aggregation} not implemented for column of "
-                        f"type {ibis_column.type()}")
-
-    def handle_aggregation(self, aggregates, group_columns, table: TableExpr):
+    def handle_aggregation(
+        self, aggregates, group_columns, table: TableExpr, having_expr: Tree,
+            internal_transformer: InternalTransformer
+    ):
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
@@ -1356,13 +1251,15 @@ class SQLTransformer(TransformerBaseClass):
         :param table:
         :return:
         """
+        if having_expr:
+            # print(type(having_expr))
+            having = internal_transformer.transform(having_expr.children[0])
+            print(having)
         aggregate_ibis_columns = []
         for aggregate_column in aggregates:
-            column_to_aggregate, aggregation = aggregates[aggregate_column]
-            column = self.apply_ibis_aggregation(
-                table.get_column(column_to_aggregate), aggregation=aggregation
-            )
-            column._name = aggregate_column  # TODO There needs to be a way to do this in ibis without using a protected name
+            column = aggregates[aggregate_column].value
+            column._name = aggregate_column
+            # TODO There needs to be a way to do this in ibis without using a protected name
             # TODO Also ibis shouldn't be naming columns with aggreations eg
             #  naming a column "mean"
             aggregate_ibis_columns.append(column)
@@ -1376,9 +1273,7 @@ class SQLTransformer(TransformerBaseClass):
                     )
             table = table.distinct()
         elif aggregates and not group_columns:
-            table = (
-                table.aggregate(aggregate_ibis_columns)
-            )
+            table = table.aggregate(aggregate_ibis_columns)
         elif aggregates and group_columns:
             table = table.group_by(group_columns).aggregate(aggregate_ibis_columns)
         return table
@@ -1402,9 +1297,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         where_value = None
         if where_expr is not None:
-            where_value_token = internal_transformer.transform(
-                where_expr
-            )
+            where_value_token = internal_transformer.transform(where_expr)
             where_value = where_value_token.value
 
         column_names = [column.name for column in columns]
@@ -1497,9 +1390,7 @@ class SQLTransformer(TransformerBaseClass):
                 if literal.alias in new_table.columns:
                     new_table = new_table.set_column(literal.alias, literal.value)
                 else:
-                    new_table = new_table.mutate(
-                        literal.value.name(literal.alias)
-                    )
+                    new_table = new_table.mutate(literal.value.name(literal.alias))
 
         conversions = query_info.conversions
         for conversion in conversions:
@@ -1509,17 +1400,12 @@ class SQLTransformer(TransformerBaseClass):
             )
 
         new_table = self.handle_aggregation(
-            query_info.aggregates, query_info.group_columns, new_table
+            query_info.aggregates,
+            query_info.group_columns,
+            new_table,
+            query_info.having_expr,
+            query_info.internal_transformer
         )
-
-        if (
-            query_info.having_expr is not None
-            and query_info.having_transformer is not None
-        ):
-            having_eval, having_plan = query_info.having_transformer.transform(
-                query_info.having_expr
-            )
-            new_table = new_table.loc[having_eval.children[0], :]
 
         if query_info.distinct:
             new_table = new_table.distinct()

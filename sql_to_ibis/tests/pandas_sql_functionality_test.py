@@ -629,67 +629,67 @@ def test_order_by():
     tm.assert_frame_equal(pandas_frame, my_frame)
 
 
-# @assert_state_not_change
-# def test_limit():
-#     """
-#     Test limit clause
-#     :return:
-#     """
-#     my_frame = query("""select * from forest_fires limit 10""")
-#     pandas_frame = FOREST_FIRES.copy().head(10)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
+@assert_state_not_change
+def test_limit():
+    """
+    Test limit clause
+    :return:
+    """
+    my_frame = query("""select * from forest_fires limit 10""").execute()
+    pandas_frame = FOREST_FIRES.copy().head(10)
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
 # # # TODO Add in parentheses support for Order of ops
-# # @assert_state_not_change
-# # def test_having_multiple_conditions():
-# #     """
-# #     Test having clause
-# #     :return:
-# #     """
-# #     my_frame = query(
-# #         "select min(temp) from forest_fires having min(temp) > 2 and "
-# #         "max(dc) < 200 or month = 'oct'"
-# #     )
-# #     pandas_frame = FOREST_FIRES.copy()
-# #     pandas_frame["_col0"] = FOREST_FIRES["temp"]
-# #     aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
-# #     pandas_frame = aggregated_df[aggregated_df["_col0"] > 2]
-# #     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_having_one_condition():
-#     """
-#     Test having clause
-#     :return:
-#     """
-#     my_frame = query("select min(temp) from forest_fires having min(temp) > 2")
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame["_col0"] = FOREST_FIRES["temp"]
-#     aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
-#     pandas_frame = aggregated_df[aggregated_df["_col0"] > 2]
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_having_with_group_by():
-#     """
-#     Test having clause
-#     :return:
-#     """
-#     my_frame = query(
-#         "select day, min(temp) from forest_fires group by day having min(temp) > 5"
-#     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame["_col0"] = FOREST_FIRES["temp"]
-#     pandas_frame = (
-#         pandas_frame[["day", "_col0"]].groupby("day").aggregate({"_col0": np.min})
-#     )
-#     pandas_frame = pandas_frame[pandas_frame["_col0"] > 5].reset_index()
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
+@assert_state_not_change
+def test_having_multiple_conditions():
+    """
+    Test having clause
+    :return:
+    """
+    my_frame = query(
+        "select min(temp) from forest_fires having min(temp) > 2 and "
+        "max(dc) < 200 or month = 'oct'"
+    )
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame["_col0"] = FOREST_FIRES["temp"]
+    aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
+    pandas_frame = aggregated_df[aggregated_df["_col0"] > 2]
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
+@assert_state_not_change
+def test_having_one_condition():
+    """
+    Test having clause
+    :return:
+    """
+    my_frame = query("select min(temp) from forest_fires having min(temp) > 2")
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame["_col0"] = FOREST_FIRES["temp"]
+    aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
+    pandas_frame = aggregated_df[aggregated_df["_col0"] > 2]
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
+@assert_state_not_change
+def test_having_with_group_by():
+    """
+    Test having clause
+    :return:
+    """
+    my_frame = query(
+        "select day, min(temp) from forest_fires group by day having min(temp) > 5"
+    )
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame["_col0"] = FOREST_FIRES["temp"]
+    pandas_frame = (
+        pandas_frame[["day", "_col0"]].groupby("day").aggregate({"_col0": np.min})
+    )
+    pandas_frame = pandas_frame[pandas_frame["_col0"] > 5].reset_index()
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
 # @assert_state_not_change
 # def test_operations_between_columns_and_numbers():
 #     """

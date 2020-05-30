@@ -158,6 +158,8 @@ class Value:
         return self.value > other
 
     def __lt__(self, other):
+        print("me", self.value)
+        print("other", other)
         if isinstance(other, Value):
             return self.value < other.value
         return self.value < other
@@ -235,9 +237,8 @@ class Bool(Literal):
 
 
 class ValueWithPlan(Value):
-    def __init__(self, value, execution_plan):
+    def __init__(self, value):
         Value.__init__(self, value)
-        self.execution_plan = execution_plan
 
     def __repr__(self):
         return Value.__repr__(self) + ")"
@@ -249,10 +250,7 @@ class ValueWithPlan(Value):
                 f"and type ValueWithPlan"
             )
 
-        return ValueWithPlan(
-            self.get_value() | other.get_value(),
-            f"{self.get_plan_representation()} | " f"{other.get_plan_representation()}",
-        )
+        return ValueWithPlan(self.get_value() | other.get_value(),)
 
     def __and__(self, other):
         if not isinstance(other, Value):
@@ -261,13 +259,7 @@ class ValueWithPlan(Value):
                 f"and type ValueWithPlan"
             )
 
-        ValueWithPlan(
-            self.get_value() & other.get_value(),
-            f"{self.get_plan_representation()} & " f"{other.get_plan_representation()}",
-        )
-
-    def get_plan_representation(self) -> str:
-        return self.execution_plan
+        ValueWithPlan(self.get_value() & other.get_value(),)
 
 
 class DerivedColumn(Value):
@@ -283,7 +275,7 @@ class DerivedColumn(Value):
         if self.alias:
             self.final_name = self.alias
         else:
-            if isinstance(self.value, (Series, Column)):
+            if isinstance(self.value, (Series, Column)) or isinstance(self, Aggregate):
                 self.final_name = f"_col{self.expression_count}"
                 self.alias = self.final_name
                 DerivedColumn.increment_expression_count()
@@ -347,9 +339,9 @@ class Aggregate(DerivedColumn):
         "sum": "sum",
     }
 
-    def __init__(self, value, function, alias="", typename=""):
+    def __init__(self, value, alias="", typename=""):
         DerivedColumn.__init__(
-            self, value, alias, typename, self._function_map[function.lower()]
+            self, value, alias, typename
         )
 
 
