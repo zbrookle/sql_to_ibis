@@ -9,6 +9,8 @@ from typing import Dict, List, Tuple, Union
 from lark import Token, Transformer, Tree, v_args
 from pandas import Series, concat, merge
 from ibis.expr.types import TableExpr
+from ibis.expr.operations import TableColumn
+from ibis.expr.api import NumericColumn
 import ibis
 
 from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
@@ -75,6 +77,8 @@ PANDAS_TYPE_TO_SQL_TYPE = {
     "bool": Bool,
     "datetime64": Date,
 }
+from sql_to_ibis.parsing.aggregation_aliases import AVG_AGGREGATIONS, \
+    MAX_AGGREGATIONS, MIN_AGGREGATIONS, NUMERIC_AGGREGATIONS, SUM_AGGREGATIONS
 
 
 def num_eval(arg):
@@ -124,7 +128,7 @@ class TransformerBaseClass(Transformer):
         self._get_execution_plan = get_execution_plan
         self._execution_plan = ""
 
-    def get_frame(self, frame_name) -> TableExpr:
+    def get_table(self, frame_name) -> TableExpr:
         """
         Returns the dataframe with the name given
         :param frame_name:
@@ -148,7 +152,7 @@ class TransformerBaseClass(Transformer):
             dataframe_name = self.column_to_dataframe_name[column.name.lower()]
             if isinstance(dataframe_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
-            dataframe = self.get_frame(dataframe_name)
+            dataframe = self.get_table(dataframe_name)
             column_true_name = self.column_name_map[dataframe_name][column.name.lower()]
             column.value = dataframe[column_true_name]
             column.table = dataframe_name
@@ -1071,10 +1075,8 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         alias_name = alias.children[0].value
-        self.dataframe_map[alias_name], subquery_plan = self.to_ibis_table(query_info)
-        subquery = Subquery(
-            name=alias_name, query_info=query_info, execution_plan=subquery_plan
-        )
+        self.dataframe_map[alias_name] = self.to_ibis_table(query_info)
+        subquery = Subquery(name=alias_name, query_info=query_info)
         self.column_name_map[alias_name] = {}
         for column in self.dataframe_map[alias_name].columns:
             self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
@@ -1099,7 +1101,7 @@ class SQLTransformer(TransformerBaseClass):
         :param column_list:
         :return:
         """
-        return [column.lower() for column in list(self.get_frame(table_name).columns)]
+        return [column.lower() for column in list(self.get_table(table_name).columns)]
 
     def determine_column_side(self, column, left_table, right_table):
         """
@@ -1328,35 +1330,37 @@ class SQLTransformer(TransformerBaseClass):
 
         return query_info
 
-    def cross_join(
-        self, df1: TableExpr, df2: TableExpr, current_plan: str, df2_name: str
-    ):
+    def cross_join(self, df1: TableExpr, df2: TableExpr):
         """
         Returns the crossjoin between two dataframes
-        :param df1: Dataframe1
-        :param df2: Dataframe2
-        :param current_plan:
-        :param df2_name:
+        :param df1: TableExpr1
+        :param df2: TableExpr2
         :return: Crossjoined dataframe
         """
-        frame = df1.assign(__=1).merge(df2.assign(__=1), on="__").drop(columns=["__"])
-        plan = (
-            f"{current_plan}.assign(__=1).merge({df2_name}.assign(__=1), "
-            f"on='__').drop(columns=['__'])"
-        )
-        return frame, plan
+        return df1.assign(__=1).merge(df2.assign(__=1), on="__").drop(columns=["__"])
 
     @staticmethod
-    def handle_aggregation(
-        aggregates, group_columns, table: TableExpr, execution_plan: str
-    ):
+    def apply_ibis_aggregation(ibis_column: TableColumn, aggregation: str) -> TableColumn:
+        if aggregation in NUMERIC_AGGREGATIONS:
+            assert isinstance(ibis_column, NumericColumn)
+            if aggregation in AVG_AGGREGATIONS:
+                return ibis_column.mean()
+            if aggregation in SUM_AGGREGATIONS:
+                return ibis_column.sum()
+        if aggregation in MAX_AGGREGATIONS:
+            return ibis_column.max()
+        if aggregation in MIN_AGGREGATIONS:
+            return ibis_column.min()
+        raise Exception(f"Aggregation {aggregation} not implemented for column of "
+                        f"type {ibis_column.type()}")
+
+    def handle_aggregation(self, aggregates, group_columns, table: TableExpr):
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
         :param aggregates:
         :param group_columns:
         :param table:
-        :param execution_plan:
         :return:
         """
         if group_columns and not aggregates:
@@ -1366,35 +1370,30 @@ class SQLTransformer(TransformerBaseClass):
                         f"For column {column} you must either group or "
                         f"provide and aggregation"
                     )
-            table.drop_duplicates(keep="first", inplace=True)
-            execution_plan += ".drop_duplicates(keep='first')"
+            table = table.distinct()
         elif aggregates and not group_columns:
+            aggregate_ibis_columns = []
+            for aggregate_column in aggregates:
+                column_to_aggregate, aggregation = aggregates[aggregate_column]
+                column = self.apply_ibis_aggregation(
+                    table.get_column(column_to_aggregate), aggregation=aggregation
+                )
+                column._name = aggregate_column  # TODO There needs to be a way to do this in ibis without using a protected name
+                # TODO Also ibis shouldn't be naming columns with aggreations eg
+                #  naming a column "mean"
+                aggregate_ibis_columns.append(column)
             table = (
-                table.assign(__=1)
-                .groupby(["__"])
-                .agg(**aggregates)
-                .reset_index(drop=True)
-            )
-            execution_plan += (
-                f".assign(__=1).groupby(['__']).agg(**"
-                f"{aggregates}).reset_index("
-                f"drop=True)"
+                table.aggregate(aggregate_ibis_columns)
             )
         elif aggregates and group_columns:
-            table = (
-                table.groupby(group_columns).aggregate(**aggregates).reset_index()
-            )
-            execution_plan += (
-                f".groupby({group_columns}).aggregate({aggregates})" f".reset_index()"
-            )
-        return table, execution_plan
+            table = table.groupby(group_columns).aggregate(**aggregates).reset_index()
+        return table
 
     def handle_columns(
         self,
         columns: list,
         aliases: dict,
         first_frame: TableExpr,
-        execution_plan: str,
         where_expr: Tree,
         internal_transformer: Transformer,
     ):
@@ -1403,13 +1402,11 @@ class SQLTransformer(TransformerBaseClass):
         :param columns:
         :param aliases:
         :param first_frame:
-        :param execution_plan: Currently evaluated dataframe execution plan
         :param where_expr: Syntax tree containing where clause
         :param internal_transformer: Transformer to transform the where clauses
         :return:
         """
         where_value = None
-        where_plan = ":"
         if where_expr is not None:
             where_value_token, where_plan = internal_transformer.transform(
                 where_expr, get_execution_plan=True
@@ -1420,7 +1417,6 @@ class SQLTransformer(TransformerBaseClass):
         if self.has_star(column_names):
             if where_value is not None:
                 new_table: TableExpr = first_frame.loc[where_value, :].copy()
-                execution_plan += f".loc[{where_plan}, :]"
             else:
                 new_table = first_frame
         else:
@@ -1445,31 +1441,23 @@ class SQLTransformer(TransformerBaseClass):
             if where_value is not None:
                 new_table = first_frame.loc[where_value, column_names]
             else:
-                new_table = first_frame.drop(set(first_frame.columns) - set(column_names))
+                new_table = first_frame.drop(
+                    set(first_frame.columns) - set(column_names)
+                )
             if aliases:
                 new_table = new_table.relabel(aliases)
         return new_table
 
-    def handle_join(self, join: Join) -> Tuple[TableExpr, str]:
+    def handle_join(self, join: Join) -> TableExpr:
         """
         Return the dataframe and execution plan resulting from a join
         :param join:
         :return:
         """
-        left_table = self.get_frame(join.left_table)
-        right_table = self.get_frame(join.right_table)
-        plan = (
-            f"{join.left_table}.merge({join.right_table}, how={join.join_type}, "
-            f"left_on={join.left_on}, right_on={join.right_on})"
-        )
-        return (
-            left_table.merge(
-                right_table,
-                how=join.join_type,
-                left_on=join.left_on,
-                right_on=join.right_on,
-            ),
-            plan,
+        left_table = self.get_table(join.left_table)
+        right_table = self.get_table(join.right_table)
+        return left_table.join(
+            right_table, predicates=(join.left_on, join.right_on), how=join.join_type,
         )
 
     def to_ibis_table(self, query_info: QueryInfo):
@@ -1480,7 +1468,7 @@ class SQLTransformer(TransformerBaseClass):
         frame_names = query_info.frame_names
         if not query_info.frame_names:
             raise Exception("No table specified")
-        first_frame = self.get_frame(frame_names[0])
+        first_frame = self.get_table(frame_names[0])
 
         if isinstance(first_frame, TableExpr) and not isinstance(
             frame_names[0], Subquery
@@ -1488,35 +1476,27 @@ class SQLTransformer(TransformerBaseClass):
             execution_plan = f"{frame_names[0]}"
         elif isinstance(first_frame, Join):
             first_frame, join_plan = self.handle_join(join=first_frame)
-        elif isinstance(frame_names[0], Subquery):
-            execution_plan = frame_names[0].execution_plan
         for frame_name in frame_names[1:]:
-            next_frame = self.get_frame(frame_name)
-            first_frame, execution_plan = self.cross_join(
-                first_frame, next_frame, execution_plan, frame_name
-            )
+            next_frame = self.get_table(frame_name)
+            first_frame = self.cross_join(first_frame, next_frame)
 
         new_table: TableExpr = self.handle_columns(
             query_info.columns,
             query_info.aliases,
             first_frame,
-            execution_plan,
             query_info.where_expr,
             query_info.internal_transformer,
         )
 
         expressions = query_info.expressions
         if expressions:
-            assign_expressions = {}
-            execution_plan += ".assign("
             for expression in expressions:
-                expression_value = expression.evaluate()
-                assign_expressions[expression.alias] = expression_value
-                execution_plan += (
-                    f"{expression.alias}={expression.get_plan_representation()}"
-                )
-            execution_plan += ")"
-            new_table = new_table.assign(**assign_expressions)
+                if expression.alias in new_table.columns:
+                    new_table = new_table.set_column(expression.alias, expression.value)
+                else:
+                    new_table = new_table.mutate(
+                        [ibis.literal(expression.value).name(expression.alias)]
+                    )
 
         literals = query_info.literals
         if literals:
@@ -1524,16 +1504,19 @@ class SQLTransformer(TransformerBaseClass):
                 if literal.alias in new_table.columns:
                     new_table = new_table.set_column(literal.alias, literal.value)
                 else:
-                    new_table = new_table.mutate([ibis.literal(literal.value).name(
-                        literal.alias)])
+                    new_table = new_table.mutate(
+                        [ibis.literal(literal.value).name(literal.alias)]
+                    )
 
         conversions = query_info.conversions
         for conversion in conversions:
-            new_table = new_table.set_column(conversion, new_table.get_column(
-                conversion).cast(conversions[conversion]))
+            new_table = new_table.set_column(
+                conversion,
+                new_table.get_column(conversion).cast(conversions[conversion]),
+            )
 
-        new_table, execution_plan = self.handle_aggregation(
-            query_info.aggregates, query_info.group_columns, new_table, execution_plan,
+        new_table = self.handle_aggregation(
+            query_info.aggregates, query_info.group_columns, new_table
         )
 
         if (
@@ -1544,21 +1527,18 @@ class SQLTransformer(TransformerBaseClass):
                 query_info.having_expr
             )
             new_table = new_table.loc[having_eval.children[0], :]
-            execution_plan += f".loc[{having_plan}, :]"
 
         if query_info.distinct:
-            new_table.drop_duplicates(keep="first", inplace=True)
+            new_table = new_table.distinct()
 
         order_by = query_info.order_by
         if order_by:
             by_pairs = [pair[0] for pair in order_by]
             ascending_info = [pair[1] for pair in order_by]
             new_table = new_table.sort_values(by=by_pairs, ascending=ascending_info)
-            execution_plan += f".sort_values(by={by_pairs}, ascending={ascending_info})"
 
         if query_info.limit is not None:
             new_table = new_table.head(query_info.limit)
-            execution_plan += f".head({query_info.limit})"
 
         return new_table
 

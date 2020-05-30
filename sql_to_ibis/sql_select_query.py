@@ -3,6 +3,7 @@ Convert sql_to_ibis statement to run on pandas dataframes
 """
 import os
 import ibis
+from ibis.expr.types import TableExpr
 from pathlib import Path
 import re
 from typing import Any, Dict, Type
@@ -74,7 +75,7 @@ def remove_temp_table(table_name: str):
     table_info.remove_temp_table(table_name)
 
 
-def query(sql: str, show_execution_plan: bool = False):
+def query(sql: str, show_execution_plan: bool = False) -> TableExpr:
     """
     Query a registered :class: ~`pandas.DataFrame` using an SQL interface
 
@@ -169,8 +170,9 @@ class TableInfo:
                 [original_table, table]
             )
 
-    def register_temporary_table(self, table, table_name: str, framework: str =
-    "pandas"):
+    def register_temporary_table(
+        self, table, table_name: str, framework: str = "pandas"
+    ):
         ibis_table = None
         if framework == "pandas":
             ibis_table = ibis.pandas.from_dataframe(table, name=table_name)

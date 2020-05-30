@@ -82,9 +82,6 @@ CAST (<expression> AS <data_type>)
 * CATEGORY
 * OBJECT
 
-*Data types in dataframe SQL support many different name for certain datatypes becuase
-popular SQL data types are not implemented with common names in pandas and other
-dataframe frameworks
-<br>
-**To make this less confusing all data types that are of the same size on the
-backend are grouped together in this list
+### Issues
+* Ibis needs a select columns operator not just a drop one
+* Ibis needs a way of choosing column order
