@@ -1370,11 +1370,12 @@ class SQLTransformer(TransformerBaseClass):
             query_info.internal_transformer,
         )
 
-        # names_to_keep =
+        columns_to_keep = []  # This is so we can drop the columns that weren't
+        # selected if no columns were chosen from the original table
         expressions = query_info.expressions
         if expressions:
-            print(expressions)
             for expression in expressions:
+                columns_to_keep.append(expression.alias)
                 if expression.alias in new_table.columns:
                     new_table = new_table.set_column(expression.alias, expression.value)
                 else:
@@ -1385,10 +1386,14 @@ class SQLTransformer(TransformerBaseClass):
         literals = query_info.literals
         if literals:
             for literal in literals:
+                columns_to_keep.append(literal.alias)
                 if literal.alias in new_table.columns:
                     new_table = new_table.set_column(literal.alias, literal.value)
                 else:
                     new_table = new_table.mutate(literal.value.name(literal.alias))
+
+        if not query_info.columns:
+            new_table = new_table[columns_to_keep]
 
         conversions = query_info.conversions
         for conversion in conversions:
