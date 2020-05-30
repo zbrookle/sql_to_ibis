@@ -6,6 +6,8 @@ from typing import Any, List, Optional, Tuple
 
 from lark import Transformer
 from pandas import Series
+import ibis
+from ibis.expr.api import ValueExpr
 
 
 # pylint: disable=too-few-public-methods
@@ -183,21 +185,17 @@ class Literal(Value):
         if not alias:
             self.alias = f"_literal{self.literal_count}"
             self.literal_count += 1
+        self.to_ibis_literal()
+
+    def to_ibis_literal(self):
+        if not isinstance(self.value, ValueExpr):
+            self.value = ibis.literal(self.value)
 
     def __repr__(self):
         return Value.__repr__(self) + ")"
 
     def get_name(self):
         return str(self.value)
-
-    def get_plan_representation(self) -> str:
-        if isinstance(self.value, str):
-            return f"'{self.value}'"
-        elif isinstance(self.value, date) and not isinstance(self.value, datetime):
-            return self.value.strftime("date(%Y, %-m, %-d)")
-        elif isinstance(self.value, datetime):
-            return self.value.strftime("datetime(%Y, %-m, %-d, %-H, %-M, %-S)")
-        return f"{self.value}"
 
 
 class Number(Literal):

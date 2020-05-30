@@ -478,7 +478,6 @@ def test_avg():
     :return:
     """
     my_frame = query("select avg(temp) from forest_fires").execute()
-    print(my_frame)
     pandas_frame = (
         FOREST_FIRES.agg({"temp": np.mean})
         .to_frame("_col0")
@@ -577,59 +576,59 @@ def test_agg_w_groupby():
     tm.assert_frame_equal(pandas_frame, my_frame)
 
 
-# @assert_state_not_change
-# def test_where_clause():
-#     """
-#     Test where clause
-#     :return:
-#     """
-#     my_frame = query("""select * from forest_fires where month = 'mar'""")
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[pandas_frame.month == "mar"].reset_index(drop=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_all_boolean_ops_clause():
-#     """
-#     Test where clause
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from forest_fires where month = 'mar' and temp > 8 and rain >= 0
-#         and area != 0 and dc < 100 and ffmc <= 90.1
-#         """
-#     )
-#
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[
-#         (pandas_frame.month == "mar")
-#         & (pandas_frame.temp > 8.0)
-#         & (pandas_frame.rain >= 0)
-#         & (pandas_frame.area != 0)
-#         & (pandas_frame.DC < 100)
-#         & (pandas_frame.FFMC <= 90.1)
-#     ].reset_index(drop=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_order_by():
-#     """
-#     Test order by clause
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from forest_fires order by temp desc, wind asc, area"""
-#     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame.sort_values(
-#         by=["temp", "wind", "area"], ascending=[0, 1, 1], inplace=True
-#     )
-#     pandas_frame.reset_index(drop=True, inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
+@assert_state_not_change
+def test_where_clause():
+    """
+    Test where clause
+    :return:
+    """
+    my_frame = query("""select * from forest_fires where month = 'mar'""").execute()
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame = pandas_frame[pandas_frame.month == "mar"].reset_index(drop=True)
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
+@assert_state_not_change
+def test_all_boolean_ops_clause():
+    """
+    Test where clause
+    :return:
+    """
+    my_frame = query(
+        """select * from forest_fires where month = 'mar' and temp > 8 and rain >= 0
+        and area != 0 and dc < 100 and ffmc <= 90.1
+        """
+    ).execute()
+
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame = pandas_frame[
+        (pandas_frame.month == "mar")
+        & (pandas_frame.temp > 8.0)
+        & (pandas_frame.rain >= 0)
+        & (pandas_frame.area != 0)
+        & (pandas_frame.DC < 100)
+        & (pandas_frame.FFMC <= 90.1)
+    ].reset_index(drop=True)
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
+@assert_state_not_change
+def test_order_by():
+    """
+    Test order by clause
+    :return:
+    """
+    my_frame = query(
+        """select * from forest_fires order by temp desc, wind asc, area"""
+    ).execute()
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame.sort_values(
+        by=["temp", "wind", "area"], ascending=[0, 1, 1], inplace=True
+    )
+    pandas_frame.reset_index(drop=True, inplace=True)
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
 # @assert_state_not_change
 # def test_limit():
 #     """

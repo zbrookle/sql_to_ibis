@@ -132,7 +132,6 @@ class SqlToDataFrame:
                 table_info.ibis_table_map.copy(),
                 table_info.column_name_map.copy(),
                 table_info.column_to_dataframe_name.copy(),
-                self._show_execution_plan,
             ).transform(tree)
         except UnexpectedToken as err:
             message = (

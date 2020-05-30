@@ -69,7 +69,7 @@ TYPE_TO_PANDAS_TYPE = {
 for TYPE in PANDAS_TYPE_PYTHON_TYPE_FUNCTION:
     TYPE_TO_PANDAS_TYPE[TYPE] = TYPE
 
-PANDAS_TYPE_TO_SQL_TYPE = {
+TYPE_TO_SQL_TYPE = {
     "object": String,
     "string": String,
     "int64": Number,
@@ -77,6 +77,9 @@ PANDAS_TYPE_TO_SQL_TYPE = {
     "bool": Bool,
     "datetime64": Date,
 }
+
+GIVEN_TYPE_TO_IBIS = {"object": "varchar"}
+
 from sql_to_ibis.parsing.aggregation_aliases import AVG_AGGREGATIONS, \
     MAX_AGGREGATIONS, MIN_AGGREGATIONS, NUMERIC_AGGREGATIONS, SUM_AGGREGATIONS
 
@@ -104,6 +107,15 @@ def get_wrapper_value(value):
         return value.get_value()
     return value
 
+def to_ibis_type(given_type: str):
+    """
+    Returns the corresponding ibis dtype
+    :return:
+    """
+    if given_type in GIVEN_TYPE_TO_IBIS:
+        return GIVEN_TYPE_TO_IBIS[given_type]
+    return given_type
+
 
 class TransformerBaseClass(Transformer):
     """
@@ -117,7 +129,6 @@ class TransformerBaseClass(Transformer):
         column_name_map=None,
         column_to_dataframe_name=None,
         _temp_dataframes_dict=None,
-        get_execution_plan=False,
     ):
         Transformer.__init__(self, visit_tokens=False)
         self.dataframe_name_map = dataframe_name_map
@@ -125,7 +136,6 @@ class TransformerBaseClass(Transformer):
         self.column_name_map = column_name_map
         self.column_to_dataframe_name = column_to_dataframe_name
         self._temp_dataframes_dict = _temp_dataframes_dict
-        self._get_execution_plan = get_execution_plan
         self._execution_plan = ""
 
     def get_table(self, frame_name) -> TableExpr:
@@ -187,7 +197,6 @@ def boolean_decorator(boolean_operator: str):
     return boolean_function
 
 
-# pylint: disable=no-self-use, too-many-public-methods, too-many-instance-attributes
 class InternalTransformer(TransformerBaseClass):
     """
     Evaluates subtrees with knowledge of provided tables that are in the proper scope
@@ -224,22 +233,10 @@ class InternalTransformer(TransformerBaseClass):
         self.rank_map = {}
         self.last_key = None
 
-    def transform(self, tree, get_execution_plan=False):
-        self._execution_plan = ""
+    def transform(self, tree):
         new_tree = TransformerBaseClass.transform(self, tree)
         if isinstance(new_tree, Token) and isinstance(new_tree.value, ValueWithPlan):
-            self._execution_plan = new_tree.value.get_plan_representation()
             new_tree.value = new_tree.value.value
-        elif (
-            isinstance(new_tree, Tree)
-            and isinstance(new_tree.children, list)
-            and isinstance(new_tree.children[0], ValueWithPlan)
-        ):
-            #  Check if new tree has a plan so that this can be used as the execution
-            #  plan to be returned in the transformation
-            self._execution_plan = new_tree.children[0].get_plan_representation()
-        if get_execution_plan:
-            return new_tree, self._execution_plan
         return new_tree
 
     def mul(self, args: Tuple[int, int]):
@@ -870,18 +867,16 @@ class InternalTransformer(TransformerBaseClass):
 
     def literal_cast(self, value_and_type: list):
         """
-        Cast variable as the given pandas_type for a literal
+        Cast variable as the given given_type for a literal
         :param value_and_type: Value and pandas dtype to be cast as
         :return:
         """
-        value_wrapper = value_and_type[0]
-        pandas_type = value_and_type[1]
-        if pandas_type == "datetime64":
+        value_wrapper, given_type = value_and_type
+        if given_type == "datetime64":
             date_value = datetime.strptime(value_wrapper.value, "%Y-%m-%d")
             return Date(date_value)
-        conversion_func = PANDAS_TYPE_PYTHON_TYPE_FUNCTION[pandas_type]
-        new_type = PANDAS_TYPE_TO_SQL_TYPE[pandas_type]
-        new_value = new_type(conversion_func(value_wrapper.value))
+        new_type = TYPE_TO_SQL_TYPE[given_type]
+        new_value = new_type(value_wrapper.value.cast(to_ibis_type(given_type)))
         return new_value
 
 
@@ -958,7 +953,7 @@ class HavingTransformer(TransformerBaseClass):
             self.column_to_dataframe_name,
         )
         having_expr = Tree("having_expr", having_expr)
-        return internal_transformer.transform(having_expr, get_execution_plan=True)
+        return internal_transformer.transform(having_expr)
 
 
 # pylint: disable=no-self-use, super-init-not-called
@@ -974,7 +969,6 @@ class SQLTransformer(TransformerBaseClass):
         dataframe_map=None,
         column_name_map=None,
         column_to_dataframe_name=None,
-        get_execution_plan=False,
     ):
         if dataframe_name_map is None:
             dataframe_name_map = {}
@@ -991,7 +985,6 @@ class SQLTransformer(TransformerBaseClass):
             column_name_map,
             column_to_dataframe_name,
             _temp_dataframes_dict={},
-            get_execution_plan=get_execution_plan,
         )
 
     def add_column_to_column_to_dataframe_name_map(self, column, table):
@@ -1396,7 +1389,7 @@ class SQLTransformer(TransformerBaseClass):
         aliases: dict,
         first_frame: TableExpr,
         where_expr: Tree,
-        internal_transformer: Transformer,
+        internal_transformer: InternalTransformer,
     ):
         """
         Returns frame with appropriately selected and named columns
@@ -1409,17 +1402,16 @@ class SQLTransformer(TransformerBaseClass):
         """
         where_value = None
         if where_expr is not None:
-            where_value_token, where_plan = internal_transformer.transform(
-                where_expr, get_execution_plan=True
+            where_value_token = internal_transformer.transform(
+                where_expr
             )
             where_value = where_value_token.value
 
         column_names = [column.name for column in columns]
         if self.has_star(column_names):
+            new_table = first_frame
             if where_value is not None:
-                new_table: TableExpr = first_frame.loc[where_value, :].copy()
-            else:
-                new_table = first_frame
+                new_table: TableExpr = first_frame.filter(where_value)
         else:
             column_names = []
             final_names = []
@@ -1496,7 +1488,7 @@ class SQLTransformer(TransformerBaseClass):
                     new_table = new_table.set_column(expression.alias, expression.value)
                 else:
                     new_table = new_table.mutate(
-                        [ibis.literal(expression.value).name(expression.alias)]
+                        expression.value.name(expression.alias)
                     )
 
         literals = query_info.literals
@@ -1506,7 +1498,7 @@ class SQLTransformer(TransformerBaseClass):
                     new_table = new_table.set_column(literal.alias, literal.value)
                 else:
                     new_table = new_table.mutate(
-                        [ibis.literal(literal.value).name(literal.alias)]
+                        literal.value.name(literal.alias)
                     )
 
         conversions = query_info.conversions
@@ -1534,9 +1526,7 @@ class SQLTransformer(TransformerBaseClass):
 
         order_by = query_info.order_by
         if order_by:
-            by_pairs = [pair[0] for pair in order_by]
-            ascending_info = [pair[1] for pair in order_by]
-            new_table = new_table.sort_values(by=by_pairs, ascending=ascending_info)
+            new_table = new_table.sort_by(order_by)
 
         if query_info.limit is not None:
             new_table = new_table.head(query_info.limit)
