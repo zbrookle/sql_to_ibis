@@ -1363,6 +1363,17 @@ class SQLTransformer(TransformerBaseClass):
         :param table:
         :return:
         """
+        aggregate_ibis_columns = []
+        for aggregate_column in aggregates:
+            column_to_aggregate, aggregation = aggregates[aggregate_column]
+            column = self.apply_ibis_aggregation(
+                table.get_column(column_to_aggregate), aggregation=aggregation
+            )
+            column._name = aggregate_column  # TODO There needs to be a way to do this in ibis without using a protected name
+            # TODO Also ibis shouldn't be naming columns with aggreations eg
+            #  naming a column "mean"
+            aggregate_ibis_columns.append(column)
+
         if group_columns and not aggregates:
             for column in table.columns:
                 if column not in group_columns:
@@ -1372,21 +1383,11 @@ class SQLTransformer(TransformerBaseClass):
                     )
             table = table.distinct()
         elif aggregates and not group_columns:
-            aggregate_ibis_columns = []
-            for aggregate_column in aggregates:
-                column_to_aggregate, aggregation = aggregates[aggregate_column]
-                column = self.apply_ibis_aggregation(
-                    table.get_column(column_to_aggregate), aggregation=aggregation
-                )
-                column._name = aggregate_column  # TODO There needs to be a way to do this in ibis without using a protected name
-                # TODO Also ibis shouldn't be naming columns with aggreations eg
-                #  naming a column "mean"
-                aggregate_ibis_columns.append(column)
             table = (
                 table.aggregate(aggregate_ibis_columns)
             )
         elif aggregates and group_columns:
-            table = table.groupby(group_columns).aggregate(**aggregates).reset_index()
+            table = table.group_by(group_columns).aggregate(aggregate_ibis_columns)
         return table
 
     def handle_columns(

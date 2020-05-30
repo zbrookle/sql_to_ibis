@@ -555,28 +555,28 @@ def test_multiple_aggs():
     pandas_frame.rename({"wind": "_col3"}, inplace=True)
     pandas_frame = pandas_frame.to_frame().transpose()
     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_agg_w_groupby():
-#     """
-#     Test using aggregates and group by together
-#     :return:
-#     """
-#     my_frame = query(
-#         "select day, month, min(temp), max(temp) from forest_fires group by day, month"
-#     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame["_col0"] = pandas_frame.temp
-#     pandas_frame["_col1"] = pandas_frame.temp
-#     pandas_frame = (
-#         pandas_frame.groupby(["day", "month"])
-#         .aggregate({"_col0": np.min, "_col1": np.max})
-#         .reset_index()
-#     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
+
+
+@assert_state_not_change
+def test_agg_w_groupby():
+    """
+    Test using aggregates and group by together
+    :return:
+    """
+    my_frame = query(
+        "select day, month, min(temp), max(temp) from forest_fires group by day, month"
+    ).execute()
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame["_col0"] = pandas_frame.temp
+    pandas_frame["_col1"] = pandas_frame.temp
+    pandas_frame = (
+        pandas_frame.groupby(["day", "month"])
+        .aggregate({"_col0": np.min, "_col1": np.max})
+        .reset_index()
+    )
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
 # @assert_state_not_change
 # def test_where_clause():
 #     """
