@@ -1251,10 +1251,9 @@ class SQLTransformer(TransformerBaseClass):
         :param table:
         :return:
         """
+        having = None
         if having_expr:
-            # print(type(having_expr))
-            having = internal_transformer.transform(having_expr.children[0])
-            print(having)
+            having = internal_transformer.transform(having_expr.children[0]).value
         aggregate_ibis_columns = []
         for aggregate_column in aggregates:
             column = aggregates[aggregate_column].value
@@ -1275,7 +1274,10 @@ class SQLTransformer(TransformerBaseClass):
         elif aggregates and not group_columns:
             table = table.aggregate(aggregate_ibis_columns)
         elif aggregates and group_columns:
-            table = table.group_by(group_columns).aggregate(aggregate_ibis_columns)
+            table = table.group_by(group_columns)
+            if having is not None:
+                table = table.having(having)
+            table = table.aggregate(aggregate_ibis_columns)
         return table
 
     def handle_columns(
@@ -1327,9 +1329,7 @@ class SQLTransformer(TransformerBaseClass):
             if where_value is not None:
                 new_table = first_frame.loc[where_value, column_names]
             else:
-                new_table = first_frame.drop(
-                    set(first_frame.columns) - set(column_names)
-                )
+                new_table = first_frame[column_names]
             if aliases:
                 new_table = new_table.relabel(aliases)
         return new_table
@@ -1356,11 +1356,7 @@ class SQLTransformer(TransformerBaseClass):
             raise Exception("No table specified")
         first_frame = self.get_table(frame_names[0])
 
-        if isinstance(first_frame, TableExpr) and not isinstance(
-            frame_names[0], Subquery
-        ):
-            execution_plan = f"{frame_names[0]}"
-        elif isinstance(first_frame, Join):
+        if isinstance(first_frame, Join):
             first_frame, join_plan = self.handle_join(join=first_frame)
         for frame_name in frame_names[1:]:
             next_frame = self.get_table(frame_name)
@@ -1374,8 +1370,10 @@ class SQLTransformer(TransformerBaseClass):
             query_info.internal_transformer,
         )
 
+        # names_to_keep =
         expressions = query_info.expressions
         if expressions:
+            print(expressions)
             for expression in expressions:
                 if expression.alias in new_table.columns:
                     new_table = new_table.set_column(expression.alias, expression.value)

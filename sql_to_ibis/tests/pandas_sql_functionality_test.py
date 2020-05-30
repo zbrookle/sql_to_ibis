@@ -254,7 +254,7 @@ def test_distinct():
     :return:
     """
     my_frame = query("select distinct area, rain from forest_fires").execute()
-    pandas_frame = FOREST_FIRES[["rain", "area"]].copy()
+    pandas_frame = FOREST_FIRES[["area", "rain"]].copy()
     pandas_frame.drop_duplicates(keep="first", inplace=True)
     pandas_frame.reset_index(inplace=True)
     pandas_frame.drop(columns="index", inplace=True)
@@ -277,7 +277,7 @@ def test_subquery():
     my_frame = query(
         "select * from (select area, rain from forest_fires) " "rain_area"
     ).execute()
-    pandas_frame = FOREST_FIRES[["rain", "area"]].copy()
+    pandas_frame = FOREST_FIRES[["area", "rain"]].copy()
     tm.assert_frame_equal(pandas_frame, my_frame)
 
 
@@ -650,7 +650,7 @@ def test_having_multiple_conditions():
     my_frame = query(
         "select min(temp) from forest_fires having min(temp) > 2 and "
         "max(dc) < 200 or month = 'oct'"
-    )
+    ).execute()
     pandas_frame = FOREST_FIRES.copy()
     pandas_frame["_col0"] = FOREST_FIRES["temp"]
     aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
@@ -680,7 +680,7 @@ def test_having_with_group_by():
     """
     my_frame = query(
         "select day, min(temp) from forest_fires group by day having min(temp) > 5"
-    )
+    ).execute()
     pandas_frame = FOREST_FIRES.copy()
     pandas_frame["_col0"] = FOREST_FIRES["temp"]
     pandas_frame = (
@@ -690,23 +690,24 @@ def test_having_with_group_by():
     tm.assert_frame_equal(pandas_frame, my_frame)
 
 
-# @assert_state_not_change
-# def test_operations_between_columns_and_numbers():
-#     """
-#     Tests operations between columns
-#     :return:
-#     """
-#     my_frame = query("""select temp * wind + rain / dmc + 37 from forest_fires""")
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame["_col0"] = (
-#         pandas_frame["temp"] * pandas_frame["wind"]
-#         + pandas_frame["rain"] / pandas_frame["DMC"]
-#         + 37
-#     )
-#     pandas_frame = pandas_frame["_col0"].to_frame()
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
-#
+@assert_state_not_change
+def test_operations_between_columns_and_numbers():
+    """
+    Tests operations between columns
+    :return:
+    """
+    my_frame = query("""select temp * wind + rain / dmc + 37 from forest_fires""").execute()
+    print(my_frame)
+    pandas_frame = FOREST_FIRES.copy()
+    pandas_frame["_col0"] = (
+        pandas_frame["temp"] * pandas_frame["wind"]
+        + pandas_frame["rain"] / pandas_frame["DMC"]
+        + 37
+    )
+    pandas_frame = pandas_frame["_col0"].to_frame()
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
+
 # @assert_state_not_change
 # def test_select_star_from_multiple_tables():
 #     """

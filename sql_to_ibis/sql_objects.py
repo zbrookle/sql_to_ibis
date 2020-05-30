@@ -158,8 +158,6 @@ class Value:
         return self.value > other
 
     def __lt__(self, other):
-        print("me", self.value)
-        print("other", other)
         if isinstance(other, Value):
             return self.value < other.value
         return self.value < other
@@ -275,7 +273,8 @@ class DerivedColumn(Value):
         if self.alias:
             self.final_name = self.alias
         else:
-            if isinstance(self.value, (Series, Column)) or isinstance(self, Aggregate):
+            if isinstance(self.value, (Series, Column)) or isinstance(self,
+                                                                      (Aggregate, Expression)):
                 self.final_name = f"_col{self.expression_count}"
                 self.alias = self.final_name
                 DerivedColumn.increment_expression_count()

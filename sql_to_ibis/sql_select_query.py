@@ -119,7 +119,7 @@ class SqlToDataFrame:
         self._show_execution_plan = show_exececution_plan
 
         self.ast = self.parse_sql()
-        self.data_frame: DataFrame = self.ast
+        self.data_frame = self.ast
 
     def parse_sql(self):
         try:
