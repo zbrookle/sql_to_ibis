@@ -1324,24 +1324,24 @@
 # # TODO Add in parentheses for order of operations
 #
 #
-# @assert_state_not_change
-# def test_case_statement_with_same_conditions():
-#     """
-#     Test using case statements
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select case when wind > 5 then month when wind > 5 then 'mid' else day end
-#         from forest_fires
-#         """
-#     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#     pandas_frame.loc[pandas_frame.wind > 5, "_col0"] = FOREST_FIRES["month"]
-#     pandas_frame.loc[~(pandas_frame.wind > 5), "_col0"] = FOREST_FIRES["day"]
-#     pandas_frame.drop(columns=["wind"], inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
-#
+@assert_state_not_change
+def test_case_statement_with_same_conditions():
+    """
+    Test using case statements
+    :return:
+    """
+    my_frame = query(
+        """
+        select case when wind > 5 then month when wind > 5 then 'mid' else day end
+        from forest_fires
+        """
+    )
+    pandas_frame = FOREST_FIRES.copy()[["wind"]]
+    pandas_frame.loc[pandas_frame.wind > 5, "_col0"] = FOREST_FIRES["month"]
+    pandas_frame.loc[~(pandas_frame.wind > 5), "_col0"] = FOREST_FIRES["day"]
+    pandas_frame.drop(columns=["wind"], inplace=True)
+    tm.assert_frame_equal(pandas_frame, my_frame)
+
 #
 # @assert_state_not_change
 # def test_multiple_aliases_same_column():

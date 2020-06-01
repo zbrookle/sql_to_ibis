@@ -82,6 +82,8 @@ TYPENAME:  "object"i
          | "bool"i
          | "datetime64"i
          | "timestamp"i
+         | "time"i
+         | "date"i
          | "category"i
          | "string"i
 AGGREGATION.8: "sum"i | "avg"i | "min"i | "max"i

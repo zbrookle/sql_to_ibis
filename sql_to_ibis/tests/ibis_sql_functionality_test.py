@@ -1082,104 +1082,126 @@ def test_dense_rank_over_partition_by():
         .name("rank")
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_set_string_value_as_column_value():
-#     """
-#     Select a string like 'Yes' as a column value
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, 'yes' as wind_yes from forest_fires"""
-#     )
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table["wind_yes"] = "yes"
-#     ibis_table = ibis_table[["wind", "wind_yes"]]
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_date_cast():
-#     """
-#     Select casting a string as a date
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, cast('2019-01-01' as datetime64) as my_date from forest_fires"""
-#     )
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table["my_date"] = datetime.strptime("2019-01-01", "%Y-%m-%d")
-#     ibis_table = ibis_table[["wind", "my_date"]]
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_timestamps():
-#     """
-#     Select now() as date
-#     :return:
-#     """
-#     with freeze_time(datetime.now()):
-#         my_frame = query(
-#             """
-#         select wind, now(), today(), timestamp('2019-01-31', '23:20:32')
-#         from forest_fires"""
-#         )
-#         ibis_table = FOREST_FIRES.copy()[["wind"]]
-#         ibis_table["now()"] = datetime.now()
-#         ibis_table["today()"] = date.today()
-#         ibis_table["_literal0"] = datetime(2019, 1, 31, 23, 20, 32)
-#         assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+
+
+@assert_state_not_change
+def test_set_string_value_as_column_value():
+    """
+    Select a string like 'Yes' as a column value
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, 'yes' as wind_yes from forest_fires"""
+    )
+    ibis_table = FOREST_FIRES[["wind"]].mutate(ibis.literal("yes").name("wind_yes"))
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_datetime_cast():
+    """
+    Select casting a string as a date
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, cast('2019-01-01' as datetime64) as my_date from forest_fires"""
+    )
+    ibis_table = FOREST_FIRES[["wind"]].mutate(
+        ibis.literal("2019-01-01").cast("timestamp").name("my_date")
+    )
+    print(ibis_table)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_date_cast():
+    """
+    Select casting a string as a date
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, cast('2019-01-01' as date) as my_date from forest_fires"""
+    )
+    ibis_table = FOREST_FIRES[["wind"]].mutate(
+        ibis.literal("2019-01-01").cast("date").name("my_date")
+    )
+    print(ibis_table)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_timestamps():
+    """
+    Select now() as date
+    :return:
+    """
+    with freeze_time(datetime.now()):
+        my_frame = query(
+            """
+        select wind, now(), today(), timestamp('2019-01-31', '23:20:32')
+        from forest_fires"""
+        )
+        ibis_table = FOREST_FIRES.copy()[["wind"]]
+        ibis_table["now()"] = datetime.now()
+        ibis_table["today()"] = date.today()
+        ibis_table["_literal0"] = datetime(2019, 1, 31, 23, 20, 32)
+        assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 # # TODO Add in more having and boolean tests
 # # TODO Add in parentheses for order of operations
-#
-#
-# @assert_state_not_change
-# def test_case_statement_with_same_conditions():
-#     """
-#     Test using case statements
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select case when wind > 5 then month when wind > 5 then 'mid' else day end
-#         from forest_fires
-#         """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind"]]
-#     ibis_table.loc[ibis_table.wind > 5, "_col0"] = FOREST_FIRES["month"]
-#     ibis_table.loc[~(ibis_table.wind > 5), "_col0"] = FOREST_FIRES["day"]
-#     ibis_table.drop(columns=["wind"], inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_multiple_aliases_same_column():
-#     """
-#     Test multiple aliases on the same column
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select wind as my_wind, wind as also_the_wind, wind as yes_wind
-#         from
-#         forest_fires
-#         """
-#     )
-#
-#     ibis_table = FOREST_FIRES[["wind"]].copy()
-#     ibis_table.loc[:, "my_wind"] = FOREST_FIRES["wind"].copy()
-#     ibis_table.loc[:, "also_the_wind"] = FOREST_FIRES["wind"]
-#     ibis_table.loc[:, "yes_wind"] = FOREST_FIRES["wind"]
-#     ibis_table = ibis_table.drop(columns=["wind"])
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+
+
+@assert_state_not_change
+def test_case_statement_with_same_conditions():
+    """
+    Test using case statements
+    :return:
+    """
+    my_frame = query(
+        """
+        select case when wind > 5 then month when wind > 5 then 'mid' else day end
+        from forest_fires
+        """
+    )
+    ibis_table = FOREST_FIRES.mutate(
+        ibis.case()
+        .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
+        .when(FOREST_FIRES.wind > 5, 'mid')
+        .else_(FOREST_FIRES.day)
+        .end().name("_col0")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_multiple_aliases_same_column():
+    """
+    Test multiple aliases on the same column
+    :return:
+    """
+    # my_frame = query(
+    #     """
+    #     select wind as my_wind, wind as also_the_wind, wind as yes_wind
+    #     from
+    #     forest_fires
+    #     """
+    # )
+    wind_column = FOREST_FIRES.get_column("wind")
+    ibis_table = FOREST_FIRES.mutate(
+        [
+            wind_column.name("my_wind"),
+            wind_column.name("also_the_wind"),
+            wind_column.name("yes_wind"),
+        ]
+    )
+    print(ibis_table)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 # @assert_state_not_change
 # def test_sql_data_types():
 #     """
@@ -1233,62 +1255,62 @@ def test_dense_rank_over_partition_by():
 #     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
-# def test_math_order_of_operations_no_parens():
-#     """
-#     Test math parentheses
-#     :return:
-#     """
-#
-#     my_frame = query("select 20 * avocado_id + 3 / 20 as my_math from avocado").execute()
-#
-#     ibis_table = AVOCADO.copy()[["avocado_id"]]
-#     ibis_table["my_math"] = 20 * ibis_table["avocado_id"] + 3 / 20
-#
-#     ibis_table = ibis_table.drop(columns=["avocado_id"])
-#
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# def test_math_order_of_operations_with_parens():
-#     """
-#     Test math parentheses
-#     :return:
-#     """
-#
-#     my_frame = query(
-#         "select 20 * (avocado_id + 3) / (20 + avocado_id) as my_math from avocado"
-#     ).execute()
-#
-#     ibis_table = AVOCADO.copy()[["avocado_id"]]
-#     ibis_table["my_math"] = (
-#         20 * (ibis_table["avocado_id"] + 3) / (20 + ibis_table["avocado_id"])
-#     )
-#
-#     ibis_table = ibis_table.drop(columns=["avocado_id"])
-#
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# def test_boolean_order_of_operations_with_parens():
-#     """
-#     Test boolean order of operations with parentheses
-#     :return:
-#     """
-#     my_frame = query(
-#         "select * from forest_fires "
-#         "where (month = 'oct' and day = 'fri') or "
-#         "(month = 'nov' and day = 'tue')"
-#     ).execute()
-#
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table = ibis_table[
-#         ((ibis_table["month"] == "oct") & (ibis_table["day"] == "fri"))
-#         | ((ibis_table["month"] == "nov") & (ibis_table["day"] == "tue"))
-#     ].reset_index(drop=True)
-#
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
+def test_math_order_of_operations_no_parens():
+    """
+    Test math parentheses
+    :return:
+    """
 
-#
+    my_frame = query("select 20 * avocado_id + 3 / 20 as my_math from avocado").execute()
+
+    ibis_table = AVOCADO.copy()[["avocado_id"]]
+    ibis_table["my_math"] = 20 * ibis_table["avocado_id"] + 3 / 20
+
+    ibis_table = ibis_table.drop(columns=["avocado_id"])
+
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+def test_math_order_of_operations_with_parens():
+    """
+    Test math parentheses
+    :return:
+    """
+
+    my_frame = query(
+        "select 20 * (avocado_id + 3) / (20 + avocado_id) as my_math from avocado"
+    ).execute()
+
+    ibis_table = AVOCADO.copy()[["avocado_id"]]
+    ibis_table["my_math"] = (
+        20 * (ibis_table["avocado_id"] + 3) / (20 + ibis_table["avocado_id"])
+    )
+
+    ibis_table = ibis_table.drop(columns=["avocado_id"])
+
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+def test_boolean_order_of_operations_with_parens():
+    """
+    Test boolean order of operations with parentheses
+    :return:
+    """
+    my_frame = query(
+        "select * from forest_fires "
+        "where (month = 'oct' and day = 'fri') or "
+        "(month = 'nov' and day = 'tue')"
+    ).execute()
+
+    ibis_table = FOREST_FIRES.copy()
+    ibis_table = ibis_table[
+        ((ibis_table["month"] == "oct") & (ibis_table["day"] == "fri"))
+        | ((ibis_table["month"] == "nov") & (ibis_table["day"] == "tue"))
+    ].reset_index(drop=True)
+
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 # if __name__ == "__main__":
 #     register_env_tables()
 #

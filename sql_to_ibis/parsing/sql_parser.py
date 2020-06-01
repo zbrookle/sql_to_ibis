@@ -76,9 +76,14 @@ TYPE_TO_SQL_TYPE = {
     "float64": Number,
     "bool": Bool,
     "datetime64": Date,
+    "date": Date,
 }
 
-GIVEN_TYPE_TO_IBIS = {"object": "varchar"}
+GIVEN_TYPE_TO_IBIS = {
+    "object": "varchar",
+    "datetime64": "timestamp",
+    "datetime": "timestamp",
+}
 
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
@@ -749,9 +754,9 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         value_wrapper, given_type = value_and_type
-        if given_type == "datetime64":
-            date_value = datetime.strptime(value_wrapper.value, "%Y-%m-%d")
-            return Date(date_value)
+        # if given_type == "datetime64":
+        #     date_value = datetime.strptime(value_wrapper.value, "%Y-%m-%d")
+        #     return Date(date_value)
         new_type = TYPE_TO_SQL_TYPE[given_type]
         new_value = new_type(value_wrapper.value.cast(to_ibis_type(given_type)))
         return new_value
