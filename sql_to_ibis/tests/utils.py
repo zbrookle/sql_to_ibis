@@ -117,7 +117,10 @@ def assert_state_not_change(func: Callable):
 
 
 def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr):
-    assert isinstance(obj1, TableExpr) and isinstance(obj2, TableExpr)
+    if not isinstance(obj1, TableExpr):
+        raise AssertionError(f"{obj1} is not of type TableExpr")
+    if not isinstance(obj2, TableExpr):
+        raise AssertionError(f"{obj2} is not of type TableExpr")
     obj1_str = str(obj1)
     obj2_str = str(obj2)
     if obj1_str != obj2_str:

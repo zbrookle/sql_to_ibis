@@ -475,13 +475,14 @@ class InternalTransformer(TransformerBaseClass):
         """
         main_expression = expressions[0]
         between_expressions = expressions[1:]
-        plan = main_expression.get_plan_representation()
-        plan += (
-            f".between({between_expressions[0].get_plan_representation()}, "
-            f"{between_expressions[1].get_plan_representation()})"
+        return ValueWithPlan(
+            main_expression.value.between(
+                between_expressions[0].value, between_expressions[1].value
+            )
         )
 
-        return ValueWithPlan(main_expression.value.between(*between_expressions), plan)
+    def _get_expression_values(self, expressions: List[Value]):
+        return [expression.get_value() for expression in expressions]
 
     def in_expr(self, expressions: List[Value]):
         """
@@ -489,10 +490,8 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        in_list = [expression.get_value() for expression in expressions[1:]]
-        plan = expressions[0].get_plan_representation()
-        plan += f".isin({in_list})"
-        return ValueWithPlan(expressions[0].value.isin(in_list), plan)
+        in_list = self._get_expression_values(expressions[1:])
+        return ValueWithPlan(expressions[0].value.isin(in_list))
 
     def not_in_expr(self, expressions: List[Value]):
         """
@@ -500,9 +499,8 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        in_value = self.in_expr(expressions)
-
-        return ValueWithPlan(~in_value.value, "~" + in_value.execution_plan)
+        not_in_list = self._get_expression_values(expressions[1:])
+        return ValueWithPlan(expressions[0].value.notin(not_in_list))
 
     def bool_expression(self, expression: List[ValueWithPlan]) -> ValueWithPlan:
         """

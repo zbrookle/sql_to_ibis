@@ -563,11 +563,16 @@ def test_having_multiple_conditions():
     my_frame = query(
         "select min(temp) from forest_fires having min(temp) > 2 and "
         "max(dc) < 200 or month = 'oct'"
-    ).execute()
-    ibis_table = FOREST_FIRES.copy()
-    ibis_table["_col0"] = FOREST_FIRES["temp"]
-    aggregated_df = ibis_table.aggregate({"_col0": "min"}).to_frame().transpose()
-    ibis_table = aggregated_df[aggregated_df["_col0"] > 2]
+    )
+    temp_column = FOREST_FIRES.get_column("temp")
+
+    print(
+        (temp_column.min() > 2) & (FOREST_FIRES.get_column("DC").max() < 200)
+        | (FOREST_FIRES.get_column("month") == "oct")
+    )
+    ibis_table = FOREST_FIRES.aggregate(
+        metrics=temp_column.min().name("_col0"), having=(),
+    )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -592,14 +597,13 @@ def test_having_with_group_by():
     :return:
     """
     my_frame = query(
-        "select day, min(temp) from forest_fires group by day having min(temp) > 5"
-    ).execute()
-    ibis_table = FOREST_FIRES.copy()
-    ibis_table["_col0"] = FOREST_FIRES["temp"]
-    ibis_table = (
-        ibis_table[["day", "_col0"]].groupby("day").aggregate({"_col0": np.min})
+        "select min(temp) from forest_fires group by day having min(temp) > 5"
     )
-    ibis_table = ibis_table[ibis_table["_col0"] > 5].reset_index()
+    ibis_table = (
+        FOREST_FIRES.groupby("day")
+        .having(FOREST_FIRES.temp.min() > 5)
+        .aggregate(FOREST_FIRES.temp.min())
+    )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -609,16 +613,14 @@ def test_operations_between_columns_and_numbers():
     Tests operations between columns
     :return:
     """
-    my_frame = query(
-        """select temp * wind + rain / dmc + 37 from forest_fires"""
-    ).execute()
-    ibis_table = FOREST_FIRES.copy()
-    ibis_table["_col0"] = (
-        ibis_table["temp"] * ibis_table["wind"]
-        + ibis_table["rain"] / ibis_table["DMC"]
-        + 37
+    my_frame = query("""select temp * wind + rain / dmc + 37 from forest_fires""")
+    ibis_table = FOREST_FIRES.mutate(
+        (
+            FOREST_FIRES.temp * FOREST_FIRES.wind
+            + FOREST_FIRES.rain / FOREST_FIRES.DMC
+            + 37
+        ).name("_col0")
     )
-    ibis_table = ibis_table["_col0"].to_frame()
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -628,40 +630,30 @@ def test_select_star_from_multiple_tables():
     Test selecting from two different tables
     :return:
     """
-    my_frame = query("""select * from forest_fires, digimon_mon_list""").execute()
-    forest_fires = FOREST_FIRES.copy()
-    digimon_mon_list_new = DIGIMON_MON_LIST.copy()
-    forest_fires["_temp_id"] = 1
-    digimon_mon_list_new["_temp_id"] = 1
-    ibis_table = merge(forest_fires, digimon_mon_list_new, on="_temp_id").drop(
-        columns=["_temp_id"]
-    )
+    my_frame = query("""select * from forest_fires, digimon_mon_list""")
+    ibis_table = FOREST_FIRES.cross_join(DIGIMON_MON_LIST)
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_select_columns_from_two_tables_with_same_column_name():
-#     """
-#     Test selecting tables
-#     :return:
-#     """
-#     my_frame = query("""select * from forest_fires table1, forest_fires table2""")
-#     table1 = FOREST_FIRES.copy()
-#     table2 = FOREST_FIRES.copy()
-#     table1["_temp_id"] = 1
-#     table2["_temp_id"] = 1
-#     ibis_table = merge(table1, table2, on="_temp_id").drop(columns=["_temp_id"])
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+@assert_state_not_change
+def test_select_columns_from_two_tables_with_same_column_name():
+    """
+    Test selecting tables
+    :return:
+    """
+    my_frame = query("""select * from forest_fires table1, forest_fires table2""")
+    ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 @assert_state_not_change
 def test_maintain_case_in_query():
     """
     Test nested subqueries
     :return:
     """
-    my_frame = query("""select wind, rh from forest_fires""").execute()
-    ibis_table = FOREST_FIRES.copy()[["wind", "RH"]].rename(columns={"RH": "rh"})
+    my_frame = query("""select wind, rh from forest_fires""")
+    ibis_table = FOREST_FIRES[["wind", "RH"]].relabel({"RH": "rh"})
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -675,8 +667,8 @@ def test_nested_subquery():
         """select * from
             (select wind, rh from
               (select * from forest_fires) fires) wind_rh"""
-    ).execute()
-    ibis_table = FOREST_FIRES.copy()[["wind", "RH"]].rename(columns={"RH": "rh"})
+    )
+    ibis_table = FOREST_FIRES[["wind", "RH"]].relabel({"RH": "rh"})
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -692,16 +684,10 @@ def test_union():
     union
     select * from forest_fires order by wind asc limit 5
     """
-    ).execute()
-    ibis_table1 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
     )
-    ibis_table2 = FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
-    ibis_table = (
-        concat([ibis_table1, ibis_table2], ignore_index=True)
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
+    ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
+    ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
+    ibis_table = ibis_table1.union(ibis_table2, distinct=True)
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -717,22 +703,10 @@ def test_union_distinct():
          union distinct
         select * from forest_fires order by wind asc limit 5
         """
-    ).execute()
-    ibis_table1 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
     )
-    ibis_table2 = FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
-    ibis_table = (
-        concat([ibis_table1, ibis_table2], ignore_index=True)
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
-    sort_by = ["area", "X", "Y", "month", "day"]
-    ibis_table = ibis_table.sort_values(by=sort_by).reset_index(drop=True)
-    my_frame = my_frame.sort_values(by=sort_by).reset_index(drop=True)
-    print()
-    print(ibis_table)
-    print(my_frame)
+    ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
+    ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
+    ibis_table = ibis_table1.union(ibis_table2, distinct=True)
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -749,168 +723,149 @@ def test_union_all():
         select * from forest_fires order by wind asc limit 5
         """
     )
-    print(my_frame)
+    ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
+    ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
+    ibis_table = ibis_table1.union(ibis_table2)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+# TODO No ibis intersect method!
+@assert_state_not_change
+def test_intersect_distinct():
+    """
+    Test union distinct in queries
+    :return:
+    """
+    my_frame = query(
+        """
+            select * from forest_fires order by wind desc limit 5
+             intersect distinct
+            select * from forest_fires order by wind desc limit 3
+            """
+    )
+    ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
+    ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
+    ibis_table = ibis_table1.union(ibis_table2, distinct=True)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+# TODO No ibis except method!
+@assert_state_not_change
+def test_except_distinct():
+    """
+    Test except distinct in queries
+    :return:
+    """
+    my_frame = query(
+        """
+                select * from forest_fires order by wind desc limit 5
+                 except distinct
+                select * from forest_fires order by wind desc limit 3
+                """
+    )
     ibis_table1 = (
         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
     )
-    ibis_table2 = FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
-    ibis_table = concat([ibis_table1, ibis_table2], ignore_index=True).reset_index(
+    ibis_table2 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
+    )
+    ibis_table = (
+        ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+# TODO No ibis except method!
+@assert_state_not_change
+def test_except_all():
+    """
+    Test except distinct in queries
+    :return:
+    """
+    my_frame = query(
+        """
+                select * from forest_fires order by wind desc limit 5
+                 except all
+                select * from forest_fires order by wind desc limit 3
+                """
+    )
+    ibis_table1 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
+    )
+    ibis_table2 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
+    )
+    ibis_table = ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)].reset_index(
         drop=True
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_intersect_distinct():
-#     """
-#     Test union distinct in queries
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#             select * from forest_fires order by wind desc limit 5
-#              intersect distinct
-#             select * from forest_fires order by wind desc limit 3
-#             """
-#     )
-#     ibis_table1 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-#     )
-#     ibis_table2 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-#     )
-#     ibis_table = merge(
-#         left=ibis_table1,
-#         right=ibis_table2,
-#         how="inner",
-#         on=list(ibis_table1.columns),
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_except_distinct():
-#     """
-#     Test except distinct in queries
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#                 select * from forest_fires order by wind desc limit 5
-#                  except distinct
-#                 select * from forest_fires order by wind desc limit 3
-#                 """
-#     )
-#     ibis_table1 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-#     )
-#     ibis_table2 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-#     )
-#     ibis_table = (
-#         ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
-#         .drop_duplicates()
-#         .reset_index(drop=True)
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_except_all():
-#     """
-#     Test except distinct in queries
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#                 select * from forest_fires order by wind desc limit 5
-#                  except all
-#                 select * from forest_fires order by wind desc limit 3
-#                 """
-#     )
-#     ibis_table1 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-#     )
-#     ibis_table2 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-#     )
-#     ibis_table = ibis_table1[
-#         ~ibis_table1.isin(ibis_table2).all(axis=1)
-#     ].reset_index(drop=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_between_operator():
-#     """
-#     Test using between operator
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select * from forest_fires
-#     where wind between 5 and 6
-#     """
-#     ).execute()
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table = ibis_table[
-#         (ibis_table.wind >= 5) & (ibis_table.wind <= 6)
-#     ].reset_index(drop=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_in_operator():
-#     """
-#     Test using in operator in a sql query
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select * from forest_fires where day in ('fri', 'sun')
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table = ibis_table[ibis_table.day.isin(("fri", "sun"))].reset_index(
-#         drop=True
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_in_operator_expression_numerical():
-#     """
-#     Test using in operator in a sql query
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select * from forest_fires where X in (5, 9)
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table = ibis_table[(ibis_table["X"]).isin((5, 9))].reset_index(drop=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_not_in_operator():
-#     """
-#     Test using in operator in a sql query
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select * from forest_fires where day not in ('fri', 'sun')
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()
-#     ibis_table = ibis_table[~ibis_table.day.isin(("fri", "sun"))].reset_index(
-#         drop=True
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+@assert_state_not_change
+def test_between_operator():
+    """
+    Test using between operator
+    :return:
+    """
+    my_frame = query(
+        """
+    select * from forest_fires
+    where wind between 5 and 6
+    """
+    )
+    ibis_table = FOREST_FIRES.filter(FOREST_FIRES.wind.between(5, 6))
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_in_operator():
+    """
+    Test using in operator in a sql query
+    :return:
+    """
+    my_frame = query(
+        """
+    select * from forest_fires where day in ('fri', 'sun')
+    """
+    )
+    ibis_table = FOREST_FIRES[FOREST_FIRES.day.isin([ibis.literal("fri"),
+                                                     ibis.literal("sun")])]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_in_operator_expression_numerical():
+    """
+    Test using in operator in a sql query
+    :return:
+    """
+    my_frame = query(
+        """
+    select * from forest_fires where X in (5, 9)
+    """
+    )
+    ibis_table = FOREST_FIRES[FOREST_FIRES.X.isin((ibis.literal(5), ibis.literal(9)))]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_not_in_operator():
+    """
+    Test using in operator in a sql query
+    :return:
+    """
+    my_frame = query(
+        """
+    select * from forest_fires where day not in ('fri', 'sun')
+    """
+    )
+    ibis_table = FOREST_FIRES[FOREST_FIRES.day.notin([ibis.literal("fri"),
+                                                     ibis.literal("sun")])]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 # @assert_state_not_change
 # def test_case_statement_w_name():
 #     """

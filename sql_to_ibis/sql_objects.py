@@ -177,6 +177,7 @@ class Value:
             return self.value != other.value
         return self.value != other
 
+
 class Literal(Value):
     """
     Stores literal data
