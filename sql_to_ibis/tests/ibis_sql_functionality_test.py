@@ -467,7 +467,7 @@ def test_multiple_aggs():
     """
     my_frame = query(
         "select min(temp), max(temp), avg(temp), max(wind) from forest_fires"
-    ).execute()
+    )
     temp_column = FOREST_FIRES.get_column("temp")
     ibis_table = FOREST_FIRES.aggregate(
         [
@@ -487,15 +487,11 @@ def test_agg_w_groupby():
     :return:
     """
     my_frame = query(
-        "select day, month, min(temp), max(temp) from forest_fires group by day, month"
-    ).execute()
-    ibis_table = FOREST_FIRES.copy()
-    ibis_table["_col0"] = ibis_table.temp
-    ibis_table["_col1"] = ibis_table.temp
-    ibis_table = (
-        ibis_table.groupby(["day", "month"])
-        .aggregate({"_col0": np.min, "_col1": np.max})
-        .reset_index()
+        "select min(temp), max(temp) from forest_fires group by day, month"
+    )
+    temp_column = FOREST_FIRES.get_column("temp")
+    ibis_table = FOREST_FIRES.group_by(["day", "month"]).aggregate(
+        [temp_column.min().name("_col0"), temp_column.max().name("_col1")]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
