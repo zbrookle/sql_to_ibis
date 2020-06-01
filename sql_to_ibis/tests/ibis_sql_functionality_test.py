@@ -514,7 +514,7 @@ def test_all_boolean_ops_clause():
     :return:
     """
     my_frame = query(
-        """select * from forest_fires where month = 'mar' and temp > 8 and rain >= 0
+        """select * from forest_fires where month = 'mar' and temp > 8.0 and rain >= 0
         and area != 0 and dc < 100 and ffmc <= 90.1
         """
     )
@@ -522,7 +522,7 @@ def test_all_boolean_ops_clause():
         (FOREST_FIRES.month == "mar")
         & (FOREST_FIRES.temp > 8.0)
         & (FOREST_FIRES.rain >= 0)
-        & (FOREST_FIRES.area != 0)
+        & (FOREST_FIRES.area != ibis.literal(0))
         & (FOREST_FIRES.DC < 100)
         & (FOREST_FIRES.FFMC <= 90.1)
     ]

@@ -172,6 +172,10 @@ class Value:
             return self.value <= other.value
         return self.value <= other
 
+    def __ne__(self, other):
+        if isinstance(other, Value):
+            return self.value != other.value
+        return self.value != other
 
 class Literal(Value):
     """

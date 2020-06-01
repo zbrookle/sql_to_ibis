@@ -433,7 +433,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(~(expressions[0] == expressions[1]))
+        return ValueWithPlan(expressions[0] != expressions[1])
 
     def greater_than(self, expressions):
         """
