@@ -660,14 +660,28 @@ class InternalTransformer(TransformerBaseClass):
                 partition_list.append(column.value)
         return order_list, partition_list, rank_column
 
+    def apply_rank_function(self, first_column: ColumnExpr, rank_function: str):
+        assert rank_function in {"rank", "dense_rank"}
+        if rank_function == "rank":
+            return first_column.rank()
+        if rank_function == "dense_rank":
+            return first_column.dense_rank()
+
+    def rank(self, tokens: List[Token], rank_function: str):
+        orders, partitions, first_column = self.get_rank_orders_and_partitions(tokens)
+        return Expression(
+            self.apply_rank_function(first_column, rank_function).over(
+                ibis.window(order_by=orders, group_by=partitions)
+            )
+        )
+
     def rank_expression(self, tokens):
         """
         Handles rank expressions
         :param tokens:
         :return:
         """
-        orders, partitions, first_column = self.get_rank_orders_and_partitions(tokens)
-        return Expression(first_column.rank().over(ibis.window(order_by=orders)))
+        return self.rank(tokens, "rank")
 
     def dense_rank_expression(self, tokens):
         """
@@ -675,8 +689,7 @@ class InternalTransformer(TransformerBaseClass):
         :param tokens:
         :return:
         """
-        orders, partitions, first_column = self.get_rank_orders_and_partitions(tokens)
-        return Expression(first_column.dense_rank().over(ibis.window(order_by=orders)))
+        return self.rank(tokens, "dense_rank")
 
     def select_expression(self, expression_and_alias):
         """

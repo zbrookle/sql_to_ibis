@@ -1022,108 +1022,66 @@ def test_dense_rank_statement_many_columns():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_rank_over_partition_by():
-#     """
-#     Test rank partition by statement
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, rain, month, day,
-#     rank() over(partition by day order by wind desc, rain asc, month) as rank
-#     from forest_fires
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month", "day"]]
-#     partition_slice = 4
-#     rank_map = {}
-#     partition_rank_counter = {}
-#     partition_rank_offset = {}
-#     ibis_table.sort_values(
-#         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
-#     )
-#     ibis_table.reset_index(inplace=True)
-#     ibis_table["rank"] = 0
-#     rank_series = ibis_table["rank"].copy()
-#     for row_num, series_tuple in enumerate(ibis_table.iterrows()):
-#         row = series_tuple[1]
-#         row_list = list(row)[1:partition_slice]
-#         partition_list = list(row)[partition_slice:5]
-#         key = str(row_list)
-#         partition_key = str(partition_list)
-#         if rank_map.get(partition_key):
-#             if rank_map[partition_key].get(key):
-#                 partition_rank_counter[partition_key] += 1
-#                 rank = rank_map[partition_key][key]
-#             else:
-#                 partition_rank_counter[partition_key] += 1
-#                 rank = (
-#                     partition_rank_counter[partition_key]
-#                     + partition_rank_offset[partition_key]
-#                 )
-#                 rank_map[partition_key][key] = rank
-#         else:
-#             rank = 1
-#             rank_map[partition_key] = {}
-#             partition_rank_counter[partition_key] = 1
-#             partition_rank_offset[partition_key] = 0
-#             rank_map[partition_key][key] = rank
-#         rank_series[row_num] = rank
-#     ibis_table["rank"] = rank_series
-#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
-#     ibis_table.drop(columns=["index"], inplace=True)
-#     ibis_table.reset_index(drop=True, inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_dense_rank_over_partition_by():
-#     """
-#     Test rank partition by statement
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, rain, month, day,
-#     dense_rank() over(partition by day order by wind desc, rain asc, month) as rank
-#     from forest_fires
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month", "day"]]
-#     partition_slice = 4
-#     rank_map = {}
-#     partition_rank_counter = {}
-#     ibis_table.sort_values(
-#         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
-#     )
-#     ibis_table.reset_index(inplace=True)
-#     ibis_table["rank"] = 0
-#     rank_series = ibis_table["rank"].copy()
-#     for row_num, series_tuple in enumerate(ibis_table.iterrows()):
-#         row = series_tuple[1]
-#         row_list = list(row)[1:partition_slice]
-#         partition_list = list(row)[partition_slice:]
-#         key = str(row_list)
-#         partition_key = str(partition_list)
-#         if rank_map.get(partition_key):
-#             if rank_map[partition_key].get(key):
-#                 rank = rank_map[partition_key][key]
-#             else:
-#                 partition_rank_counter[partition_key] += 1
-#                 rank = partition_rank_counter[partition_key]
-#                 rank_map[partition_key][key] = rank
-#         else:
-#             rank = 1
-#             rank_map[partition_key] = {}
-#             partition_rank_counter[partition_key] = 1
-#             rank_map[partition_key][key] = rank
-#         rank_series[row_num] = rank
-#     ibis_table["rank"] = rank_series
-#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
-#     ibis_table.drop(columns=["index"], inplace=True)
-#     ibis_table.reset_index(drop=True, inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
+@assert_state_not_change
+def test_rank_over_partition_by():
+    """
+    Test rank partition by statement
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, rain, month, day,
+    rank() over(partition by day order by wind desc, rain asc, month) as rank
+    from forest_fires
+    """
+    )
+    ibis_table = FOREST_FIRES[["wind", "rain", "month", "day"]]
+    ibis_table = ibis_table.mutate(
+        FOREST_FIRES.wind.rank()
+        .over(
+            ibis.window(
+                order_by=[
+                    ibis.desc(FOREST_FIRES.wind),
+                    FOREST_FIRES.rain,
+                    FOREST_FIRES.month,
+                ],
+                group_by=[FOREST_FIRES.day],
+            )
+        )
+        .name("rank")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_dense_rank_over_partition_by():
+    """
+    Test rank partition by statement
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, rain, month, day,
+    dense_rank() over(partition by day order by wind desc, rain asc, month) as rank
+    from forest_fires
+    """
+    )
+    ibis_table = FOREST_FIRES[["wind", "rain", "month", "day"]]
+    ibis_table = ibis_table = ibis_table.mutate(
+        FOREST_FIRES.wind.dense_rank()
+        .over(
+            ibis.window(
+                order_by=[
+                    ibis.desc(FOREST_FIRES.wind),
+                    FOREST_FIRES.rain,
+                    FOREST_FIRES.month,
+                ],
+                group_by=[FOREST_FIRES.day],
+            )
+        )
+        .name("rank")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
