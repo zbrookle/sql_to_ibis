@@ -27,7 +27,7 @@ with open(file=GRAMMAR_PATH) as sql_grammar_file:
     _GRAMMAR_TEXT = sql_grammar_file.read()
 
 
-def register_temp_table(table: "IbisTable", table_name: str):
+def register_temp_table(table: TableExpr, table_name: str):
     """
     Registers related metadata from a :class: ~`pandas.DataFrame` for use with SQL
 
@@ -169,13 +169,7 @@ class TableInfo:
                 [original_table, table]
             )
 
-    def register_temporary_table(
-        self, table, table_name: str, framework: str = "pandas"
-    ):
-        ibis_table = None
-        if framework == "pandas":
-            ibis_table = ibis.pandas.from_dataframe(table, name=table_name)
-
+    def register_temporary_table(self, ibis_table, table_name: str):
         if table_name.lower() in self.ibis_table_name_map:
             raise Exception(
                 f"A table {table_name.lower()} has already been registered. Keep in "
@@ -185,7 +179,7 @@ class TableInfo:
         self.ibis_table_name_map[table_name.lower()] = table_name
         self.ibis_table_map[table_name] = ibis_table
         self.column_name_map[table_name] = {}
-        for column in table.columns:
+        for column in ibis_table.columns:
             lower_column = column.lower()
             self.column_name_map[table_name][lower_column] = column
             self.add_column_to_column_to_dataframe_name_map(lower_column, table_name)

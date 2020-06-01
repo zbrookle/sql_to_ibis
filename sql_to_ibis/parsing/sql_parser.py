@@ -248,8 +248,11 @@ class InternalTransformer(TransformerBaseClass):
 
     def sql_aggregation(self, agg_and_column: list):
         aggregation, column = agg_and_column
-        return Aggregate(self.apply_ibis_aggregation(column.value, aggregation),
-                         alias=column.alias, typename=column.typename)
+        return Aggregate(
+            self.apply_ibis_aggregation(column.value, aggregation),
+            alias=column.alias,
+            typename=column.typename,
+        )
 
     def mul(self, args: Tuple[int, int]):
         """
@@ -1240,8 +1243,12 @@ class SQLTransformer(TransformerBaseClass):
         return df1.assign(__=1).merge(df2.assign(__=1), on="__").drop(columns=["__"])
 
     def handle_aggregation(
-        self, aggregates, group_columns, table: TableExpr, having_expr: Tree,
-            internal_transformer: InternalTransformer
+        self,
+        aggregates,
+        group_columns,
+        table: TableExpr,
+        having_expr: Tree,
+        internal_transformer: InternalTransformer,
     ):
         """
         Handles all aggregation operations when translating from dictionary info
@@ -1360,7 +1367,8 @@ class SQLTransformer(TransformerBaseClass):
             first_frame, join_plan = self.handle_join(join=first_frame)
         for frame_name in frame_names[1:]:
             next_frame = self.get_table(frame_name)
-            first_frame = self.cross_join(first_frame, next_frame)
+            first_frame = first_frame.cross_join(next_frame)
+            # first_frame.cross_join
 
         new_table: TableExpr = self.handle_columns(
             query_info.columns,
@@ -1407,7 +1415,7 @@ class SQLTransformer(TransformerBaseClass):
             query_info.group_columns,
             new_table,
             query_info.having_expr,
-            query_info.internal_transformer
+            query_info.internal_transformer,
         )
 
         if query_info.distinct:
@@ -1432,50 +1440,26 @@ class SQLTransformer(TransformerBaseClass):
         return frame
 
     def union_all(
-        self,
-        frame1_and_plan: Tuple[TableExpr, str],
-        frame2_and_plan: Tuple[TableExpr, str],
+        self, expr1: TableExpr, expr2: TableExpr,
     ):
         """
-        Return union all of two dataframes
-        :param frame1_and_plan: Left dataframe and execution plan
-        :param frame2_and_plan: Right dataframe and execution plan
+        Return union distinct of two TableExpr
+        :param expr1: Left TableExpr and execution plan
+        :param expr2: Right TableExpr and execution plan
         :return:
         """
-        plan = (
-            f"concat({frame1_and_plan[1]}, {frame2_and_plan[1]}, "
-            f"ignore_index=True).reset_index(drop=True)"
-        )
-
-        return (
-            concat(
-                [frame1_and_plan[0], frame2_and_plan[0]], ignore_index=True
-            ).reset_index(drop=True),
-            plan,
-        )
+        return expr1.union(expr2)
 
     def union_distinct(
-        self,
-        frame1_and_plan: Tuple[TableExpr, str],
-        frame2_and_plan: Tuple[TableExpr, str],
+        self, expr1: TableExpr, expr2: TableExpr,
     ):
         """
-        Return union distinct of two dataframes
-        :param frame1_and_plan: Left dataframe and execution plan
-        :param frame2_and_plan: Right dataframe and execution plan
+        Return union distinct of two TableExpr
+        :param expr1: Left TableExpr and execution plan
+        :param expr2: Right TableExpr and execution plan
         :return:
         """
-        plan = (
-            f"concat({frame1_and_plan[1]}, {frame2_and_plan[1]}, "
-            f"ignore_index=True).drop_duplicates().reset_index(drop=True)"
-        )
-
-        return (
-            concat([frame1_and_plan[0], frame2_and_plan[0]], ignore_index=True)
-            .drop_duplicates()
-            .reset_index(drop=True),
-            plan,
-        )
+        return expr1.union(expr2, distinct=True)
 
     def intersect_distinct(
         self,

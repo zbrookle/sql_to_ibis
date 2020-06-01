@@ -273,8 +273,9 @@ class DerivedColumn(Value):
         if self.alias:
             self.final_name = self.alias
         else:
-            if isinstance(self.value, (Series, Column)) or isinstance(self,
-                                                                      (Aggregate, Expression)):
+            if isinstance(self.value, (Series, Column)) or isinstance(
+                self, (Aggregate, Expression)
+            ):
                 self.final_name = f"_col{self.expression_count}"
                 self.alias = self.final_name
                 DerivedColumn.increment_expression_count()
@@ -339,9 +340,7 @@ class Aggregate(DerivedColumn):
     }
 
     def __init__(self, value, alias="", typename=""):
-        DerivedColumn.__init__(
-            self, value, alias, typename
-        )
+        DerivedColumn.__init__(self, value, alias, typename)
 
 
 class Column(Value):
