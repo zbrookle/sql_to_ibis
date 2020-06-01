@@ -1253,10 +1253,6 @@ class SQLTransformer(TransformerBaseClass):
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
-        :param aggregates:
-        :param group_columns:
-        :param table:
-        :return:
         """
         having = None
         if having_expr:
@@ -1368,7 +1364,6 @@ class SQLTransformer(TransformerBaseClass):
         for frame_name in frame_names[1:]:
             next_frame = self.get_table(frame_name)
             first_frame = first_frame.cross_join(next_frame)
-            # first_frame.cross_join
 
         new_table: TableExpr = self.handle_columns(
             query_info.columns,
@@ -1380,35 +1375,37 @@ class SQLTransformer(TransformerBaseClass):
 
         columns_to_keep = []  # This is so we can drop the columns that weren't
         # selected if no columns were chosen from the original table
+        ibis_expressions = []
         expressions = query_info.expressions
-        if expressions:
-            for expression in expressions:
-                columns_to_keep.append(expression.alias)
-                if expression.alias in new_table.columns:
-                    new_table = new_table.set_column(expression.alias, expression.value)
-                else:
-                    new_table = new_table.mutate(
-                        expression.value.name(expression.alias)
-                    )
+        for expression in expressions:
+            columns_to_keep.append(expression.alias)
+            value = expression.value
+            if expression.alias in new_table.columns:
+                value = value.name(expression.alias)
+            else:
+                value = value.name(expression.final_name)
+            ibis_expressions.append(value)
 
         literals = query_info.literals
-        if literals:
-            for literal in literals:
-                columns_to_keep.append(literal.alias)
-                if literal.alias in new_table.columns:
-                    new_table = new_table.set_column(literal.alias, literal.value)
-                else:
-                    new_table = new_table.mutate(literal.value.name(literal.alias))
-
-        if not query_info.columns:
-            new_table = new_table[columns_to_keep]
+        for literal in literals:
+            columns_to_keep.append(literal.alias)
+            value = literal.value
+            if literal.alias in new_table.columns:
+                value = value.name(literal.alias)
+            else:
+                value = value.name(literal.final_name)
+            ibis_expressions.append(value)
 
         conversions = query_info.conversions
         for conversion in conversions:
-            new_table = new_table.set_column(
-                conversion,
-                new_table.get_column(conversion).cast(conversions[conversion]),
+            ibis_expressions.append(
+                new_table.get_column(conversion)
+                .cast(conversions[conversion])
+                .name(conversion)
             )
+
+        if ibis_expressions:
+            new_table = new_table.mutate(ibis_expressions)
 
         new_table = self.handle_aggregation(
             query_info.aggregates,

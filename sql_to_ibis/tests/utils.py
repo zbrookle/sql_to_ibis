@@ -6,6 +6,7 @@ from pathlib import Path
 from pandas import DataFrame, read_csv
 
 from sql_to_ibis import register_temp_table, remove_temp_table
+from tempfile import NamedTemporaryFile
 
 from typing import Callable
 from sql_to_ibis.sql_select_query import TableInfo
@@ -13,7 +14,8 @@ from copy import deepcopy
 from functools import wraps
 from ibis.expr.api import TableExpr
 import ibis
-from difflib import ndiff, unified_diff
+from difflib import ndiff
+from subprocess import Popen, PIPE
 
 DATA_PATH = Path(__file__).parent.parent / "data"
 
@@ -23,13 +25,15 @@ def pandas_to_ibis(frame: DataFrame, name: str):
 
 
 # Import the data for testing
-FOREST_FIRES = pandas_to_ibis(read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES")
+FOREST_FIRES: TableExpr = pandas_to_ibis(
+    read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES"
+)
 DIGIMON_MON_LIST = read_csv(DATA_PATH / "DigiDB_digimonlist.csv")
 DIGIMON_MOVE_LIST = read_csv(DATA_PATH / "DigiDB_movelist.csv")
-DIGIMON_SUPPORT_LIST = pandas_to_ibis(
+DIGIMON_SUPPORT_LIST: TableExpr = pandas_to_ibis(
     read_csv(DATA_PATH / "DigiDB_supportlist.csv"), "DIGIMON_SUPPORT_LIST"
 )
-AVOCADO = pandas_to_ibis(read_csv(DATA_PATH / "avocado.csv"), "AVOCADO")
+AVOCADO: TableExpr = pandas_to_ibis(read_csv(DATA_PATH / "avocado.csv"), "AVOCADO")
 
 # Name change is for name interference
 DIGIMON_MON_LIST["mon_attribute"] = DIGIMON_MON_LIST["Attribute"]
@@ -114,4 +118,21 @@ def assert_state_not_change(func: Callable):
 
 def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr):
     assert isinstance(obj1, TableExpr) and isinstance(obj2, TableExpr)
-    assert str(obj1) == str(obj2)
+    obj1_str = str(obj1)
+    obj2_str = str(obj2)
+    if obj1_str != obj2_str:
+        with NamedTemporaryFile(delete=False) as obj1_file, NamedTemporaryFile(
+            delete=False
+        ) as obj2_file:
+            obj1_file.write(bytes(obj1_str, encoding="utf-8"))
+            obj1_file.close()
+            obj2_file.write(bytes(obj2_str, encoding="utf-8"))
+            obj2_file.close()
+            process = Popen(
+                ["diff", "-y", obj1_file.name, obj2_file.name], stdout=PIPE, stderr=PIPE
+            )
+            output, _ = process.communicate()
+            str_output = output.decode("utf-8")
+
+        msg = f"Plan representations not equal!\n{str_output}"
+        raise AssertionError(msg)

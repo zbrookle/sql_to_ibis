@@ -107,8 +107,8 @@ def test_select_star():
     :return:
     """
     my_frame = query("select * from forest_fires")
-    pandas_frame = FOREST_FIRES
-    assert_ibis_equal_show_diff(my_frame, pandas_frame)
+    ibis_table = FOREST_FIRES
+    assert_ibis_equal_show_diff(my_frame, ibis_table)
 
 
 @assert_state_not_change
@@ -118,8 +118,8 @@ def test_case_insensitivity():
     :return:
     """
     my_frame = query("select * from FOREST_fires")
-    pandas_frame = FOREST_FIRES
-    assert_ibis_equal_show_diff(my_frame, pandas_frame)
+    ibis_table = FOREST_FIRES
+    assert_ibis_equal_show_diff(my_frame, ibis_table)
 
 
 @assert_state_not_change
@@ -130,10 +130,10 @@ def test_select_specific_fields():
     """
     my_frame = query("select temp, RH, wind, rain as water, area from forest_fires")
 
-    pandas_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].relabel(
+    ibis_table = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].relabel(
         {"rain": "water"}
     )
-    assert_ibis_equal_show_diff(my_frame, pandas_frame)
+    assert_ibis_equal_show_diff(my_frame, ibis_table)
 
 
 @assert_state_not_change
@@ -150,23 +150,21 @@ def test_type_conversion():
         cast(7 as object) as my_object,
         cast(0 as bool) as my_bool from forest_fires"""
     )
+    # print(my_frame)
     fire_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].relabel(
         {"RH": "my_rh"}
     )
-    fire_frame["my_int"] = 2
-    fire_frame["my_float"] = 3
-    fire_frame["my_object"] = str(7)
-    fire_frame["my_bool"] = 0
-    pandas_frame = fire_frame.astype(
-        {
-            "temp": "int64",
-            "my_rh": "float64",
-            "my_int": "int64",
-            "my_float": "float64",
-            "my_bool": "bool",
-        }
+    fire_frame = fire_frame.mutate(
+        [
+            fire_frame.get_column("my_rh").cast("float64").name("my_rh"),
+            fire_frame.get_column("temp").cast("int64").name("temp"),
+            ibis.literal(2.0).cast("int64").name("my_int"),
+            ibis.literal(3).cast("float64").name("my_float"),
+            ibis.literal(7).cast("string").name("my_object"),
+            ibis.literal(0).cast("bool").name("my_bool"),
+        ]
     )
-    assert_ibis_equal_show_diff(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(fire_frame, my_frame)
 
 
 @assert_state_not_change
@@ -187,10 +185,12 @@ def test_using_math():
     Test the mathematical operations and order of operations
     :return:
     """
-    my_frame = query("select temp, 1 + 2 * 3 as my_number from forest_fires").execute()
-    pandas_frame = FOREST_FIRES[["temp"]].copy()
-    pandas_frame["my_number"] = 1 + 2 * 3
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("select temp, 1 + 2 * 3 as my_number from forest_fires")
+    ibis_table = FOREST_FIRES[["temp"]]
+    ibis_table = ibis_table.mutate(
+        (ibis.literal(1) + ibis.literal(2) * ibis.literal(3)).name("my_number")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -199,19 +199,16 @@ def test_distinct():
     Test use of the distinct keyword
     :return:
     """
-    my_frame = query("select distinct area, rain from forest_fires").execute()
-    pandas_frame = FOREST_FIRES[["area", "rain"]].copy()
-    pandas_frame.drop_duplicates(keep="first", inplace=True)
-    pandas_frame.reset_index(inplace=True)
-    pandas_frame.drop(columns="index", inplace=True)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("select distinct area, rain from forest_fires")
+    ibis_table = FOREST_FIRES[["area", "rain"]].distinct()
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
 def test_columns_maintain_order_chosen():
-    my_frame = query("select area, rain from forest_fires").execute()
-    pandas_frame = FOREST_FIRES[["area", "rain"]].copy()
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("select area, rain from forest_fires")
+    ibis_table = FOREST_FIRES[["area", "rain"]]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -220,11 +217,9 @@ def test_subquery():
     Test ability to perform subqueries
     :return:
     """
-    my_frame = query(
-        "select * from (select area, rain from forest_fires) " "rain_area"
-    ).execute()
-    pandas_frame = FOREST_FIRES[["area", "rain"]].copy()
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("select * from (select area, rain from forest_fires) rain_area")
+    ibis_table = FOREST_FIRES[["area", "rain"]]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 # @assert_state_not_change
@@ -238,10 +233,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.attribute = digimon_move_list.attribute"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, on="Attribute")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, on="Attribute")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 # @assert_state_not_change
@@ -257,12 +252,12 @@ def test_subquery():
 #         on mon_attribute = move_attribute
 #         """
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(
-#         pandas_frame2, left_on="mon_attribute", right_on="move_attribute"
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(
+#         ibis_table2, left_on="mon_attribute", right_on="move_attribute"
 #     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -276,10 +271,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.attribute = digimon_move_list.attribute"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, on="Attribute")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, on="Attribute")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -293,10 +288,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="outer", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -310,10 +305,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="outer", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -327,10 +322,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="left", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="left", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -344,10 +339,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="left", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="left", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -361,10 +356,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="right", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="right", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -378,10 +373,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="right", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="right", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -395,10 +390,10 @@ def test_subquery():
 #             digimon_move_list
 #             on digimon_mon_list.type = digimon_move_list.type"""
 #     )
-#     pandas_frame1 = DIGIMON_MON_LIST
-#     pandas_frame2 = DIGIMON_MOVE_LIST
-#     pandas_frame = pandas_frame1.merge(pandas_frame2, how="outer", on="Type")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table1 = DIGIMON_MON_LIST
+#     ibis_table2 = DIGIMON_MOVE_LIST
+#     ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 @assert_state_not_change
@@ -407,14 +402,9 @@ def test_group_by():
     Test group by constraint
     :return:
     """
-    my_frame = query(
-        """select month, day from forest_fires group by month, 
-    day"""
-    ).execute()
-    pandas_frame = (
-        FOREST_FIRES[["month", "day"]].drop_duplicates().reset_index(drop=True)
-    )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("""select month, day from forest_fires group by month, day""")
+    ibis_table = FOREST_FIRES[["month", "day"]].distinct()
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -423,14 +413,11 @@ def test_avg():
     Test the avg
     :return:
     """
-    my_frame = query("select avg(temp) from forest_fires").execute()
-    pandas_frame = (
-        FOREST_FIRES.agg({"temp": np.mean})
-        .to_frame("_col0")
-        .reset_index()
-        .drop(columns=["index"])
+    my_frame = query("select avg(temp) from forest_fires")
+    ibis_table = FOREST_FIRES.aggregate(
+        [FOREST_FIRES.get_column("temp").mean().name("_col0")]
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -439,14 +426,11 @@ def test_sum():
     Test the sum
     :return:
     """
-    my_frame = query("select sum(temp) from forest_fires").execute()
-    pandas_frame = (
-        FOREST_FIRES.agg({"temp": np.sum})
-        .to_frame("_col0")
-        .reset_index()
-        .drop(columns=["index"])
+    my_frame = query("select sum(temp) from forest_fires")
+    ibis_table = FOREST_FIRES.aggregate(
+        [FOREST_FIRES.get_column("temp").sum().name("_col0")]
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -455,14 +439,11 @@ def test_max():
     Test the max
     :return:
     """
-    my_frame = query("select max(temp) from forest_fires").execute()
-    pandas_frame = (
-        FOREST_FIRES.agg({"temp": np.max})
-        .to_frame("_col0")
-        .reset_index()
-        .drop(columns=["index"])
+    my_frame = query("select max(temp) from forest_fires")
+    ibis_table = FOREST_FIRES.aggregate(
+        [FOREST_FIRES.get_column("temp").max().name("_col0")]
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -471,14 +452,11 @@ def test_min():
     Test the min
     :return:
     """
-    my_frame = query("select min(temp) from forest_fires").execute()
-    pandas_frame = (
-        FOREST_FIRES.agg({"temp": np.min})
-        .to_frame("_col0")
-        .reset_index()
-        .drop(columns=["index"])
+    my_frame = query("select min(temp) from forest_fires")
+    ibis_table = FOREST_FIRES.aggregate(
+        [FOREST_FIRES.get_column("temp").min().name("_col0")]
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -490,16 +468,16 @@ def test_multiple_aggs():
     my_frame = query(
         "select min(temp), max(temp), avg(temp), max(wind) from forest_fires"
     ).execute()
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame["_col0"] = FOREST_FIRES.temp.copy()
-    pandas_frame["_col1"] = FOREST_FIRES.temp.copy()
-    pandas_frame["_col2"] = FOREST_FIRES.temp.copy()
-    pandas_frame = pandas_frame.agg(
-        {"_col0": np.min, "_col1": np.max, "_col2": np.mean, "wind": np.max}
+    temp_column = FOREST_FIRES.get_column("temp")
+    ibis_table = FOREST_FIRES.aggregate(
+        [
+            temp_column.min().name("_col0"),
+            temp_column.max().name("_col1"),
+            temp_column.mean().name("_col2"),
+            FOREST_FIRES.get_column("wind").max().name("_col3"),
+        ]
     )
-    pandas_frame.rename({"wind": "_col3"}, inplace=True)
-    pandas_frame = pandas_frame.to_frame().transpose()
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -511,15 +489,15 @@ def test_agg_w_groupby():
     my_frame = query(
         "select day, month, min(temp), max(temp) from forest_fires group by day, month"
     ).execute()
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame["_col0"] = pandas_frame.temp
-    pandas_frame["_col1"] = pandas_frame.temp
-    pandas_frame = (
-        pandas_frame.groupby(["day", "month"])
+    ibis_table = FOREST_FIRES.copy()
+    ibis_table["_col0"] = ibis_table.temp
+    ibis_table["_col1"] = ibis_table.temp
+    ibis_table = (
+        ibis_table.groupby(["day", "month"])
         .aggregate({"_col0": np.min, "_col1": np.max})
         .reset_index()
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -528,10 +506,9 @@ def test_where_clause():
     Test where clause
     :return:
     """
-    my_frame = query("""select * from forest_fires where month = 'mar'""").execute()
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame = pandas_frame[pandas_frame.month == "mar"].reset_index(drop=True)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("""select * from forest_fires where month = 'mar'""")
+    ibis_table = FOREST_FIRES[FOREST_FIRES.month == "mar"]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -544,18 +521,16 @@ def test_all_boolean_ops_clause():
         """select * from forest_fires where month = 'mar' and temp > 8 and rain >= 0
         and area != 0 and dc < 100 and ffmc <= 90.1
         """
-    ).execute()
-
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame = pandas_frame[
-        (pandas_frame.month == "mar")
-        & (pandas_frame.temp > 8.0)
-        & (pandas_frame.rain >= 0)
-        & (pandas_frame.area != 0)
-        & (pandas_frame.DC < 100)
-        & (pandas_frame.FFMC <= 90.1)
-    ].reset_index(drop=True)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    )
+    ibis_table = FOREST_FIRES[
+        (FOREST_FIRES.month == "mar")
+        & (FOREST_FIRES.temp > 8.0)
+        & (FOREST_FIRES.rain >= 0)
+        & (FOREST_FIRES.area != 0)
+        & (FOREST_FIRES.DC < 100)
+        & (FOREST_FIRES.FFMC <= 90.1)
+    ]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -566,13 +541,9 @@ def test_order_by():
     """
     my_frame = query(
         """select * from forest_fires order by temp desc, wind asc, area"""
-    ).execute()
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame.sort_values(
-        by=["temp", "wind", "area"], ascending=[0, 1, 1], inplace=True
     )
-    pandas_frame.reset_index(drop=True, inplace=True)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = FOREST_FIRES.sort_by([("temp", False), ("wind", True), ("area", True)])
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -581,9 +552,9 @@ def test_limit():
     Test limit clause
     :return:
     """
-    my_frame = query("""select * from forest_fires limit 10""").execute()
-    pandas_frame = FOREST_FIRES.copy().head(10)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    my_frame = query("""select * from forest_fires limit 10""")
+    ibis_table = FOREST_FIRES.head(10)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 # # # TODO Add in parentheses support for Order of ops
@@ -597,11 +568,11 @@ def test_having_multiple_conditions():
         "select min(temp) from forest_fires having min(temp) > 2 and "
         "max(dc) < 200 or month = 'oct'"
     ).execute()
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame["_col0"] = FOREST_FIRES["temp"]
-    aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
-    pandas_frame = aggregated_df[aggregated_df["_col0"] > 2]
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = FOREST_FIRES.copy()
+    ibis_table["_col0"] = FOREST_FIRES["temp"]
+    aggregated_df = ibis_table.aggregate({"_col0": "min"}).to_frame().transpose()
+    ibis_table = aggregated_df[aggregated_df["_col0"] > 2]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -611,11 +582,11 @@ def test_having_one_condition():
     :return:
     """
     my_frame = query("select min(temp) from forest_fires having min(temp) > 2")
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame["_col0"] = FOREST_FIRES["temp"]
-    aggregated_df = pandas_frame.aggregate({"_col0": "min"}).to_frame().transpose()
-    pandas_frame = aggregated_df[aggregated_df["_col0"] > 2]
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = FOREST_FIRES.copy()
+    ibis_table["_col0"] = FOREST_FIRES["temp"]
+    aggregated_df = ibis_table.aggregate({"_col0": "min"}).to_frame().transpose()
+    ibis_table = aggregated_df[aggregated_df["_col0"] > 2]
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -627,13 +598,13 @@ def test_having_with_group_by():
     my_frame = query(
         "select day, min(temp) from forest_fires group by day having min(temp) > 5"
     ).execute()
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame["_col0"] = FOREST_FIRES["temp"]
-    pandas_frame = (
-        pandas_frame[["day", "_col0"]].groupby("day").aggregate({"_col0": np.min})
+    ibis_table = FOREST_FIRES.copy()
+    ibis_table["_col0"] = FOREST_FIRES["temp"]
+    ibis_table = (
+        ibis_table[["day", "_col0"]].groupby("day").aggregate({"_col0": np.min})
     )
-    pandas_frame = pandas_frame[pandas_frame["_col0"] > 5].reset_index()
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = ibis_table[ibis_table["_col0"] > 5].reset_index()
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -645,15 +616,14 @@ def test_operations_between_columns_and_numbers():
     my_frame = query(
         """select temp * wind + rain / dmc + 37 from forest_fires"""
     ).execute()
-    print(my_frame)
-    pandas_frame = FOREST_FIRES.copy()
-    pandas_frame["_col0"] = (
-        pandas_frame["temp"] * pandas_frame["wind"]
-        + pandas_frame["rain"] / pandas_frame["DMC"]
+    ibis_table = FOREST_FIRES.copy()
+    ibis_table["_col0"] = (
+        ibis_table["temp"] * ibis_table["wind"]
+        + ibis_table["rain"] / ibis_table["DMC"]
         + 37
     )
-    pandas_frame = pandas_frame["_col0"].to_frame()
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = ibis_table["_col0"].to_frame()
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -667,10 +637,10 @@ def test_select_star_from_multiple_tables():
     digimon_mon_list_new = DIGIMON_MON_LIST.copy()
     forest_fires["_temp_id"] = 1
     digimon_mon_list_new["_temp_id"] = 1
-    pandas_frame = merge(forest_fires, digimon_mon_list_new, on="_temp_id").drop(
+    ibis_table = merge(forest_fires, digimon_mon_list_new, on="_temp_id").drop(
         columns=["_temp_id"]
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 # @assert_state_not_change
@@ -684,8 +654,8 @@ def test_select_star_from_multiple_tables():
 #     table2 = FOREST_FIRES.copy()
 #     table1["_temp_id"] = 1
 #     table2["_temp_id"] = 1
-#     pandas_frame = merge(table1, table2, on="_temp_id").drop(columns=["_temp_id"])
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = merge(table1, table2, on="_temp_id").drop(columns=["_temp_id"])
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 @assert_state_not_change
@@ -695,8 +665,8 @@ def test_maintain_case_in_query():
     :return:
     """
     my_frame = query("""select wind, rh from forest_fires""").execute()
-    pandas_frame = FOREST_FIRES.copy()[["wind", "RH"]].rename(columns={"RH": "rh"})
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = FOREST_FIRES.copy()[["wind", "RH"]].rename(columns={"RH": "rh"})
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -710,8 +680,8 @@ def test_nested_subquery():
             (select wind, rh from
               (select * from forest_fires) fires) wind_rh"""
     ).execute()
-    pandas_frame = FOREST_FIRES.copy()[["wind", "RH"]].rename(columns={"RH": "rh"})
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    ibis_table = FOREST_FIRES.copy()[["wind", "RH"]].rename(columns={"RH": "rh"})
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -727,18 +697,16 @@ def test_union():
     select * from forest_fires order by wind asc limit 5
     """
     ).execute()
-    pandas_frame1 = (
+    ibis_table1 = (
         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
     )
-    pandas_frame2 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
-    )
-    pandas_frame = (
-        concat([pandas_frame1, pandas_frame2], ignore_index=True)
+    ibis_table2 = FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
+    ibis_table = (
+        concat([ibis_table1, ibis_table2], ignore_index=True)
         .drop_duplicates()
         .reset_index(drop=True)
     )
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -754,24 +722,22 @@ def test_union_distinct():
         select * from forest_fires order by wind asc limit 5
         """
     ).execute()
-    pandas_frame1 = (
+    ibis_table1 = (
         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
     )
-    pandas_frame2 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
-    )
-    pandas_frame = (
-        concat([pandas_frame1, pandas_frame2], ignore_index=True)
+    ibis_table2 = FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
+    ibis_table = (
+        concat([ibis_table1, ibis_table2], ignore_index=True)
         .drop_duplicates()
         .reset_index(drop=True)
     )
     sort_by = ["area", "X", "Y", "month", "day"]
-    pandas_frame = pandas_frame.sort_values(by=sort_by).reset_index(drop=True)
+    ibis_table = ibis_table.sort_values(by=sort_by).reset_index(drop=True)
     my_frame = my_frame.sort_values(by=sort_by).reset_index(drop=True)
     print()
-    print(pandas_frame)
+    print(ibis_table)
     print(my_frame)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 @assert_state_not_change
@@ -788,16 +754,14 @@ def test_union_all():
         """
     )
     print(my_frame)
-    pandas_frame1 = (
+    ibis_table1 = (
         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
     )
-    pandas_frame2 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
+    ibis_table2 = FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[True]).head(5)
+    ibis_table = concat([ibis_table1, ibis_table2], ignore_index=True).reset_index(
+        drop=True
     )
-    pandas_frame = concat(
-        [pandas_frame1, pandas_frame2], ignore_index=True
-    ).reset_index(drop=True)
-    tm.assert_frame_equal(pandas_frame, my_frame)
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
 # @assert_state_not_change
@@ -813,19 +777,19 @@ def test_union_all():
 #             select * from forest_fires order by wind desc limit 3
 #             """
 #     )
-#     pandas_frame1 = (
+#     ibis_table1 = (
 #         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
 #     )
-#     pandas_frame2 = (
+#     ibis_table2 = (
 #         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
 #     )
-#     pandas_frame = merge(
-#         left=pandas_frame1,
-#         right=pandas_frame2,
+#     ibis_table = merge(
+#         left=ibis_table1,
+#         right=ibis_table2,
 #         how="inner",
-#         on=list(pandas_frame1.columns),
+#         on=list(ibis_table1.columns),
 #     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -841,18 +805,18 @@ def test_union_all():
 #                 select * from forest_fires order by wind desc limit 3
 #                 """
 #     )
-#     pandas_frame1 = (
+#     ibis_table1 = (
 #         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
 #     )
-#     pandas_frame2 = (
+#     ibis_table2 = (
 #         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
 #     )
-#     pandas_frame = (
-#         pandas_frame1[~pandas_frame1.isin(pandas_frame2).all(axis=1)]
+#     ibis_table = (
+#         ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
 #         .drop_duplicates()
 #         .reset_index(drop=True)
 #     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -868,16 +832,16 @@ def test_union_all():
 #                 select * from forest_fires order by wind desc limit 3
 #                 """
 #     )
-#     pandas_frame1 = (
+#     ibis_table1 = (
 #         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
 #     )
-#     pandas_frame2 = (
+#     ibis_table2 = (
 #         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
 #     )
-#     pandas_frame = pandas_frame1[
-#         ~pandas_frame1.isin(pandas_frame2).all(axis=1)
+#     ibis_table = ibis_table1[
+#         ~ibis_table1.isin(ibis_table2).all(axis=1)
 #     ].reset_index(drop=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -892,11 +856,11 @@ def test_union_all():
 #     where wind between 5 and 6
 #     """
 #     ).execute()
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[
-#         (pandas_frame.wind >= 5) & (pandas_frame.wind <= 6)
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table = ibis_table[
+#         (ibis_table.wind >= 5) & (ibis_table.wind <= 6)
 #     ].reset_index(drop=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -910,11 +874,11 @@ def test_union_all():
 #     select * from forest_fires where day in ('fri', 'sun')
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[pandas_frame.day.isin(("fri", "sun"))].reset_index(
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table = ibis_table[ibis_table.day.isin(("fri", "sun"))].reset_index(
 #         drop=True
 #     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -928,9 +892,9 @@ def test_union_all():
 #     select * from forest_fires where X in (5, 9)
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[(pandas_frame["X"]).isin((5, 9))].reset_index(drop=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table = ibis_table[(ibis_table["X"]).isin((5, 9))].reset_index(drop=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -944,11 +908,11 @@ def test_union_all():
 #     select * from forest_fires where day not in ('fri', 'sun')
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[~pandas_frame.day.isin(("fri", "sun"))].reset_index(
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table = ibis_table[~ibis_table.day.isin(("fri", "sun"))].reset_index(
 #         drop=True
 #     )
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -966,12 +930,12 @@ def test_union_all():
 #         forest_fires
 #         """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#     pandas_frame.loc[pandas_frame.wind > 5, "wind_strength"] = "strong"
-#     pandas_frame.loc[pandas_frame.wind == 5, "wind_strength"] = "mid"
-#     pandas_frame.loc[pandas_frame.wind < 5, "wind_strength"] = "weak"
-#     pandas_frame.drop(columns=["wind"], inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES.copy()[["wind"]]
+#     ibis_table.loc[ibis_table.wind > 5, "wind_strength"] = "strong"
+#     ibis_table.loc[ibis_table.wind == 5, "wind_strength"] = "mid"
+#     ibis_table.loc[ibis_table.wind < 5, "wind_strength"] = "weak"
+#     ibis_table.drop(columns=["wind"], inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -986,14 +950,14 @@ def test_union_all():
 #         from forest_fires
 #         """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#     pandas_frame.loc[pandas_frame.wind > 5, "_col0"] = "strong"
-#     pandas_frame.loc[pandas_frame.wind == 5, "_col0"] = "mid"
-#     pandas_frame.loc[
-#         ~((pandas_frame.wind == 5) | (pandas_frame.wind > 5)), "_col0"
+#     ibis_table = FOREST_FIRES.copy()[["wind"]]
+#     ibis_table.loc[ibis_table.wind > 5, "_col0"] = "strong"
+#     ibis_table.loc[ibis_table.wind == 5, "_col0"] = "mid"
+#     ibis_table.loc[
+#         ~((ibis_table.wind == 5) | (ibis_table.wind > 5)), "_col0"
 #     ] = "weak"
-#     pandas_frame.drop(columns=["wind"], inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table.drop(columns=["wind"], inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1008,14 +972,14 @@ def test_union_all():
 #         from forest_fires
 #         """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#     pandas_frame.loc[pandas_frame.wind > 5, "_col0"] = FOREST_FIRES["month"]
-#     pandas_frame.loc[pandas_frame.wind == 5, "_col0"] = "mid"
-#     pandas_frame.loc[
-#         ~((pandas_frame.wind == 5) | (pandas_frame.wind > 5)), "_col0"
+#     ibis_table = FOREST_FIRES.copy()[["wind"]]
+#     ibis_table.loc[ibis_table.wind > 5, "_col0"] = FOREST_FIRES["month"]
+#     ibis_table.loc[ibis_table.wind == 5, "_col0"] = "mid"
+#     ibis_table.loc[
+#         ~((ibis_table.wind == 5) | (ibis_table.wind > 5)), "_col0"
 #     ] = FOREST_FIRES["day"]
-#     pandas_frame.drop(columns=["wind"], inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table.drop(columns=["wind"], inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1030,9 +994,9 @@ def test_union_all():
 #     from forest_fires
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#     pandas_frame["wind_rank"] = pandas_frame.wind.rank(method="min").astype("int")
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES.copy()[["wind"]]
+#     ibis_table["wind_rank"] = ibis_table.wind.rank(method="min").astype("int")
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1047,17 +1011,17 @@ def test_union_all():
 #     from forest_fires
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind", "rain", "month"]]
-#     pandas_frame.sort_values(
+#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month"]]
+#     ibis_table.sort_values(
 #         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
 #     )
-#     pandas_frame.reset_index(inplace=True)
+#     ibis_table.reset_index(inplace=True)
 #     rank_map = {}
 #     rank_counter = 1
 #     rank_offset = 0
-#     pandas_frame["rank"] = 0
-#     rank_series = pandas_frame["rank"].copy()
-#     for row_num, row in enumerate(pandas_frame.iterrows()):
+#     ibis_table["rank"] = 0
+#     rank_series = ibis_table["rank"].copy()
+#     for row_num, row in enumerate(ibis_table.iterrows()):
 #         key = "".join(map(str, list(list(row)[1])[1:4]))
 #         if rank_map.get(key):
 #             rank_offset += 1
@@ -1067,11 +1031,11 @@ def test_union_all():
 #             rank_map[key] = rank
 #             rank_counter += 1
 #         rank_series[row_num] = rank
-#     pandas_frame["rank"] = rank_series
-#     pandas_frame.sort_values(by="index", ascending=True, inplace=True)
-#     pandas_frame.drop(columns=["index"], inplace=True)
-#     pandas_frame.reset_index(drop=True, inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table["rank"] = rank_series
+#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
+#     ibis_table.drop(columns=["index"], inplace=True)
+#     ibis_table.reset_index(drop=True, inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1087,16 +1051,16 @@ def test_union_all():
 #     from forest_fires
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind", "rain", "month"]]
-#     pandas_frame.sort_values(
+#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month"]]
+#     ibis_table.sort_values(
 #         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
 #     )
-#     pandas_frame.reset_index(inplace=True)
+#     ibis_table.reset_index(inplace=True)
 #     rank_map = {}
 #     rank_counter = 1
-#     pandas_frame["rank"] = 0
-#     rank_series = pandas_frame["rank"].copy()
-#     for row_num, row in enumerate(pandas_frame.iterrows()):
+#     ibis_table["rank"] = 0
+#     rank_series = ibis_table["rank"].copy()
+#     for row_num, row in enumerate(ibis_table.iterrows()):
 #         key = "".join(map(str, list(list(row)[1])[1:4]))
 #         if rank_map.get(key):
 #             rank = rank_map[key]
@@ -1105,11 +1069,11 @@ def test_union_all():
 #             rank_map[key] = rank
 #             rank_counter += 1
 #         rank_series[row_num] = rank
-#     pandas_frame["rank"] = rank_series
-#     pandas_frame.sort_values(by="index", ascending=True, inplace=True)
-#     pandas_frame.drop(columns=["index"], inplace=True)
-#     pandas_frame.reset_index(drop=True, inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table["rank"] = rank_series
+#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
+#     ibis_table.drop(columns=["index"], inplace=True)
+#     ibis_table.reset_index(drop=True, inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1125,18 +1089,18 @@ def test_union_all():
 #     from forest_fires
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind", "rain", "month", "day"]]
+#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month", "day"]]
 #     partition_slice = 4
 #     rank_map = {}
 #     partition_rank_counter = {}
 #     partition_rank_offset = {}
-#     pandas_frame.sort_values(
+#     ibis_table.sort_values(
 #         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
 #     )
-#     pandas_frame.reset_index(inplace=True)
-#     pandas_frame["rank"] = 0
-#     rank_series = pandas_frame["rank"].copy()
-#     for row_num, series_tuple in enumerate(pandas_frame.iterrows()):
+#     ibis_table.reset_index(inplace=True)
+#     ibis_table["rank"] = 0
+#     rank_series = ibis_table["rank"].copy()
+#     for row_num, series_tuple in enumerate(ibis_table.iterrows()):
 #         row = series_tuple[1]
 #         row_list = list(row)[1:partition_slice]
 #         partition_list = list(row)[partition_slice:5]
@@ -1160,11 +1124,11 @@ def test_union_all():
 #             partition_rank_offset[partition_key] = 0
 #             rank_map[partition_key][key] = rank
 #         rank_series[row_num] = rank
-#     pandas_frame["rank"] = rank_series
-#     pandas_frame.sort_values(by="index", ascending=True, inplace=True)
-#     pandas_frame.drop(columns=["index"], inplace=True)
-#     pandas_frame.reset_index(drop=True, inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table["rank"] = rank_series
+#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
+#     ibis_table.drop(columns=["index"], inplace=True)
+#     ibis_table.reset_index(drop=True, inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1180,17 +1144,17 @@ def test_union_all():
 #     from forest_fires
 #     """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind", "rain", "month", "day"]]
+#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month", "day"]]
 #     partition_slice = 4
 #     rank_map = {}
 #     partition_rank_counter = {}
-#     pandas_frame.sort_values(
+#     ibis_table.sort_values(
 #         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
 #     )
-#     pandas_frame.reset_index(inplace=True)
-#     pandas_frame["rank"] = 0
-#     rank_series = pandas_frame["rank"].copy()
-#     for row_num, series_tuple in enumerate(pandas_frame.iterrows()):
+#     ibis_table.reset_index(inplace=True)
+#     ibis_table["rank"] = 0
+#     rank_series = ibis_table["rank"].copy()
+#     for row_num, series_tuple in enumerate(ibis_table.iterrows()):
 #         row = series_tuple[1]
 #         row_list = list(row)[1:partition_slice]
 #         partition_list = list(row)[partition_slice:]
@@ -1209,11 +1173,11 @@ def test_union_all():
 #             partition_rank_counter[partition_key] = 1
 #             rank_map[partition_key][key] = rank
 #         rank_series[row_num] = rank
-#     pandas_frame["rank"] = rank_series
-#     pandas_frame.sort_values(by="index", ascending=True, inplace=True)
-#     pandas_frame.drop(columns=["index"], inplace=True)
-#     pandas_frame.reset_index(drop=True, inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table["rank"] = rank_series
+#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
+#     ibis_table.drop(columns=["index"], inplace=True)
+#     ibis_table.reset_index(drop=True, inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1226,10 +1190,10 @@ def test_union_all():
 #         """
 #     select wind, 'yes' as wind_yes from forest_fires"""
 #     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame["wind_yes"] = "yes"
-#     pandas_frame = pandas_frame[["wind", "wind_yes"]]
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table["wind_yes"] = "yes"
+#     ibis_table = ibis_table[["wind", "wind_yes"]]
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1242,10 +1206,10 @@ def test_union_all():
 #         """
 #     select wind, cast('2019-01-01' as datetime64) as my_date from forest_fires"""
 #     )
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame["my_date"] = datetime.strptime("2019-01-01", "%Y-%m-%d")
-#     pandas_frame = pandas_frame[["wind", "my_date"]]
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table["my_date"] = datetime.strptime("2019-01-01", "%Y-%m-%d")
+#     ibis_table = ibis_table[["wind", "my_date"]]
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1260,11 +1224,11 @@ def test_union_all():
 #         select wind, now(), today(), timestamp('2019-01-31', '23:20:32')
 #         from forest_fires"""
 #         )
-#         pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#         pandas_frame["now()"] = datetime.now()
-#         pandas_frame["today()"] = date.today()
-#         pandas_frame["_literal0"] = datetime(2019, 1, 31, 23, 20, 32)
-#         tm.assert_frame_equal(pandas_frame, my_frame)
+#         ibis_table = FOREST_FIRES.copy()[["wind"]]
+#         ibis_table["now()"] = datetime.now()
+#         ibis_table["today()"] = date.today()
+#         ibis_table["_literal0"] = datetime(2019, 1, 31, 23, 20, 32)
+#         assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # # TODO Add in more having and boolean tests
@@ -1283,11 +1247,11 @@ def test_union_all():
 #         from forest_fires
 #         """
 #     )
-#     pandas_frame = FOREST_FIRES.copy()[["wind"]]
-#     pandas_frame.loc[pandas_frame.wind > 5, "_col0"] = FOREST_FIRES["month"]
-#     pandas_frame.loc[~(pandas_frame.wind > 5), "_col0"] = FOREST_FIRES["day"]
-#     pandas_frame.drop(columns=["wind"], inplace=True)
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES.copy()[["wind"]]
+#     ibis_table.loc[ibis_table.wind > 5, "_col0"] = FOREST_FIRES["month"]
+#     ibis_table.loc[~(ibis_table.wind > 5), "_col0"] = FOREST_FIRES["day"]
+#     ibis_table.drop(columns=["wind"], inplace=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1304,12 +1268,12 @@ def test_union_all():
 #         """
 #     )
 #
-#     pandas_frame = FOREST_FIRES[["wind"]].copy()
-#     pandas_frame.loc[:, "my_wind"] = FOREST_FIRES["wind"].copy()
-#     pandas_frame.loc[:, "also_the_wind"] = FOREST_FIRES["wind"]
-#     pandas_frame.loc[:, "yes_wind"] = FOREST_FIRES["wind"]
-#     pandas_frame = pandas_frame.drop(columns=["wind"])
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     ibis_table = FOREST_FIRES[["wind"]].copy()
+#     ibis_table.loc[:, "my_wind"] = FOREST_FIRES["wind"].copy()
+#     ibis_table.loc[:, "also_the_wind"] = FOREST_FIRES["wind"]
+#     ibis_table.loc[:, "yes_wind"] = FOREST_FIRES["wind"]
+#     ibis_table = ibis_table.drop(columns=["wind"])
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # @assert_state_not_change
@@ -1342,27 +1306,27 @@ def test_union_all():
 #         """
 #     ).execute()
 #
-#     pandas_frame = AVOCADO.copy()[["avocado_id", "Date", "region"]]
-#     pandas_frame["avocado_id_object"] = pandas_frame["avocado_id"].astype("object")
-#     pandas_frame["avocado_id_int16"] = pandas_frame["avocado_id"].astype("int16")
-#     pandas_frame["avocado_id_smallint"] = pandas_frame["avocado_id"].astype("int16")
-#     pandas_frame["avocado_id_int32"] = pandas_frame["avocado_id"].astype("int32")
-#     pandas_frame["avocado_id_int"] = pandas_frame["avocado_id"].astype("int32")
-#     pandas_frame["avocado_id_int64"] = pandas_frame["avocado_id"].astype("int64")
-#     pandas_frame["avocado_id_bigint"] = pandas_frame["avocado_id"].astype("int64")
-#     pandas_frame["avocado_id_float"] = pandas_frame["avocado_id"].astype("float")
-#     pandas_frame["avocado_id_float16"] = pandas_frame["avocado_id"].astype("float16")
-#     pandas_frame["avocado_id_float32"] = pandas_frame["avocado_id"].astype("float32")
-#     pandas_frame["avocado_id_float64"] = pandas_frame["avocado_id"].astype("float64")
-#     pandas_frame["avocado_id_bool"] = pandas_frame["avocado_id"].astype("bool")
-#     pandas_frame["avocado_id_category"] = pandas_frame["avocado_id"].astype("category")
-#     pandas_frame["date"] = pandas_frame["Date"].astype("datetime64")
-#     pandas_frame["time"] = pandas_frame["Date"].astype("datetime64")
-#     pandas_frame["region_varchar"] = pandas_frame["region"].astype("string")
-#     pandas_frame["region_string"] = pandas_frame["region"].astype("string")
-#     pandas_frame = pandas_frame.drop(columns=["avocado_id", "Date", "region"])
+#     ibis_table = AVOCADO.copy()[["avocado_id", "Date", "region"]]
+#     ibis_table["avocado_id_object"] = ibis_table["avocado_id"].astype("object")
+#     ibis_table["avocado_id_int16"] = ibis_table["avocado_id"].astype("int16")
+#     ibis_table["avocado_id_smallint"] = ibis_table["avocado_id"].astype("int16")
+#     ibis_table["avocado_id_int32"] = ibis_table["avocado_id"].astype("int32")
+#     ibis_table["avocado_id_int"] = ibis_table["avocado_id"].astype("int32")
+#     ibis_table["avocado_id_int64"] = ibis_table["avocado_id"].astype("int64")
+#     ibis_table["avocado_id_bigint"] = ibis_table["avocado_id"].astype("int64")
+#     ibis_table["avocado_id_float"] = ibis_table["avocado_id"].astype("float")
+#     ibis_table["avocado_id_float16"] = ibis_table["avocado_id"].astype("float16")
+#     ibis_table["avocado_id_float32"] = ibis_table["avocado_id"].astype("float32")
+#     ibis_table["avocado_id_float64"] = ibis_table["avocado_id"].astype("float64")
+#     ibis_table["avocado_id_bool"] = ibis_table["avocado_id"].astype("bool")
+#     ibis_table["avocado_id_category"] = ibis_table["avocado_id"].astype("category")
+#     ibis_table["date"] = ibis_table["Date"].astype("datetime64")
+#     ibis_table["time"] = ibis_table["Date"].astype("datetime64")
+#     ibis_table["region_varchar"] = ibis_table["region"].astype("string")
+#     ibis_table["region_string"] = ibis_table["region"].astype("string")
+#     ibis_table = ibis_table.drop(columns=["avocado_id", "Date", "region"])
 #
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # def test_math_order_of_operations_no_parens():
@@ -1373,12 +1337,12 @@ def test_union_all():
 #
 #     my_frame = query("select 20 * avocado_id + 3 / 20 as my_math from avocado").execute()
 #
-#     pandas_frame = AVOCADO.copy()[["avocado_id"]]
-#     pandas_frame["my_math"] = 20 * pandas_frame["avocado_id"] + 3 / 20
+#     ibis_table = AVOCADO.copy()[["avocado_id"]]
+#     ibis_table["my_math"] = 20 * ibis_table["avocado_id"] + 3 / 20
 #
-#     pandas_frame = pandas_frame.drop(columns=["avocado_id"])
+#     ibis_table = ibis_table.drop(columns=["avocado_id"])
 #
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # def test_math_order_of_operations_with_parens():
@@ -1391,14 +1355,14 @@ def test_union_all():
 #         "select 20 * (avocado_id + 3) / (20 + avocado_id) as my_math from avocado"
 #     ).execute()
 #
-#     pandas_frame = AVOCADO.copy()[["avocado_id"]]
-#     pandas_frame["my_math"] = (
-#         20 * (pandas_frame["avocado_id"] + 3) / (20 + pandas_frame["avocado_id"])
+#     ibis_table = AVOCADO.copy()[["avocado_id"]]
+#     ibis_table["my_math"] = (
+#         20 * (ibis_table["avocado_id"] + 3) / (20 + ibis_table["avocado_id"])
 #     )
 #
-#     pandas_frame = pandas_frame.drop(columns=["avocado_id"])
+#     ibis_table = ibis_table.drop(columns=["avocado_id"])
 #
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 #
 #
 # def test_boolean_order_of_operations_with_parens():
@@ -1412,13 +1376,13 @@ def test_union_all():
 #         "(month = 'nov' and day = 'tue')"
 #     ).execute()
 #
-#     pandas_frame = FOREST_FIRES.copy()
-#     pandas_frame = pandas_frame[
-#         ((pandas_frame["month"] == "oct") & (pandas_frame["day"] == "fri"))
-#         | ((pandas_frame["month"] == "nov") & (pandas_frame["day"] == "tue"))
+#     ibis_table = FOREST_FIRES.copy()
+#     ibis_table = ibis_table[
+#         ((ibis_table["month"] == "oct") & (ibis_table["day"] == "fri"))
+#         | ((ibis_table["month"] == "nov") & (ibis_table["day"] == "tue"))
 #     ].reset_index(drop=True)
 #
-#     tm.assert_frame_equal(pandas_frame, my_frame)
+#     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 #
 # if __name__ == "__main__":
@@ -1430,5 +1394,5 @@ def test_union_all():
 
 if __name__ == "__main__":
     register_env_tables()
-    test_avg()
+    test_select_star()
     remove_env_tables()
