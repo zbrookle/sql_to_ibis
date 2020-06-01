@@ -4,6 +4,8 @@ Test cases for panda to sql
 from datetime import date, datetime
 
 import ibis
+from ibis.expr.api import TableExpr
+
 from freezegun import freeze_time
 import numpy as np
 from pandas import concat, merge
@@ -888,7 +890,8 @@ def test_case_statement_w_name():
         .when(FOREST_FIRES.wind > 5, "strong")
         .when(FOREST_FIRES.wind == 5, "mid")
         .else_("weak")
-        .end().name("wind_strength")
+        .end()
+        .name("wind_strength")
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -910,7 +913,8 @@ def test_case_statement_w_no_name():
         .when(FOREST_FIRES.wind > 5, "strong")
         .when(FOREST_FIRES.wind == 5, "mid")
         .else_("weak")
-        .end().name("_col0")
+        .end()
+        .name("_col0")
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -929,108 +933,95 @@ def test_case_statement_w_other_columns_as_result():
     )
     ibis_table = FOREST_FIRES.mutate(
         ibis.case()
-            .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
-            .when(FOREST_FIRES.wind == 5, "mid")
-            .else_(FOREST_FIRES.day)
-            .end().name("_col0")
+        .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
+        .when(FOREST_FIRES.wind == 5, "mid")
+        .else_(FOREST_FIRES.day)
+        .end()
+        .name("_col0")
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_rank_statement_one_column():
-#     """
-#     Test rank statement
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, rank() over(order by wind) as wind_rank
-#     from forest_fires
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind"]]
-#     ibis_table["wind_rank"] = ibis_table.wind.rank(method="min").astype("int")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_rank_statement_many_columns():
-#     """
-#     Test rank statement
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, rain, month, rank() over(order by wind desc, rain asc, month) as rank
-#     from forest_fires
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month"]]
-#     ibis_table.sort_values(
-#         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
-#     )
-#     ibis_table.reset_index(inplace=True)
-#     rank_map = {}
-#     rank_counter = 1
-#     rank_offset = 0
-#     ibis_table["rank"] = 0
-#     rank_series = ibis_table["rank"].copy()
-#     for row_num, row in enumerate(ibis_table.iterrows()):
-#         key = "".join(map(str, list(list(row)[1])[1:4]))
-#         if rank_map.get(key):
-#             rank_offset += 1
-#             rank = rank_map[key]
-#         else:
-#             rank = rank_counter + rank_offset
-#             rank_map[key] = rank
-#             rank_counter += 1
-#         rank_series[row_num] = rank
-#     ibis_table["rank"] = rank_series
-#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
-#     ibis_table.drop(columns=["index"], inplace=True)
-#     ibis_table.reset_index(drop=True, inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_dense_rank_statement_many_columns():
-#     """
-#     Test dense_rank statement
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#     select wind, rain, month,
-#     dense_rank() over(order by wind desc, rain asc, month) as rank
-#     from forest_fires
-#     """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind", "rain", "month"]]
-#     ibis_table.sort_values(
-#         by=["wind", "rain", "month"], ascending=[False, True, True], inplace=True
-#     )
-#     ibis_table.reset_index(inplace=True)
-#     rank_map = {}
-#     rank_counter = 1
-#     ibis_table["rank"] = 0
-#     rank_series = ibis_table["rank"].copy()
-#     for row_num, row in enumerate(ibis_table.iterrows()):
-#         key = "".join(map(str, list(list(row)[1])[1:4]))
-#         if rank_map.get(key):
-#             rank = rank_map[key]
-#         else:
-#             rank = rank_counter
-#             rank_map[key] = rank
-#             rank_counter += 1
-#         rank_series[row_num] = rank
-#     ibis_table["rank"] = rank_series
-#     ibis_table.sort_values(by="index", ascending=True, inplace=True)
-#     ibis_table.drop(columns=["index"], inplace=True)
-#     ibis_table.reset_index(drop=True, inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+# TODO Ibis is showing window as object in string representation
+@assert_state_not_change
+def test_rank_statement_one_column():
+    """
+    Test rank statement
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, rank() over(order by wind) as wind_rank
+    from forest_fires
+    """
+    )
+    ibis_table = FOREST_FIRES[["wind"]].mutate(
+        FOREST_FIRES.wind.rank()
+        .over(ibis.window(order_by=[FOREST_FIRES.wind]))
+        .name("wind_rank")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_rank_statement_many_columns():
+    """
+    Test rank statement
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, rain, month, rank() over(order by wind desc, rain asc, month) as rank
+    from forest_fires
+    """
+    )
+    ibis_table: TableExpr = FOREST_FIRES[["wind", "rain", "month"]]
+    ibis_table = ibis_table.mutate(
+        FOREST_FIRES.wind.rank()
+        .over(
+            ibis.window(
+                order_by=[
+                    ibis.desc(FOREST_FIRES.wind),
+                    FOREST_FIRES.rain,
+                    FOREST_FIRES.month,
+                ]
+            )
+        )
+        .name("rank")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_dense_rank_statement_many_columns():
+    """
+    Test dense_rank statement
+    :return:
+    """
+    my_frame = query(
+        """
+    select wind, rain, month,
+    dense_rank() over(order by wind desc, rain asc, month) as rank
+    from forest_fires
+    """
+    )
+    ibis_table = FOREST_FIRES[["wind", "rain", "month"]]
+    ibis_table = ibis_table.mutate(
+        FOREST_FIRES.wind.dense_rank()
+        .over(
+            ibis.window(
+                order_by=[
+                    ibis.desc(FOREST_FIRES.wind),
+                    FOREST_FIRES.rain,
+                    FOREST_FIRES.month,
+                ]
+            )
+        )
+        .name("rank")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 # @assert_state_not_change
 # def test_rank_over_partition_by():
 #     """

@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple, Union
 
 from lark import Token, Transformer, Tree, v_args
 from pandas import Series, concat, merge
-from ibis.expr.types import TableExpr
+from ibis.expr.types import TableExpr, ColumnExpr
 from ibis.expr.operations import TableColumn
 from ibis.expr.api import NumericColumn
 import ibis
@@ -227,18 +227,6 @@ class InternalTransformer(TransformerBaseClass):
                     self.column_to_dataframe_name[column] = table_name
             if table in self.tables:
                 self.column_to_dataframe_name[column] = table
-
-        # These variables need instance scope for rank instance method
-        self.partition_func_dict = {
-            self.set_rank_regular: self.set_rank_regular_partition,
-            self.set_rank_dense: self.set_rank_dense_partition,
-        }
-        self.partition_rank_counter: Dict[str, int] = {}
-        self.partition_rank_offset: Dict[str, int] = {}
-        self.rank_counter = 1
-        self.rank_offset = 0
-        self.rank_map = {}
-        self.last_key = None
 
     def transform(self, tree):
         new_tree = TransformerBaseClass.transform(self, tree)
@@ -622,15 +610,13 @@ class InternalTransformer(TransformerBaseClass):
         """
         return form
 
-    def order_asc(self, column):
+    def order_asc(self, column_list: List[Column]):
         """
         Return sql_object in asc order
         :param column:
         :return:
         """
-        column = column[0]
-        column.value = column.value.copy().sort_values(ascending=True)
-        return Token("order", (column, True))
+        return Token("order", (column_list[0], True))
 
     def order_desc(self, column):
         """
@@ -639,92 +625,7 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         column = column[0]
-        column.value = column.value.copy().sort_values(ascending=False)
         return Token("order", (column, False))
-
-    def set_rank_dense(self, row):
-        """
-        Set rank dense rank without gaps between consecutive ranks
-        :param row: A pandas row object
-        :return: The dense rank of the current row
-        """
-        key = str(list(row))
-        if self.rank_map.get(key):
-            return self.rank_map[key]
-        self.rank_map[key] = self.rank_counter
-        rank = self.rank_counter
-        self.rank_counter += 1
-        return rank
-
-    def set_rank_regular(self, row):
-        """
-        Set rank in traditional SQL database fashion
-        :param row: A pandas row object
-        :return: The rank of the current row
-        """
-        key = str(list(row))
-        if self.rank_map.get(key):
-            self.rank_offset += 1
-            return self.rank_map[key]
-        rank = self.rank_counter + self.rank_offset
-        self.rank_map[key] = rank
-        self.rank_counter += 1
-        return rank
-
-    def set_rank_regular_partition(self, row, partition_slice):
-        """
-        Set rank with a partition
-        :param row: A pandas row object
-        :param partition_slice: Integer to slice the values in the row based on
-        partition
-        :return: The partitioned rank of the current row
-        """
-        row_list = list(row)[:partition_slice]
-        partition_list = list(row)[partition_slice:]
-        key = str(row_list)
-        partition_key = str(partition_list)
-        if self.rank_map.get(partition_key):
-            if self.rank_map[partition_key].get(key):
-                self.partition_rank_offset[partition_key] += 1
-                return self.rank_map[partition_key][key]
-            self.partition_rank_counter[partition_key] += 1
-            rank = (
-                self.partition_rank_counter[partition_key]
-                + self.partition_rank_offset[partition_key]
-            )
-            self.rank_map[partition_key][key] = rank
-        else:
-            rank = 1
-            self.rank_map[partition_key] = {}
-            self.partition_rank_counter[partition_key] = rank
-            self.partition_rank_offset[partition_key] = 0
-            self.rank_map[partition_key][key] = rank
-        return rank
-
-    def set_rank_dense_partition(self, row, partition_slice):
-        """
-        Set rank with a partition
-        :param row: A pandas row object
-        :param partition_slice: Integer to slice the values in the row based on
-        partition
-        :return: The partitioned rank of the current row
-        """
-        row_list = list(row)[:partition_slice]
-        partition_list = list(row)[partition_slice:]
-        key = str(row_list)
-        partition_key = str(partition_list)
-        if self.rank_map.get(partition_key):
-            if self.rank_map[partition_key].get(key):
-                return self.rank_map[partition_key][key]
-            self.partition_rank_counter[partition_key] += 1
-            rank = self.partition_rank_counter[partition_key]
-            self.rank_map[partition_key][key] = rank
-        else:
-            rank = 1
-            self.rank_map[partition_key] = {}
-            self.partition_rank_counter[partition_key] = 1
-            self.rank_map[partition_key][key] = rank
-        return rank
 
     def partition_by(self, column_list):
         """
@@ -735,44 +636,29 @@ class InternalTransformer(TransformerBaseClass):
         column = column_list[0]
         return Token("partition", column)
 
-    def rank(self, tokens, rank_function):
+    def get_rank_orders_and_partitions(self, tokens: List[List[Token]]):
         """
         Returns the evaluated rank expressions
         :param tokens: Tokens making up the rank sql_object
-        :param rank_function: Function to be used in rank evaluation
         :return:
         """
         expressions = tokens[0]
-        series_list = []
         order_list = []
         partition_list = []
+        rank_column = None
         for token in expressions:
             if token.type == "order":
-                column = token.value[0]
-                ascending = token.value[1]
-                series_list.append(column.value)
-                order_list.append(ascending)
+                token_tuple: Tuple[Column, bool] = token.value
+                ibis_value: ColumnExpr = token_tuple[0].get_value()
+                if rank_column is None:
+                    rank_column = ibis_value
+                if not token_tuple[1]:
+                    ibis_value = ibis.desc(ibis_value)
+                order_list.append(ibis_value)
             elif token.type == "partition":
-                column = token.value
+                column: Column = token.value
                 partition_list.append(column.value)
-        rank_df = concat(series_list, axis=1)
-        column_names = rank_df.columns.to_list()
-        if partition_list:
-            rank_df = concat(series_list + partition_list, axis=1)
-            rank_function = self.partition_func_dict[rank_function]
-            column_slice = len(column_names)
-        rank_df.sort_values(by=column_names, ascending=order_list, inplace=True)
-        if partition_list:
-            rank = rank_df.apply(rank_function, args=(column_slice,), axis=1)
-            self.partition_rank_counter = {}
-            self.partition_rank_offset = {}
-        else:
-            rank = rank_df.apply(rank_function, axis=1)
-            self.rank_counter = 1
-            self.rank_offset = 0
-        self.rank_map = {}
-        rank_df["rank"] = rank
-        return Expression(value=rank)
+        return order_list, partition_list, rank_column
 
     def rank_expression(self, tokens):
         """
@@ -780,7 +666,8 @@ class InternalTransformer(TransformerBaseClass):
         :param tokens:
         :return:
         """
-        return self.rank(tokens, self.set_rank_regular)
+        orders, partitions, first_column = self.get_rank_orders_and_partitions(tokens)
+        return Expression(first_column.rank().over(ibis.window(order_by=orders)))
 
     def dense_rank_expression(self, tokens):
         """
@@ -788,7 +675,8 @@ class InternalTransformer(TransformerBaseClass):
         :param tokens:
         :return:
         """
-        return self.rank(tokens, self.set_rank_dense)
+        orders, partitions, first_column = self.get_rank_orders_and_partitions(tokens)
+        return Expression(first_column.dense_rank().over(ibis.window(order_by=orders)))
 
     def select_expression(self, expression_and_alias):
         """
