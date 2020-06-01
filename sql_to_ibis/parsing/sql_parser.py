@@ -597,48 +597,22 @@ class InternalTransformer(TransformerBaseClass):
         :param when_expressions:
         :return:
         """
-        case_execution_plan = "NONE_SERIES"
-        if isinstance(when_expressions[0], tuple):
-            dataframe_size = when_expressions[0][0].value.size
-        new_column = Series(data=[None for _ in range(0, dataframe_size)])
-        current_truth_value = Series(data=[False for _ in range(0, dataframe_size)])
-
-        current_truth_value_plan = (
-            "FALSE_SERIES"  # See the README section why this is here
-        )
-
+        # if isinstance(when_expressions[0], tuple):
+        #     dataframe_size = when_expressions[0][0].value.size
+        case_expression = ibis.case()
         for i, when_expression in enumerate(when_expressions):
             if isinstance(when_expression, tuple):
-                conditional_object = when_expression[0]
-                expression_truth_value = conditional_object.get_value()
-                new_column = new_column.mask(
-                    (expression_truth_value ^ current_truth_value)
-                    & expression_truth_value,
-                    when_expression[1].get_value(),
-                )
-                expression_truth_value_plan = (
-                    conditional_object.get_plan_representation()
-                )
-                case_execution_plan += (
-                    f".mask((({expression_truth_value_plan}) ^ "
-                    f"({current_truth_value_plan})) & ({expression_truth_value_plan}), "
-                    f"{when_expression[1].get_plan_representation()})"
-                )
-                current_truth_value = current_truth_value | expression_truth_value
-                current_truth_value_plan = (
-                    f"({current_truth_value_plan}) | "
-                    f"({expression_truth_value_plan})"
+                conditional_boolean = when_expression[0].get_value()
+                conditional_value = when_expression[1].get_value()
+                case_expression = case_expression.when(
+                    conditional_boolean, conditional_value
                 )
             else:
-                conditional_object = when_expression
-                new_column = new_column.where(
-                    current_truth_value, conditional_object.get_value()
-                )
-                case_execution_plan += (
-                    f".where({current_truth_value_plan}, "
-                    f"{conditional_object.get_plan_representation()})"
-                )
-        return Expression(value=new_column, execution_plan=case_execution_plan)
+                case_expression = case_expression.else_(
+                    when_expression.get_value()
+                ).end()
+
+        return Expression(value=case_expression)
 
     def rank_form(self, form):
         """

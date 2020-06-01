@@ -830,8 +830,9 @@ def test_in_operator():
     select * from forest_fires where day in ('fri', 'sun')
     """
     )
-    ibis_table = FOREST_FIRES[FOREST_FIRES.day.isin([ibis.literal("fri"),
-                                                     ibis.literal("sun")])]
+    ibis_table = FOREST_FIRES[
+        FOREST_FIRES.day.isin([ibis.literal("fri"), ibis.literal("sun")])
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -861,78 +862,81 @@ def test_not_in_operator():
     select * from forest_fires where day not in ('fri', 'sun')
     """
     )
-    ibis_table = FOREST_FIRES[FOREST_FIRES.day.notin([ibis.literal("fri"),
-                                                     ibis.literal("sun")])]
+    ibis_table = FOREST_FIRES[
+        FOREST_FIRES.day.notin([ibis.literal("fri"), ibis.literal("sun")])
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_case_statement_w_name():
-#     """
-#     Test using case statements
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select case when wind > 5 then 'strong'
-#         when wind = 5 then 'mid'
-#         else 'weak' end as wind_strength
-#         from
-#         forest_fires
-#         """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind"]]
-#     ibis_table.loc[ibis_table.wind > 5, "wind_strength"] = "strong"
-#     ibis_table.loc[ibis_table.wind == 5, "wind_strength"] = "mid"
-#     ibis_table.loc[ibis_table.wind < 5, "wind_strength"] = "weak"
-#     ibis_table.drop(columns=["wind"], inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_case_statement_w_no_name():
-#     """
-#     Test using case statements
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select case when wind > 5 then 'strong' when wind = 5 then 'mid' else 'weak' end
-#         from forest_fires
-#         """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind"]]
-#     ibis_table.loc[ibis_table.wind > 5, "_col0"] = "strong"
-#     ibis_table.loc[ibis_table.wind == 5, "_col0"] = "mid"
-#     ibis_table.loc[
-#         ~((ibis_table.wind == 5) | (ibis_table.wind > 5)), "_col0"
-#     ] = "weak"
-#     ibis_table.drop(columns=["wind"], inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_case_statement_w_other_columns_as_result():
-#     """
-#     Test using case statements
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select case when wind > 5 then month when wind = 5 then 'mid' else day end
-#         from forest_fires
-#         """
-#     )
-#     ibis_table = FOREST_FIRES.copy()[["wind"]]
-#     ibis_table.loc[ibis_table.wind > 5, "_col0"] = FOREST_FIRES["month"]
-#     ibis_table.loc[ibis_table.wind == 5, "_col0"] = "mid"
-#     ibis_table.loc[
-#         ~((ibis_table.wind == 5) | (ibis_table.wind > 5)), "_col0"
-#     ] = FOREST_FIRES["day"]
-#     ibis_table.drop(columns=["wind"], inplace=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+@assert_state_not_change
+def test_case_statement_w_name():
+    """
+    Test using case statements
+    :return:
+    """
+    my_frame = query(
+        """
+        select case when wind > 5 then 'strong'
+        when wind = 5 then 'mid'
+        else 'weak' end as wind_strength
+        from
+        forest_fires
+        """
+    )
+    ibis_table = FOREST_FIRES.mutate(
+        ibis.case()
+        .when(FOREST_FIRES.wind > 5, "strong")
+        .when(FOREST_FIRES.wind == 5, "mid")
+        .else_("weak")
+        .end().name("wind_strength")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_case_statement_w_no_name():
+    """
+    Test using case statements
+    :return:
+    """
+    my_frame = query(
+        """
+        select case when wind > 5 then 'strong' when wind = 5 then 'mid' else 'weak' end
+        from forest_fires
+        """
+    )
+    ibis_table = FOREST_FIRES.mutate(
+        ibis.case()
+        .when(FOREST_FIRES.wind > 5, "strong")
+        .when(FOREST_FIRES.wind == 5, "mid")
+        .else_("weak")
+        .end().name("_col0")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_case_statement_w_other_columns_as_result():
+    """
+    Test using case statements
+    :return:
+    """
+    my_frame = query(
+        """
+        select case when wind > 5 then month when wind = 5 then 'mid' else day end
+        from forest_fires
+        """
+    )
+    ibis_table = FOREST_FIRES.mutate(
+        ibis.case()
+            .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
+            .when(FOREST_FIRES.wind == 5, "mid")
+            .else_(FOREST_FIRES.day)
+            .end().name("_col0")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 # @assert_state_not_change
 # def test_rank_statement_one_column():
 #     """
