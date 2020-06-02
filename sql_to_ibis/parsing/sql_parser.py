@@ -85,7 +85,7 @@ GIVEN_TYPE_TO_IBIS = {
     "smallint": "int16",
     "int": "int32",
     "bigint": "int64",
-    "category": "string"
+    "category": "string",
 }
 
 from sql_to_ibis.parsing.aggregation_aliases import (

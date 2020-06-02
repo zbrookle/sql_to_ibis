@@ -1261,7 +1261,7 @@ def test_sql_data_types():
             date_column.cast("timestamp").name("timestamp"),
             date_column.cast("time").name("time"),
             region_column.cast("string").name("region_varchar"),
-            region_column.cast("string").name("region_string")
+            region_column.cast("string").name("region_string"),
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
@@ -1273,15 +1273,16 @@ def test_math_order_of_operations_no_parens():
     :return:
     """
 
-    my_frame = query(
-        "select 20 * avocado_id + 3 / 20 as my_math from avocado"
-    ).execute()
+    my_frame = query("select 20 * avocado_id + 3 / 20 as my_math from avocado")
 
-    ibis_table = AVOCADO.copy()[["avocado_id"]]
-    ibis_table["my_math"] = 20 * ibis_table["avocado_id"] + 3 / 20
-
-    ibis_table = ibis_table.drop(columns=["avocado_id"])
-
+    ibis_table = AVOCADO.projection(
+        [
+            (
+                ibis.literal(20) * AVOCADO.avocado_id
+                + ibis.literal(3) / ibis.literal(20)
+            ).name("my_math")
+        ]
+    )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -1293,15 +1294,17 @@ def test_math_order_of_operations_with_parens():
 
     my_frame = query(
         "select 20 * (avocado_id + 3) / (20 + avocado_id) as my_math from avocado"
-    ).execute()
-
-    ibis_table = AVOCADO.copy()[["avocado_id"]]
-    ibis_table["my_math"] = (
-        20 * (ibis_table["avocado_id"] + 3) / (20 + ibis_table["avocado_id"])
     )
-
-    ibis_table = ibis_table.drop(columns=["avocado_id"])
-
+    avocado_id = AVOCADO.avocado_id
+    ibis_table = AVOCADO.projection(
+        [
+            (
+                ibis.literal(20)
+                * (avocado_id + ibis.literal(3))
+                / (ibis.literal(20) + avocado_id)
+            ).name("my_math")
+        ]
+    )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -1314,23 +1317,15 @@ def test_boolean_order_of_operations_with_parens():
         "select * from forest_fires "
         "where (month = 'oct' and day = 'fri') or "
         "(month = 'nov' and day = 'tue')"
-    ).execute()
+    )
 
-    ibis_table = FOREST_FIRES.copy()
-    ibis_table = ibis_table[
-        ((ibis_table["month"] == "oct") & (ibis_table["day"] == "fri"))
-        | ((ibis_table["month"] == "nov") & (ibis_table["day"] == "tue"))
-    ].reset_index(drop=True)
+    ibis_table = FOREST_FIRES[
+        ((FOREST_FIRES.month == "oct") & (FOREST_FIRES.day == "fri"))
+        | ((FOREST_FIRES.month == "nov") & (FOREST_FIRES.day == "tue"))
+    ]
 
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
-
-# if __name__ == "__main__":
-#     register_env_tables()
-#
-#     test_sql_data_types()
-#
-#     remove_env_tables()
 
 if __name__ == "__main__":
     register_env_tables()
