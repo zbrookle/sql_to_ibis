@@ -273,6 +273,7 @@ Specifically, both are released under the Creative Commons "Public Domain
 Dedication" license (CC0-1.0), as described in
 https://creativecommons.org/publicdomain/zero/1.0/ .
 
+isort:skip_file
 """
 
 from __future__ import print_function
