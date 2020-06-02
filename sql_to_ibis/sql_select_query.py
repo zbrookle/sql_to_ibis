@@ -2,11 +2,10 @@
 Convert sql_to_ibis statement to run on pandas dataframes
 """
 import os
-import ibis
 from ibis.expr.types import TableExpr
 from pathlib import Path
 import re
-from typing import Any, Dict, Type
+from typing import Any, Dict
 
 from lark import Lark, UnexpectedToken
 from lark.exceptions import VisitError
@@ -142,7 +141,7 @@ class SqlToDataFrame:
             raise InvalidQueryException(message)
         except VisitError as err:
             match = re.match(
-                r"(\n|.)*DataFrame\s(?P<table>.*)\shas\snot\sbeen\sdefined(\n|.)*",
+                r"(\n|.)*Table\s(?P<table>.*)\shas\snot\sbeen\sdefined(\n|.)*",
                 str(err),
                 re.MULTILINE,
             )
@@ -156,7 +155,7 @@ class TableInfo:
     column_to_dataframe_name: Dict[str, Any] = {}
     column_name_map: Dict[str, Dict[str, str]] = {}
     ibis_table_name_map: Dict[str, str] = {}
-    ibis_table_map: Dict[str, Type["IbisTable"]] = {}
+    ibis_table_map: Dict[str, TableExpr] = {}
 
     def add_column_to_column_to_dataframe_name_map(self, column, table):
         if self.column_to_dataframe_name.get(column) is None:

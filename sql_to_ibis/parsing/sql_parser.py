@@ -1126,13 +1126,8 @@ class SQLTransformer(TransformerBaseClass):
             having = internal_transformer.transform(having_expr.children[0]).value
         aggregate_ibis_columns = []
         for aggregate_column in aggregates:
-            column = aggregates[aggregate_column].value
-            column._name = aggregate_column
-            # TODO There needs to be a way to do this in ibis without using a protected name
-            # TODO Also ibis shouldn't be naming columns with aggreations eg
-            #  naming a column "mean"
+            column = aggregates[aggregate_column].value.name(aggregate_column)
             aggregate_ibis_columns.append(column)
-
         if group_columns and not aggregates:
             for column in table.columns:
                 if column not in group_columns:
@@ -1142,7 +1137,8 @@ class SQLTransformer(TransformerBaseClass):
                     )
             table = table.distinct()
         elif aggregates and not group_columns:
-            table = table.aggregate(aggregate_ibis_columns)
+            # print(aggregate_ibis_columns)
+            table = table.aggregate(aggregate_ibis_columns, having=having)
         elif aggregates and group_columns:
             table = table.group_by(group_columns)
             if having is not None:
@@ -1190,7 +1186,9 @@ class SQLTransformer(TransformerBaseClass):
                 return ibis_table
             column_value = column.get_value().name(column.get_name())
             column_mutation.append(column_value)
-        return ibis_table.projection(column_mutation)
+        if column_mutation:
+            return ibis_table.projection(column_mutation)
+        return ibis_table
 
     def handle_join(self, join: Join) -> TableExpr:
         """

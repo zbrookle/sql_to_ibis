@@ -557,7 +557,6 @@ def test_limit():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# # # TODO Add in parentheses support for Order of ops
 @assert_state_not_change
 def test_having_multiple_conditions():
     """
@@ -565,17 +564,11 @@ def test_having_multiple_conditions():
     :return:
     """
     my_frame = query(
-        "select min(temp) from forest_fires having min(temp) > 2 and "
-        "max(dc) < 200 or month = 'oct'"
+        "select min(temp) from forest_fires having min(temp) > 2 and " "max(dc) < 200"
     )
-    temp_column = FOREST_FIRES.get_column("temp")
-
-    print(
-        (temp_column.min() > 2) & (FOREST_FIRES.get_column("DC").max() < 200)
-        | (FOREST_FIRES.get_column("month") == "oct")
-    )
+    having_condition = (FOREST_FIRES.temp.min() > 2) & (FOREST_FIRES.DC.max() < 200)
     ibis_table = FOREST_FIRES.aggregate(
-        metrics=temp_column.min().name("_col0"), having=(),
+        metrics=FOREST_FIRES.temp.min().name("_col0"), having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -587,10 +580,10 @@ def test_having_one_condition():
     :return:
     """
     my_frame = query("select min(temp) from forest_fires having min(temp) > 2")
-    ibis_table = FOREST_FIRES.copy()
-    ibis_table["_col0"] = FOREST_FIRES["temp"]
-    aggregated_df = ibis_table.aggregate({"_col0": "min"}).to_frame().transpose()
-    ibis_table = aggregated_df[aggregated_df["_col0"] > 2]
+    min_aggregate = FOREST_FIRES.temp.min()
+    ibis_table = FOREST_FIRES.aggregate(
+        min_aggregate.name("_col0"), having=(min_aggregate > 2)
+    )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -1194,11 +1187,11 @@ def test_multiple_aliases_same_column():
         """
     )
     wind_column = FOREST_FIRES.get_column("wind")
-    ibis_table = FOREST_FIRES.mutate(
+    ibis_table = FOREST_FIRES.projection(
         [
-            wind_column.name("my_wind"),
-            wind_column.name("also_the_wind"),
-            wind_column.name("yes_wind"),
+            FOREST_FIRES.wind.name("my_wind"),
+            FOREST_FIRES.wind.name("also_the_wind"),
+            FOREST_FIRES.wind.name("yes_wind"),
         ]
     )
     print(ibis_table)
@@ -1267,6 +1260,7 @@ def test_sql_data_types():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
+@assert_state_not_change
 def test_math_order_of_operations_no_parens():
     """
     Test math parentheses
@@ -1308,6 +1302,7 @@ def test_math_order_of_operations_with_parens():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
+@assert_state_not_change
 def test_boolean_order_of_operations_with_parens():
     """
     Test boolean order of operations with parentheses
@@ -1327,7 +1322,29 @@ def test_boolean_order_of_operations_with_parens():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
+def test_complex_subquery():
+    my_frame = query(
+        """
+    SELECT
+        type, move, attribute, power
+    FROM
+        DIGIMON_MOVELIST A
+    WHERE
+        power = (
+            SELECT
+                MAX(power)
+            FROM
+                DIGIMON_MOVELIST B
+            WHERE
+                B.type = A.type)
+    GROUP BY type
+    HAVING MAX(power) > 20
+    """
+    )
+    ibis
+
+
 if __name__ == "__main__":
     register_env_tables()
-    test_type_conversion()
+    test_having_multiple_conditions()
     remove_env_tables()
