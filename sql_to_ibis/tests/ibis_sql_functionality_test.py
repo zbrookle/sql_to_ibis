@@ -1144,15 +1144,14 @@ def test_timestamps():
         select wind, now(), today(), timestamp('2019-01-31', '23:20:32')
         from forest_fires"""
         )
-        ibis_table = FOREST_FIRES.copy()[["wind"]]
-        ibis_table["now()"] = datetime.now()
-        ibis_table["today()"] = date.today()
-        ibis_table["_literal0"] = datetime(2019, 1, 31, 23, 20, 32)
+        ibis_table = FOREST_FIRES[["wind"]].mutate(
+            [
+                ibis.literal(datetime.now()).name("now()"),
+                ibis.literal(date.today()).name("today()"),
+                ibis.literal(datetime(2019, 1, 31, 23, 20, 32)).name("_literal4")
+            ]
+        )
         assert_ibis_equal_show_diff(ibis_table, my_frame)
-
-
-# # TODO Add in more having and boolean tests
-# # TODO Add in parentheses for order of operations
 
 
 @assert_state_not_change
@@ -1170,9 +1169,10 @@ def test_case_statement_with_same_conditions():
     ibis_table = FOREST_FIRES.mutate(
         ibis.case()
         .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
-        .when(FOREST_FIRES.wind > 5, 'mid')
+        .when(FOREST_FIRES.wind > 5, "mid")
         .else_(FOREST_FIRES.day)
-        .end().name("_col0")
+        .end()
+        .name("_col0")
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -1261,7 +1261,9 @@ def test_math_order_of_operations_no_parens():
     :return:
     """
 
-    my_frame = query("select 20 * avocado_id + 3 / 20 as my_math from avocado").execute()
+    my_frame = query(
+        "select 20 * avocado_id + 3 / 20 as my_math from avocado"
+    ).execute()
 
     ibis_table = AVOCADO.copy()[["avocado_id"]]
     ibis_table["my_math"] = 20 * ibis_table["avocado_id"] + 3 / 20

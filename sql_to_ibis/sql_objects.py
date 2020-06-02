@@ -187,9 +187,9 @@ class Literal(Value):
 
     def __init__(self, value, alias=""):
         Value.__init__(self, value, alias)
-        if not alias:
+        if not self.alias:
             self.alias = f"_literal{self.literal_count}"
-            self.literal_count += 1
+            type(self).literal_count += 1
         self.to_ibis_literal()
 
     def to_ibis_literal(self):

@@ -1342,6 +1342,7 @@ def test_case_statement_with_same_conditions():
     pandas_frame.drop(columns=["wind"], inplace=True)
     tm.assert_frame_equal(pandas_frame, my_frame)
 
+
 #
 # @assert_state_not_change
 # def test_multiple_aliases_same_column():

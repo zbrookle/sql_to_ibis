@@ -335,7 +335,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return String(string_token[0].value)
 
-    def timestamp_expression(self, date_list):
+    def timestamp_expression(self, date_list: List[Date]) -> Date:
         """
         Return a timestamp object
         :param date_list:
@@ -754,9 +754,6 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         value_wrapper, given_type = value_and_type
-        # if given_type == "datetime64":
-        #     date_value = datetime.strptime(value_wrapper.value, "%Y-%m-%d")
-        #     return Date(date_value)
         new_type = TYPE_TO_SQL_TYPE[given_type]
         new_value = new_type(value_wrapper.value.cast(to_ibis_type(given_type)))
         return new_value
@@ -1268,7 +1265,8 @@ class SQLTransformer(TransformerBaseClass):
         for literal in literals:
             columns_to_keep.append(literal.alias)
             value = literal.value
-            if literal.alias in new_table.columns:
+            print(literal.alias)
+            if literal.alias:
                 value = value.name(literal.alias)
             else:
                 value = value.name(literal.final_name)
