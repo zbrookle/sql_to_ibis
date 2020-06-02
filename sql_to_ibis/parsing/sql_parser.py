@@ -3,17 +3,23 @@ Module containing all lark internal_transformer classes
 """
 from datetime import date, datetime
 import re
-from types import FunctionType
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple, Union
 
-from lark import Token, Transformer, Tree, v_args
-from pandas import Series, concat, merge
-from ibis.expr.types import TableExpr, ColumnExpr
-from ibis.expr.operations import TableColumn
-from ibis.expr.api import NumericColumn
 import ibis
+from ibis.expr.api import NumericColumn
+from ibis.expr.operations import TableColumn
+from ibis.expr.types import ColumnExpr, TableExpr
+from lark import Token, Transformer, Tree, v_args
+from pandas import Series, merge
 
 from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
+from sql_to_ibis.parsing.aggregation_aliases import (
+    AVG_AGGREGATIONS,
+    MAX_AGGREGATIONS,
+    MIN_AGGREGATIONS,
+    NUMERIC_AGGREGATIONS,
+    SUM_AGGREGATIONS,
+)
 from sql_to_ibis.sql_objects import (
     Aggregate,
     AmbiguousColumn,
@@ -87,14 +93,6 @@ GIVEN_TYPE_TO_IBIS = {
     "bigint": "int64",
     "category": "string",
 }
-
-from sql_to_ibis.parsing.aggregation_aliases import (
-    AVG_AGGREGATIONS,
-    MAX_AGGREGATIONS,
-    MIN_AGGREGATIONS,
-    NUMERIC_AGGREGATIONS,
-    SUM_AGGREGATIONS,
-)
 
 
 def num_eval(arg):

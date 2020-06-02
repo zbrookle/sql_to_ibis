@@ -1,21 +1,20 @@
 """
 Shared functions among the tests like setting up test environment
 """
+from copy import deepcopy
+from functools import wraps
 from pathlib import Path
+from subprocess import PIPE, Popen
+from tempfile import NamedTemporaryFile
+from typing import Callable
 
+import ibis
+from ibis.expr.api import TableExpr
+from ibis.tests.util import assert_equal
 from pandas import DataFrame, read_csv
 
 from sql_to_ibis import register_temp_table, remove_temp_table
-from tempfile import NamedTemporaryFile
-
-from typing import Callable
 from sql_to_ibis.sql_select_query import TableInfo
-from copy import deepcopy
-from functools import wraps
-from ibis.expr.api import TableExpr
-import ibis
-from ibis.tests.util import assert_equal
-from subprocess import Popen, PIPE
 
 DATA_PATH = Path(__file__).parent.parent / "data"
 

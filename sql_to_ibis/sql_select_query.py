@@ -2,17 +2,17 @@
 Convert sql_to_ibis statement to run on pandas dataframes
 """
 import os
-from ibis.expr.types import TableExpr
 from pathlib import Path
 import re
 from typing import Any, Dict
 
+from ibis.expr.types import TableExpr
 from lark import Lark, UnexpectedToken
 from lark.exceptions import VisitError
 
 from sql_to_ibis.exceptions.sql_exception import (
-    TableExprDoesNotExist,
     InvalidQueryException,
+    TableExprDoesNotExist,
 )
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
 from sql_to_ibis.sql_objects import AmbiguousColumn

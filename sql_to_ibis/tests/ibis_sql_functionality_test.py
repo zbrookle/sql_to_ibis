@@ -3,19 +3,15 @@ Test cases for panda to sql
 """
 from datetime import date, datetime
 
+from freezegun import freeze_time
 import ibis
 from ibis.expr.api import TableExpr
-
-from freezegun import freeze_time
-import numpy as np
-from pandas import concat, merge
-import pandas.testing as tm
 import pytest
 
 from sql_to_ibis import query, register_temp_table, remove_temp_table
 from sql_to_ibis.exceptions.sql_exception import (
-    TableExprDoesNotExist,
     InvalidQueryException,
+    TableExprDoesNotExist,
 )
 from sql_to_ibis.sql_objects import AmbiguousColumn
 from sql_to_ibis.sql_select_query import TableInfo
@@ -24,10 +20,10 @@ from sql_to_ibis.tests.utils import (
     DIGIMON_MON_LIST,
     DIGIMON_MOVE_LIST,
     FOREST_FIRES,
-    register_env_tables,
-    remove_env_tables,
     assert_ibis_equal_show_diff,
     assert_state_not_change,
+    register_env_tables,
+    remove_env_tables,
 )
 
 
@@ -146,9 +142,9 @@ def test_type_conversion():
     """
     my_frame = query(
         """select cast(temp as int64),
-        cast(RH as float64) my_rh, 
-        wind, 
-        rain, 
+        cast(RH as float64) my_rh,
+        wind,
+        rain,
         area,
         cast(2.0 as int64) my_int,
         cast(3 as float64) as my_float,
@@ -226,180 +222,180 @@ def test_subquery():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_join_no_inner():
-#     """
-#     Test join
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list join
-#             digimon_move_list
-#             on digimon_mon_list.attribute = digimon_move_list.attribute"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, on="Attribute")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
+@assert_state_not_change
+def test_join_no_inner():
+    """
+    Test join
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list join
+            digimon_move_list
+            on digimon_mon_list.attribute = digimon_move_list.attribute"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, on="Attribute")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_join_wo_specifying_table():
-#     """
-#     Test join where table isn't specified in join
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select * from digimon_mon_list join
-#         digimon_move_list
-#         on mon_attribute = move_attribute
-#         """
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(
-#         ibis_table2, left_on="mon_attribute", right_on="move_attribute"
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_join_w_inner():
-#     """
-#     Test join
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list inner join
-#             digimon_move_list
-#             on digimon_mon_list.attribute = digimon_move_list.attribute"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, on="Attribute")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_outer_join_no_outer():
-#     """
-#     Test outer join
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list full outer join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_outer_join_w_outer():
-#     """
-#     Test outer join
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list full join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_left_joins():
-#     """
-#     Test right, left, inner, and outer joins
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list left join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="left", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_left_outer_joins():
-#     """
-#     Test right, left, inner, and outer joins
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list left outer join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="left", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_right_joins():
-#     """
-#     Test right, left, inner, and outer joins
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list right join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="right", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_right_outer_joins():
-#     """
-#     Test right, left, inner, and outer joins
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list right outer join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="right", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
-# @assert_state_not_change
-# def test_cross_joins():
-#     """
-#     Test right, left, inner, and outer joins
-#     :return:
-#     """
-#     my_frame = query(
-#         """select * from digimon_mon_list cross join
-#             digimon_move_list
-#             on digimon_mon_list.type = digimon_move_list.type"""
-#     )
-#     ibis_table1 = DIGIMON_MON_LIST
-#     ibis_table2 = DIGIMON_MOVE_LIST
-#     ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+@assert_state_not_change
+def test_join_wo_specifying_table():
+    """
+    Test join where table isn't specified in join
+    :return:
+    """
+    my_frame = query(
+        """
+        select * from digimon_mon_list join
+        digimon_move_list
+        on mon_attribute = move_attribute
+        """
+    )
+    ibis_table1 = DIGIMON_MON_LIST.join()
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(
+        ibis_table2, left_on="mon_attribute", right_on="move_attribute"
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_join_w_inner():
+    """
+    Test join
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list inner join
+            digimon_move_list
+            on digimon_mon_list.attribute = digimon_move_list.attribute"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, on="Attribute")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_outer_join_no_outer():
+    """
+    Test outer join
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list full outer join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_outer_join_w_outer():
+    """
+    Test outer join
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list full join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_left_joins():
+    """
+    Test right, left, inner, and outer joins
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list left join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="left", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_left_outer_joins():
+    """
+    Test right, left, inner, and outer joins
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list left outer join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="left", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_right_joins():
+    """
+    Test right, left, inner, and outer joins
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list right join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="right", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_right_outer_joins():
+    """
+    Test right, left, inner, and outer joins
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list right outer join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="right", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
+def test_cross_joins():
+    """
+    Test right, left, inner, and outer joins
+    :return:
+    """
+    my_frame = query(
+        """select * from digimon_mon_list cross join
+            digimon_move_list
+            on digimon_mon_list.type = digimon_move_list.type"""
+    )
+    ibis_table1 = DIGIMON_MON_LIST
+    ibis_table2 = DIGIMON_MOVE_LIST
+    ibis_table = ibis_table1.merge(ibis_table2, how="outer", on="Type")
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 @assert_state_not_change
 def test_group_by():
     """
