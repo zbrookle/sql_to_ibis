@@ -96,6 +96,8 @@ class Value:
         Returns the name of the current value
         :return:
         """
+        if self.alias:
+            return self.alias
         return self.final_name
 
     def get_value(self):
@@ -151,6 +153,9 @@ class Value:
         """
         self.alias = alias
         self.final_name = alias
+
+    def set_type(self, type_name: str):
+        self.value = self.value.cast(type_name)
 
     def __gt__(self, other):
         if isinstance(other, Value):
@@ -395,9 +400,6 @@ class Column(Value):
         :return:
         """
         self.value = new_value
-
-    def get_name(self):
-        return self.name
 
     def get_table(self):
         return self.table

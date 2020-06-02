@@ -146,20 +146,22 @@ def test_type_conversion():
     """
     my_frame = query(
         """select cast(temp as int64),
-        cast(RH as float64) my_rh, wind, rain, area,
+        cast(RH as float64) my_rh, 
+        wind, 
+        rain, 
+        area,
         cast(2.0 as int64) my_int,
         cast(3 as float64) as my_float,
         cast(7 as object) as my_object,
         cast(0 as bool) as my_bool from forest_fires"""
     )
-    # print(my_frame)
-    fire_frame = FOREST_FIRES[["temp", "RH", "wind", "rain", "area"]].relabel(
-        {"RH": "my_rh"}
-    )
-    fire_frame = fire_frame.mutate(
+    fire_frame = FOREST_FIRES.projection(
         [
-            fire_frame.get_column("my_rh").cast("float64").name("my_rh"),
-            fire_frame.get_column("temp").cast("int64").name("temp"),
+            FOREST_FIRES.temp.cast("int64").name("temp"),
+            FOREST_FIRES.RH.cast("float64").name("my_rh"),
+            FOREST_FIRES.wind,
+            FOREST_FIRES.rain,
+            FOREST_FIRES.area,
             ibis.literal(2.0).cast("int64").name("my_int"),
             ibis.literal(3).cast("float64").name("my_float"),
             ibis.literal(7).cast("string").name("my_object"),
@@ -1148,7 +1150,7 @@ def test_timestamps():
             [
                 ibis.literal(datetime.now()).name("now()"),
                 ibis.literal(date.today()).name("today()"),
-                ibis.literal(datetime(2019, 1, 31, 23, 20, 32)).name("_literal4")
+                ibis.literal(datetime(2019, 1, 31, 23, 20, 32)).name("_literal2"),
             ]
         )
         assert_ibis_equal_show_diff(ibis_table, my_frame)
@@ -1177,19 +1179,20 @@ def test_case_statement_with_same_conditions():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
+# TODO In ibis can't name same column different things in projection
 @assert_state_not_change
 def test_multiple_aliases_same_column():
     """
     Test multiple aliases on the same column
     :return:
     """
-    # my_frame = query(
-    #     """
-    #     select wind as my_wind, wind as also_the_wind, wind as yes_wind
-    #     from
-    #     forest_fires
-    #     """
-    # )
+    my_frame = query(
+        """
+        select wind as my_wind, wind as also_the_wind, wind as yes_wind
+        from
+        forest_fires
+        """
+    )
     wind_column = FOREST_FIRES.get_column("wind")
     ibis_table = FOREST_FIRES.mutate(
         [
@@ -1199,62 +1202,71 @@ def test_multiple_aliases_same_column():
         ]
     )
     print(ibis_table)
+    raise Exception
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
-# @assert_state_not_change
-# def test_sql_data_types():
-#     """
-#     Tests sql data types
-#     :return:
-#     """
-#     my_frame = query(
-#         """
-#         select
-#             cast(avocado_id as object) as avocado_id_object,
-#             cast(avocado_id as int16) as avocado_id_int16,
-#             cast(avocado_id as smallint) as avocado_id_smallint,
-#             cast(avocado_id as int32) as avocado_id_int32,
-#             cast(avocado_id as int) as avocado_id_int,
-#             cast(avocado_id as int64) as avocado_id_int64,
-#             cast(avocado_id as bigint) as avocado_id_bigint,
-#             cast(avocado_id as float) as avocado_id_float,
-#             cast(avocado_id as float16) as avocado_id_float16,
-#             cast(avocado_id as float32) as avocado_id_float32,
-#             cast(avocado_id as float64) as avocado_id_float64,
-#             cast(avocado_id as bool) as avocado_id_bool,
-#             cast(avocado_id as category) as avocado_id_category,
-#             cast(date as datetime64) as date,
-#             cast(date as timestamp) as time,
-#             cast(region as varchar) as region_varchar,
-#             cast(region as string) as region_string
-#         from avocado
-#         """
-#     ).execute()
-#
-#     ibis_table = AVOCADO.copy()[["avocado_id", "Date", "region"]]
-#     ibis_table["avocado_id_object"] = ibis_table["avocado_id"].astype("object")
-#     ibis_table["avocado_id_int16"] = ibis_table["avocado_id"].astype("int16")
-#     ibis_table["avocado_id_smallint"] = ibis_table["avocado_id"].astype("int16")
-#     ibis_table["avocado_id_int32"] = ibis_table["avocado_id"].astype("int32")
-#     ibis_table["avocado_id_int"] = ibis_table["avocado_id"].astype("int32")
-#     ibis_table["avocado_id_int64"] = ibis_table["avocado_id"].astype("int64")
-#     ibis_table["avocado_id_bigint"] = ibis_table["avocado_id"].astype("int64")
-#     ibis_table["avocado_id_float"] = ibis_table["avocado_id"].astype("float")
-#     ibis_table["avocado_id_float16"] = ibis_table["avocado_id"].astype("float16")
-#     ibis_table["avocado_id_float32"] = ibis_table["avocado_id"].astype("float32")
-#     ibis_table["avocado_id_float64"] = ibis_table["avocado_id"].astype("float64")
-#     ibis_table["avocado_id_bool"] = ibis_table["avocado_id"].astype("bool")
-#     ibis_table["avocado_id_category"] = ibis_table["avocado_id"].astype("category")
-#     ibis_table["date"] = ibis_table["Date"].astype("datetime64")
-#     ibis_table["time"] = ibis_table["Date"].astype("datetime64")
-#     ibis_table["region_varchar"] = ibis_table["region"].astype("string")
-#     ibis_table["region_string"] = ibis_table["region"].astype("string")
-#     ibis_table = ibis_table.drop(columns=["avocado_id", "Date", "region"])
-#
-#     assert_ibis_equal_show_diff(ibis_table, my_frame)
-#
-#
+@assert_state_not_change
+def test_sql_data_types():
+    """
+    Tests sql data types
+    :return:
+    """
+    my_frame = query(
+        """
+        select
+            cast(avocado_id as object) as avocado_id_object,
+            cast(avocado_id as int16) as avocado_id_int16,
+            cast(avocado_id as smallint) as avocado_id_smallint,
+            cast(avocado_id as int32) as avocado_id_int32,
+            cast(avocado_id as int) as avocado_id_int,
+            cast(avocado_id as int64) as avocado_id_int64,
+            cast(avocado_id as bigint) as avocado_id_bigint,
+            cast(avocado_id as float) as avocado_id_float,
+            cast(avocado_id as float16) as avocado_id_float16,
+            cast(avocado_id as float32) as avocado_id_float32,
+            cast(avocado_id as float64) as avocado_id_float64,
+            cast(avocado_id as bool) as avocado_id_bool,
+            cast(avocado_id as category) as avocado_id_category,
+            cast(date as date) as date,
+            cast(date as datetime64) as datetime,
+            cast(date as timestamp) as timestamp,
+            cast(date as time) as time,
+            cast(region as varchar) as region_varchar,
+            cast(region as string) as region_string
+        from avocado
+        """
+    )
+
+    date_column = AVOCADO.Date
+    id_column = AVOCADO.avocado_id
+    region_column = AVOCADO.region
+    ibis_table = AVOCADO.projection(
+        [
+            id_column.cast("string").name("avocado_id_object"),
+            id_column.cast("int16").name("avocado_id_int16"),
+            id_column.cast("int16").name("avocado_id_smallint"),
+            id_column.cast("int32").name("avocado_id_int32"),
+            id_column.cast("int32").name("avocado_id_int"),
+            id_column.cast("int64").name("avocado_id_int64"),
+            id_column.cast("int64").name("avocado_id_bigint"),
+            id_column.cast("float").name("avocado_id_float"),
+            id_column.cast("float16").name("avocado_id_float16"),
+            id_column.cast("float32").name("avocado_id_float32"),
+            id_column.cast("float64").name("avocado_id_float64"),
+            id_column.cast("bool").name("avocado_id_bool"),
+            id_column.cast("string").name("avocado_id_category"),
+            date_column.cast("date").name("date"),
+            date_column.cast("timestamp").name("datetime"),
+            date_column.cast("timestamp").name("timestamp"),
+            date_column.cast("time").name("time"),
+            region_column.cast("string").name("region_varchar"),
+            region_column.cast("string").name("region_string")
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
 def test_math_order_of_operations_no_parens():
     """
     Test math parentheses
@@ -1322,5 +1334,5 @@ def test_boolean_order_of_operations_with_parens():
 
 if __name__ == "__main__":
     register_env_tables()
-    test_select_star()
+    test_type_conversion()
     remove_env_tables()

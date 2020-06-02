@@ -56,7 +56,6 @@ PANDAS_TYPE_PYTHON_TYPE_FUNCTION = {
 
 TYPE_TO_PANDAS_TYPE = {
     "varchar": "string",
-    "smallint": "int16",
     "int": "int32",
     "bigint": "int64",
     "float": "float64",
@@ -83,6 +82,10 @@ GIVEN_TYPE_TO_IBIS = {
     "object": "varchar",
     "datetime64": "timestamp",
     "datetime": "timestamp",
+    "smallint": "int16",
+    "int": "int32",
+    "bigint": "int64",
+    "category": "string"
 }
 
 from sql_to_ibis.parsing.aggregation_aliases import (
@@ -374,7 +377,7 @@ class InternalTransformer(TransformerBaseClass):
         :param datetime_list:
         :return:
         """
-        return Date(datetime(*(datetime_list[0] + datetime_list[1])))
+        return Literal(datetime(*(datetime_list[0] + datetime_list[1])))
 
     def datetime_now(self, *extra_args):
         """
@@ -382,7 +385,7 @@ class InternalTransformer(TransformerBaseClass):
         :param extra_args: Arguments that lark parser must pass in
         :return:
         """
-        date_value = Date(datetime.now())
+        date_value = Literal(datetime.now())
         date_value.set_alias("now()")
         return date_value
 
@@ -392,7 +395,7 @@ class InternalTransformer(TransformerBaseClass):
         :param extra_args: Arguments that lark parser must pass in
         :return:
         """
-        date_value = Date(date.today())
+        date_value = Literal(date.today())
         date_value.set_alias("today()")
         return date_value
 
@@ -537,14 +540,6 @@ class InternalTransformer(TransformerBaseClass):
         """
         return comparison[0]
 
-    def negated_bool_expression(self, bool_expression):
-        """
-        Returns a negated boolean sql_object
-        :param bool_expression:
-        :return:
-        """
-        print("Negated bool", bool_expression)
-
     def where_expr(self, truth_value_dataframe):
         """
         Return a where token_or_tree
@@ -590,8 +585,6 @@ class InternalTransformer(TransformerBaseClass):
         :param when_expressions:
         :return:
         """
-        # if isinstance(when_expressions[0], tuple):
-        #     dataframe_size = when_expressions[0][0].value.size
         case_expression = ibis.case()
         for i, when_expression in enumerate(when_expressions):
             if isinstance(when_expression, tuple):
@@ -738,13 +731,12 @@ class InternalTransformer(TransformerBaseClass):
     def as_type(self, column_and_type):
         """
         Extracts token_or_tree type and returns tree object with sql_object and type
-        :param sql_object: Expression to be evaluated / the name of a column
-        :param typename: Data type
+        :param column_and_type: Column object and type to cast as
         :return:
         """
-        column = column_and_type[0]
-        typename = column_and_type[1]
-        column.typename = TYPE_TO_PANDAS_TYPE[typename.value]
+        column: Column = column_and_type[0]
+        typename: Token = column_and_type[1]
+        column.set_type(to_ibis_type(typename.value))
         return column
 
     def literal_cast(self, value_and_type: list):
@@ -1158,19 +1150,24 @@ class SQLTransformer(TransformerBaseClass):
             table = table.aggregate(aggregate_ibis_columns)
         return table
 
-    def handle_columns(
+    def _get_unique_list_maintain_order(self, item_list: list):
+        item_set = set()
+        new_list = []
+        for item in item_list:
+            if item not in item_set:
+                item_set.add(item)
+                new_list.append(item)
+        return new_list
+
+    def handle_filtering(
         self,
-        columns: list,
-        aliases: dict,
-        first_frame: TableExpr,
+        ibis_table: TableExpr,
         where_expr: Tree,
         internal_transformer: InternalTransformer,
     ):
         """
         Returns frame with appropriately selected and named columns
-        :param columns:
-        :param aliases:
-        :param first_frame:
+        :param ibis_table: Ibis expression table to manipulate
         :param where_expr: Syntax tree containing where clause
         :param internal_transformer: Transformer to transform the where clauses
         :return:
@@ -1180,37 +1177,20 @@ class SQLTransformer(TransformerBaseClass):
             where_value_token = internal_transformer.transform(where_expr)
             where_value = where_value_token.value
 
-        column_names = [column.name for column in columns]
-        if self.has_star(column_names):
-            new_table = first_frame
-            if where_value is not None:
-                new_table: TableExpr = first_frame.filter(where_value)
-        else:
-            column_names = []
-            final_names = []
-            for column in columns:
-                true_column_name = self.column_name_map[column.table][
-                    column.name.lower()
-                ]
-                column_names.append(true_column_name)
-                if (
-                    aliases.get(true_column_name) is None
-                    and true_column_name != column.name
-                ):
-                    aliases[true_column_name] = column.name
+        if where_value is not None:
+            return ibis_table.filter(where_value)
+        return ibis_table
 
-                if column.alias:
-                    final_names.append(column.alias)
-                else:
-                    final_names.append(column.name)
-
-            if where_value is not None:
-                new_table = first_frame.loc[where_value, column_names]
-            else:
-                new_table = first_frame[column_names]
-            if aliases:
-                new_table = new_table.relabel(aliases)
-        return new_table
+    def handle_selection(
+        self, ibis_table: TableExpr, columns: List[Column]
+    ) -> TableExpr:
+        column_mutation = []
+        for column in columns:
+            if column.name == "*":
+                return ibis_table
+            column_value = column.get_value().name(column.get_name())
+            column_mutation.append(column_value)
+        return ibis_table.projection(column_mutation)
 
     def handle_join(self, join: Join) -> TableExpr:
         """
@@ -1240,12 +1220,9 @@ class SQLTransformer(TransformerBaseClass):
             next_frame = self.get_table(frame_name)
             first_frame = first_frame.cross_join(next_frame)
 
-        new_table: TableExpr = self.handle_columns(
-            query_info.columns,
-            query_info.aliases,
-            first_frame,
-            query_info.where_expr,
-            query_info.internal_transformer,
+        new_table = self.handle_selection(first_frame, query_info.columns)
+        new_table = self.handle_filtering(
+            new_table, query_info.where_expr, query_info.internal_transformer
         )
 
         columns_to_keep = []  # This is so we can drop the columns that weren't
@@ -1265,7 +1242,6 @@ class SQLTransformer(TransformerBaseClass):
         for literal in literals:
             columns_to_keep.append(literal.alias)
             value = literal.value
-            print(literal.alias)
             if literal.alias:
                 value = value.name(literal.alias)
             else:
