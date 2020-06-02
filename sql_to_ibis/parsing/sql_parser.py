@@ -29,6 +29,8 @@ from sql_to_ibis.sql_objects import (
     DerivedColumn,
     Expression,
     Join,
+JoinBase,
+CrossJoin,
     Literal,
     Number,
     QueryInfo,
@@ -150,7 +152,7 @@ class TransformerBaseClass(Transformer):
         self._temp_dataframes_dict = _temp_dataframes_dict
         self._execution_plan = ""
 
-    def get_table(self, frame_name) -> TableExpr:
+    def get_table(self, frame_name) -> Union[TableExpr]:
         """
         Returns the dataframe with the name given
         :param frame_name:
@@ -160,7 +162,7 @@ class TransformerBaseClass(Transformer):
             frame_name = frame_name.value
         if isinstance(frame_name, Subquery):
             frame_name = frame_name.name
-        if isinstance(frame_name, Join):
+        if isinstance(frame_name, JoinBase):
             return frame_name
         return self.dataframe_map[frame_name]
 
@@ -554,6 +556,9 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Tree("alias", str(name[0]))
 
+    def cross_join_expression(self, cross_join_list: List[CrossJoin]):
+        return cross_join_list[0]
+
     def from_expression(self, expression):
         """
         Return a from sql_object token_or_tree
@@ -561,7 +566,8 @@ class InternalTransformer(TransformerBaseClass):
         :return: Token from sql_object
         """
         expression = expression[0]
-        if isinstance(expression, (Subquery, Join)):
+        print(expression)
+        if isinstance(expression, (Subquery, JoinBase)):
             value = expression
         else:
             value = expression.value
@@ -1098,14 +1104,17 @@ class SQLTransformer(TransformerBaseClass):
 
         return query_info
 
-    def cross_join(self, df1: TableExpr, df2: TableExpr):
+    def cross_join(self, table1: str, table2: str):
         """
         Returns the crossjoin between two dataframes
-        :param df1: TableExpr1
-        :param df2: TableExpr2
+        :param table1: TableExpr1
+        :param table2: TableExpr2
         :return: Crossjoined dataframe
         """
-        return df1.assign(__=1).merge(df2.assign(__=1), on="__").drop(columns=["__"])
+        return CrossJoin(
+            left_table=table1,
+            right_table=table2,
+        )
 
     def handle_aggregation(
         self,
@@ -1188,7 +1197,7 @@ class SQLTransformer(TransformerBaseClass):
             return ibis_table.projection(column_mutation)
         return ibis_table
 
-    def handle_join(self, join: Join) -> TableExpr:
+    def handle_join(self, join: JoinBase) -> TableExpr:
         """
         Return the dataframe and execution plan resulting from a join
         :param join:
@@ -1196,9 +1205,15 @@ class SQLTransformer(TransformerBaseClass):
         """
         left_table = self.get_table(join.left_table)
         right_table = self.get_table(join.right_table)
-        return left_table.join(
-            right_table, predicates=(join.left_on, join.right_on), how=join.join_type,
-        )
+        if isinstance(join, Join):
+            return left_table.join(
+                right_table,
+                predicates=left_table.get_column(join.left_on)
+                == right_table.get_column(join.right_on),
+                how=join.join_type,
+            )
+        if isinstance(join, CrossJoin):
+            return ibis.cross_join(left_table, right_table)
 
     def to_ibis_table(self, query_info: QueryInfo):
         """
@@ -1210,8 +1225,8 @@ class SQLTransformer(TransformerBaseClass):
             raise Exception("No table specified")
         first_frame = self.get_table(frame_names[0])
 
-        if isinstance(first_frame, Join):
-            first_frame, join_plan = self.handle_join(join=first_frame)
+        if isinstance(first_frame, JoinBase):
+            first_frame = self.handle_join(join=first_frame)
         for frame_name in frame_names[1:]:
             next_frame = self.get_table(frame_name)
             first_frame = first_frame.cross_join(next_frame)

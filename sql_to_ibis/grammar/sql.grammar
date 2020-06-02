@@ -27,12 +27,14 @@ window_expr: [window_expr ","] _window_name "AS"i ( window_definition )
 
 from_item: NAME [ [ "AS"i ] alias ] -> table
             | join -> join
+            | cross_join -> cross_join_expression
             | ( "(" query_expr ")" ) [ [ "AS"i ] alias ] -> subquery
             | with_query_name [ [ "AS"i ] alias ]
 
+cross_join: from_item "CROSS"i "JOIN"i from_item
 join: from_item [ JOIN_TYPE ] "JOIN"i from_item [ "ON"i bool_expression ] -> join_expression
 
-JOIN_TYPE.5: "INNER"i | "CROSS"i | /FULL\sOUTER/i | /LEFT\sOUTER/i |  /RIGHT\sOUTER/i | "FULL"i | "LEFT"i | "RIGHT"i
+JOIN_TYPE.5: "INNER"i | /FULL\sOUTER/i | /LEFT\sOUTER/i |  /RIGHT\sOUTER/i | "FULL"i | "LEFT"i | "RIGHT"i
 
 ?expression_math: expression_product
                | expression_math "+" expression_product -> expression_add

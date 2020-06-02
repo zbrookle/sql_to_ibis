@@ -74,7 +74,7 @@ def remove_temp_table(table_name: str):
     table_info.remove_temp_table(table_name)
 
 
-def query(sql: str, show_execution_plan: bool = False) -> TableExpr:
+def query(sql: str) -> TableExpr:
     """
     Query a registered :class: ~`pandas.DataFrame` using an SQL interface
 
@@ -106,16 +106,15 @@ def query(sql: str, show_execution_plan: bool = False) -> TableExpr:
 
 
     """
-    return SqlToDataFrame(sql, show_execution_plan).data_frame
+    return SqlToDataFrame(sql).data_frame
 
 
 class SqlToDataFrame:
     parser = Lark(_GRAMMAR_TEXT, parser="lalr")
 
-    def __init__(self, sql: str, show_exececution_plan: bool = False):
+    def __init__(self, sql: str):
         self.sql = sql
         self.execution_plan = ""
-        self._show_execution_plan = show_exececution_plan
 
         self.ast = self.parse_sql()
         self.data_frame = self.ast

@@ -20,7 +20,14 @@ DATA_PATH = Path(__file__).parent.parent / "data"
 
 
 def pandas_to_ibis(frame: DataFrame, name: str):
-    return ibis.pandas.from_dataframe(frame, name=name)
+    tuples = []
+    for column in frame:
+        dtype = str(frame[column].dtype)
+        if dtype == "object":
+            dtype = "string"
+        tuples.append((frame[column].name, dtype))
+    test = ibis.table(ibis.schema(tuples), name)
+    return test
 
 
 # Import the data for testing
