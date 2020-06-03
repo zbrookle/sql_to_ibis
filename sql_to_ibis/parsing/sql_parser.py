@@ -16,7 +16,7 @@ from sql_to_ibis.sql_objects import (
     AmbiguousColumn,
     Value,
     CrossJoin,
-Column,
+    Column,
     DerivedColumn,
     Expression,
     Join,
@@ -323,17 +323,11 @@ class SQLTransformer(TransformerBaseClass):
         if token.typename:
             query_info.conversions[token.final_name] = token.typename
 
-        if isinstance(token, (Column, Literal)):
+        if isinstance(token, (Column, Literal, Expression)):
             query_info.columns.append(token)
-
-        if isinstance(token, Expression):
-            query_info.expressions.append(token)
 
         if isinstance(token, Aggregate):
             query_info.aggregates[token.final_name] = token
-
-        # if isinstance(token, Literal):
-        #     query_info.literals.append(token)
 
     def handle_token_or_tree(self, query_info: QueryInfo, token_or_tree, item_pos):
         """
@@ -534,20 +528,6 @@ class SQLTransformer(TransformerBaseClass):
         new_table = self.handle_filtering(
             new_table, query_info.where_expr, query_info.internal_transformer
         )
-
-        ibis_expressions = []
-        expressions = query_info.expressions
-        for expression in expressions:
-            value = expression.value
-            if expression.alias in new_table.columns:
-                value = value.name(expression.alias)
-            else:
-                value = value.name(expression.final_name)
-            ibis_expressions.append(value)
-
-        if ibis_expressions:
-            new_table = new_table.mutate(ibis_expressions)
-
         new_table = self.handle_aggregation(
             query_info.aggregates,
             query_info.group_columns,

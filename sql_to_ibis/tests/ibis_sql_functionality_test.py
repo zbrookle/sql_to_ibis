@@ -623,7 +623,7 @@ def test_operations_between_columns_and_numbers():
     :return:
     """
     my_frame = query("""select temp * wind + rain / dmc + 37 from forest_fires""")
-    ibis_table = FOREST_FIRES.mutate(
+    ibis_table = FOREST_FIRES.projection(
         (
             FOREST_FIRES.temp * FOREST_FIRES.wind
             + FOREST_FIRES.rain / FOREST_FIRES.DMC
@@ -892,7 +892,7 @@ def test_case_statement_w_name():
         forest_fires
         """
     )
-    ibis_table = FOREST_FIRES.mutate(
+    ibis_table = FOREST_FIRES.projection(
         ibis.case()
         .when(FOREST_FIRES.wind > 5, "strong")
         .when(FOREST_FIRES.wind == 5, "mid")
@@ -915,7 +915,7 @@ def test_case_statement_w_no_name():
         from forest_fires
         """
     )
-    ibis_table = FOREST_FIRES.mutate(
+    ibis_table = FOREST_FIRES.projection(
         ibis.case()
         .when(FOREST_FIRES.wind > 5, "strong")
         .when(FOREST_FIRES.wind == 5, "mid")
@@ -938,7 +938,7 @@ def test_case_statement_w_other_columns_as_result():
         from forest_fires
         """
     )
-    ibis_table = FOREST_FIRES.mutate(
+    ibis_table = FOREST_FIRES.projection(
         ibis.case()
         .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
         .when(FOREST_FIRES.wind == 5, "mid")
@@ -962,10 +962,13 @@ def test_rank_statement_one_column():
     from forest_fires
     """
     )
-    ibis_table = FOREST_FIRES[["wind"]].mutate(
-        FOREST_FIRES.wind.rank()
-        .over(ibis.window(order_by=[FOREST_FIRES.wind]))
-        .name("wind_rank")
+    ibis_table = FOREST_FIRES.projection(
+        [
+            FOREST_FIRES.wind,
+            FOREST_FIRES.wind.rank()
+            .over(ibis.window(order_by=[FOREST_FIRES.wind]))
+            .name("wind_rank"),
+        ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -983,18 +986,23 @@ def test_rank_statement_many_columns():
     """
     )
     ibis_table: TableExpr = FOREST_FIRES[["wind", "rain", "month"]]
-    ibis_table = ibis_table.mutate(
-        FOREST_FIRES.wind.rank()
-        .over(
-            ibis.window(
-                order_by=[
-                    ibis.desc(FOREST_FIRES.wind),
-                    FOREST_FIRES.rain,
-                    FOREST_FIRES.month,
-                ]
+    ibis_table = ibis_table.projection(
+        [
+            FOREST_FIRES.wind,
+            FOREST_FIRES.rain,
+            FOREST_FIRES.month,
+            FOREST_FIRES.wind.rank()
+            .over(
+                ibis.window(
+                    order_by=[
+                        ibis.desc(FOREST_FIRES.wind),
+                        FOREST_FIRES.rain,
+                        FOREST_FIRES.month,
+                    ]
+                )
             )
-        )
-        .name("rank")
+            .name("rank"),
+        ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -1013,18 +1021,23 @@ def test_dense_rank_statement_many_columns():
     """
     )
     ibis_table = FOREST_FIRES[["wind", "rain", "month"]]
-    ibis_table = ibis_table.mutate(
-        FOREST_FIRES.wind.dense_rank()
-        .over(
-            ibis.window(
-                order_by=[
-                    ibis.desc(FOREST_FIRES.wind),
-                    FOREST_FIRES.rain,
-                    FOREST_FIRES.month,
-                ]
+    ibis_table = ibis_table.projection(
+        [
+            FOREST_FIRES.wind,
+            FOREST_FIRES.rain,
+            FOREST_FIRES.month,
+            FOREST_FIRES.wind.dense_rank()
+            .over(
+                ibis.window(
+                    order_by=[
+                        ibis.desc(FOREST_FIRES.wind),
+                        FOREST_FIRES.rain,
+                        FOREST_FIRES.month,
+                    ]
+                )
             )
-        )
-        .name("rank")
+            .name("rank"),
+        ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -1043,19 +1056,25 @@ def test_rank_over_partition_by():
     """
     )
     ibis_table = FOREST_FIRES[["wind", "rain", "month", "day"]]
-    ibis_table = ibis_table.mutate(
-        FOREST_FIRES.wind.rank()
-        .over(
-            ibis.window(
-                order_by=[
-                    ibis.desc(FOREST_FIRES.wind),
-                    FOREST_FIRES.rain,
-                    FOREST_FIRES.month,
-                ],
-                group_by=[FOREST_FIRES.day],
+    ibis_table = ibis_table.projection(
+        [
+            FOREST_FIRES.wind,
+            FOREST_FIRES.rain,
+            FOREST_FIRES.month,
+            FOREST_FIRES.day,
+            FOREST_FIRES.wind.rank()
+            .over(
+                ibis.window(
+                    order_by=[
+                        ibis.desc(FOREST_FIRES.wind),
+                        FOREST_FIRES.rain,
+                        FOREST_FIRES.month,
+                    ],
+                    group_by=[FOREST_FIRES.day],
+                )
             )
-        )
-        .name("rank")
+            .name("rank"),
+        ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -1074,19 +1093,25 @@ def test_dense_rank_over_partition_by():
     """
     )
     ibis_table = FOREST_FIRES[["wind", "rain", "month", "day"]]
-    ibis_table = ibis_table = ibis_table.mutate(
-        FOREST_FIRES.wind.dense_rank()
-        .over(
-            ibis.window(
-                order_by=[
-                    ibis.desc(FOREST_FIRES.wind),
-                    FOREST_FIRES.rain,
-                    FOREST_FIRES.month,
-                ],
-                group_by=[FOREST_FIRES.day],
+    ibis_table = ibis_table.projection(
+        [
+            FOREST_FIRES.wind,
+            FOREST_FIRES.rain,
+            FOREST_FIRES.month,
+            FOREST_FIRES.day,
+            FOREST_FIRES.wind.dense_rank()
+            .over(
+                ibis.window(
+                    order_by=[
+                        ibis.desc(FOREST_FIRES.wind),
+                        FOREST_FIRES.rain,
+                        FOREST_FIRES.month,
+                    ],
+                    group_by=[FOREST_FIRES.day],
+                )
             )
-        )
-        .name("rank")
+            .name("rank"),
+        ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
@@ -1171,7 +1196,7 @@ def test_case_statement_with_same_conditions():
         from forest_fires
         """
     )
-    ibis_table = FOREST_FIRES.mutate(
+    ibis_table = FOREST_FIRES.projection(
         ibis.case()
         .when(FOREST_FIRES.wind > 5, FOREST_FIRES.month)
         .when(FOREST_FIRES.wind > 5, "mid")

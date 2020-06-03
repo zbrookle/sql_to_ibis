@@ -41,8 +41,9 @@ class Value:
         string_type = str(type(self.value))
         ibis_repr = ""
         if isinstance(self.value, ValueExpr):
-            match = re.match(r"<class 'ibis\.expr\.types\.(?P<ibis_type>\w+)'>",
-                             string_type)
+            match = re.match(
+                r"<class 'ibis\.expr\.types\.(?P<ibis_type>\w+)'>", string_type
+            )
             if match:
                 ibis_repr = match.group("ibis_type")
         if ibis_repr:
