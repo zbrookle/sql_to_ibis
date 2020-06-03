@@ -164,6 +164,7 @@ def test_type_conversion():
             ibis.literal(0).cast("bool").name("my_bool"),
         ]
     )
+    print(my_frame)
     assert_ibis_equal_show_diff(fire_frame, my_frame)
 
 
@@ -1117,7 +1118,6 @@ def test_datetime_cast():
     ibis_table = FOREST_FIRES[["wind"]].mutate(
         ibis.literal("2019-01-01").cast("timestamp").name("my_date")
     )
-    print(ibis_table)
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -1134,7 +1134,6 @@ def test_date_cast():
     ibis_table = FOREST_FIRES[["wind"]].mutate(
         ibis.literal("2019-01-01").cast("date").name("my_date")
     )
-    print(ibis_table)
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 

@@ -4,8 +4,9 @@ Module containing all sql objects
 from typing import Any, List, Optional
 
 import ibis
-from ibis.expr.api import ValueExpr
+from ibis.expr.api import ValueExpr, TableExpr, ColumnExpr
 from pandas import Series
+import re
 
 
 class AmbiguousColumn:
@@ -28,17 +29,29 @@ class Value:
     Parent class for expression_count and columns
     """
 
+    print_value_map = {TableExpr: "IbisTable", ColumnExpr: "IbisColumn"}
+
     def __init__(self, value, alias="", typename=""):
         self.value = value
         self.alias = alias
         self.typename = typename
         self.final_name = alias
 
+    def get_value_repr(self):
+        string_type = str(type(self.value))
+        ibis_repr = ""
+        if isinstance(self.value, ValueExpr):
+            match = re.match(r"<class 'ibis\.expr\.types\.(?P<ibis_type>\w+)'>",
+                             string_type)
+            if match:
+                ibis_repr = match.group("ibis_type")
+        if ibis_repr:
+            return "Ibis" + ibis_repr + "()"
+        print(type(self.value))
+        return self.value
+
     def __repr__(self):
-        if isinstance(self.value, Series):
-            print_value = "SeriesObject"
-        else:
-            print_value = self.value
+        print_value = self.get_value_repr()
 
         display = (
             f"{type(self).__name__}(final_name={self.final_name}, value={print_value}"
@@ -200,9 +213,6 @@ class Literal(Value):
 
     def __repr__(self):
         return Value.__repr__(self) + ")"
-
-    def get_name(self):
-        return str(self.value)
 
 
 class Number(Literal):

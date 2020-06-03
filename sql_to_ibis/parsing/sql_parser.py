@@ -7,7 +7,6 @@ from typing import List, Tuple
 import ibis
 from ibis.expr.types import TableExpr
 from lark import Token, Tree, v_args
-from pandas import merge
 
 from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
 from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
@@ -15,8 +14,9 @@ from sql_to_ibis.query_info import QueryInfo
 from sql_to_ibis.sql_objects import (
     Aggregate,
     AmbiguousColumn,
-    Column,
+    Value,
     CrossJoin,
+Column,
     DerivedColumn,
     Expression,
     Join,
@@ -323,13 +323,8 @@ class SQLTransformer(TransformerBaseClass):
         if token.typename:
             query_info.conversions[token.final_name] = token.typename
 
-        if isinstance(token, Column):
+        if isinstance(token, (Column, Literal)):
             query_info.columns.append(token)
-            query_info.column_selected[token.name] = True
-            # TODO Get rid of collecting this alias information since its part of the
-            #  column object
-            if token.alias:
-                query_info.aliases[token.name] = token.alias
 
         if isinstance(token, Expression):
             query_info.expressions.append(token)
@@ -337,8 +332,8 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(token, Aggregate):
             query_info.aggregates[token.final_name] = token
 
-        if isinstance(token, Literal):
-            query_info.literals.append(token)
+        # if isinstance(token, Literal):
+        #     query_info.literals.append(token)
 
     def handle_token_or_tree(self, query_info: QueryInfo, token_or_tree, item_pos):
         """
@@ -448,7 +443,6 @@ class SQLTransformer(TransformerBaseClass):
                     )
             table = table.distinct()
         elif aggregates and not group_columns:
-            # print(aggregate_ibis_columns)
             table = table.aggregate(aggregate_ibis_columns, having=having)
         elif aggregates and group_columns:
             table = table.group_by(group_columns)
@@ -482,21 +476,20 @@ class SQLTransformer(TransformerBaseClass):
         where_value = None
         if where_expr is not None:
             where_value_token = internal_transformer.transform(where_expr)
-            print(where_value_token)
             where_value = where_value_token.value
 
         if where_value is not None:
-            print(where_value)
             return ibis_table.filter(where_value)
         return ibis_table
 
     def handle_selection(
-        self, ibis_table: TableExpr, columns: List[Column]
+        self, ibis_table: TableExpr, columns: List[Value]
     ) -> TableExpr:
         column_mutation = []
         for column in columns:
-            if column.name == "*":
+            if column.get_name() == "*":
                 return ibis_table
+            print(column.get_name())
             column_value = column.get_value().name(column.get_name())
             column_mutation.append(column_value)
         if column_mutation:
@@ -552,23 +545,6 @@ class SQLTransformer(TransformerBaseClass):
                 value = value.name(expression.final_name)
             ibis_expressions.append(value)
 
-        literals = query_info.literals
-        for literal in literals:
-            value = literal.value
-            if literal.alias:
-                value = value.name(literal.alias)
-            else:
-                value = value.name(literal.final_name)
-            ibis_expressions.append(value)
-
-        conversions = query_info.conversions
-        for conversion in conversions:
-            ibis_expressions.append(
-                new_table.get_column(conversion)
-                .cast(conversions[conversion])
-                .name(conversion)
-            )
-
         if ibis_expressions:
             new_table = new_table.mutate(ibis_expressions)
 
@@ -617,87 +593,38 @@ class SQLTransformer(TransformerBaseClass):
     ):
         """
         Return union distinct of two TableExpr
-        :param expr1: Left TableExpr and execution plan
-        :param expr2: Right TableExpr and execution plan
+        :param expr1: Left TableExpr
+        :param expr2: Right TableExpr
         :return:
         """
         return expr1.union(expr2, distinct=True)
 
-    def intersect_distinct(
-        self,
-        frame1_and_plan: Tuple[TableExpr, str],
-        frame2_and_plan: Tuple[TableExpr, str],
-    ):
+    def intersect_distinct(self, expr1: TableExpr, expr2: TableExpr):
         """
-        Return intersection of two dataframes
-        :param frame1_and_plan: Left dataframe and execution plan
-        :param frame2_and_plan: Right dataframe and execution plan
+        Return distinct intersection of two TableExpr
+        :param expr1: Left TableExpr
+        :param expr2: Right TableExpr
         :return:
         """
-        frame1 = frame1_and_plan[0]
-        frame2 = frame2_and_plan[0]
+        raise NotImplementedError("Waiting on ibis for intersect implementation")
 
-        plan = (
-            f"merge(left={frame1_and_plan[1]}, right={frame2_and_plan[1]}, "
-            f"on={frame1_and_plan[1]}.columns.to_list()).reset_index(drop=True)"
-        )
-
-        return (
-            merge(
-                left=frame1, right=frame2, how="inner", on=frame1.columns.to_list()
-            ).reset_index(drop=True),
-            plan,
-        )
-
-    def except_distinct(
-        self,
-        frame1_and_plan: Tuple[TableExpr, str],
-        frame2_and_plan: Tuple[TableExpr, str],
-    ):
+    def except_distinct(self, expr1: TableExpr, expr2: TableExpr):
         """
-        Return first dataframe excluding everything that's also in the second dataframe,
-        no duplicates
-        :param frame1_and_plan: Left dataframe and execution plan
-        :param frame2_and_plan: Right dataframe and execution plan
+        Return distinct set difference of two TableExpr
+        :param expr1: Left TableExpr
+        :param expr2: Right TableExpr
         :return:
         """
-        frame1 = frame1_and_plan[0]
-        frame2 = frame2_and_plan[0]
-        plan1 = frame1_and_plan[1]
-        plan2 = frame2_and_plan[1]
+        raise NotImplementedError("Waiting on ibis for except implementation")
 
-        plan = (
-            f"{plan1}[~{plan1}.isin({plan2}).all(axis=1).drop_duplicates("
-            f").reset_index(drop=True)"
-        )
-
-        return (
-            frame1[~frame1.isin(frame2).all(axis=1)]
-            .drop_duplicates()
-            .reset_index(drop=True),
-            plan,
-        )
-
-    def except_all(
-        self,
-        frame1_and_plan: Tuple[TableExpr, str],
-        frame2_and_plan: Tuple[TableExpr, str],
-    ):
+    def except_all(self, expr1: TableExpr, expr2: TableExpr):
         """
-        Return first dataframe excluding everything that's also in the second dataframe,
-        with duplicates
-        :param frame1_and_plan: Left dataframe and execution plan
-        :param frame2_and_plan: Right dataframe and execution plan
+        Return set difference of two TableExpr
+        :param expr1: Left TableExpr
+        :param expr2: Right TableExpr
         :return:
         """
-        frame1 = frame1_and_plan[0]
-        frame2 = frame2_and_plan[0]
-        plan1 = frame1_and_plan[1]
-        plan2 = frame2_and_plan[1]
-
-        plan = f"{plan1}[~{plan1}.isin({plan2}).all(axis=1)].reset_index(drop=True)"
-
-        return frame1[~frame1.isin(frame2).all(axis=1)].reset_index(drop=True), plan
+        raise NotImplementedError("Waiting on ibis for except implementation")
 
     def final(self, table):
         """

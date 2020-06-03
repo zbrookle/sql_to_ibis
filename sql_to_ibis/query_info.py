@@ -9,7 +9,6 @@ class QueryInfo:
     """
 
     def __init__(self):
-        self.column_selected = {}
         self.columns = []
         self.expressions = []
         self.literals = []
