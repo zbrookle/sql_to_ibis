@@ -168,9 +168,10 @@ class InternalTransformer(TransformerBaseClass):
         return new_tree
 
     def sql_aggregation(self, agg_and_column: list):
-        aggregation, column = agg_and_column
+        aggregation: Token = agg_and_column[0]
+        column: Column = agg_and_column[1]
         return Aggregate(
-            self.apply_ibis_aggregation(column.value, aggregation),
+            self.apply_ibis_aggregation(column.value, aggregation.value.lower()),
             alias=column.alias,
             typename=column.typename,
         )

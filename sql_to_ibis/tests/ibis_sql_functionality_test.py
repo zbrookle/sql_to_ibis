@@ -1356,21 +1356,28 @@ def test_boolean_order_of_operations_with_parens():
 
 
 @assert_state_not_change
+def test_capitalized_built_in_functions():
+    my_frame = query("select MAX(type), AVG(power), MiN(power) from DIGImON_move_LiST")
+    ibis_table = DIGIMON_MOVE_LIST.aggregate(
+        [
+            DIGIMON_MOVE_LIST.Type.max().name("_col0"),
+            DIGIMON_MOVE_LIST.Power.mean().name("_col1"),
+            DIGIMON_MOVE_LIST.Power.min().name("_col2"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_frame)
+
+
+@assert_state_not_change
 def test_complex_subquery():
     my_frame = query(
         """
     SELECT
         type, move, attribute, power
     FROM
-        DIGIMON_MOVELIST A
+        DIGIMON_MOVE_LIST A
     WHERE
-        power = (
-            SELECT
-                MAX(power)
-            FROM
-                DIGIMON_MOVELIST B
-            WHERE
-                B.type = A.type)
+        power = 5
     GROUP BY type
     HAVING MAX(power) > 20
     """
