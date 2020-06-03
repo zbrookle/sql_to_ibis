@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import Callable
 
 import ibis
-from ibis.expr.api import TableExpr
+from ibis.expr.api import TableExpr, GroupedTableExpr
 from ibis.tests.util import assert_equal
 from pandas import DataFrame, read_csv
 
@@ -92,7 +92,7 @@ def display_dict_difference(before_dict: dict, after_dict: dict, name: str):
 
 def assert_state_not_change(func: Callable):
     @wraps(func)
-    def new_func():
+    def new_func(*args, **kwargs):
         table_state = {}
         for key in TableInfo.ibis_table_map:
             table_state[key] = TableInfo.ibis_table_map[key]
@@ -100,7 +100,7 @@ def assert_state_not_change(func: Callable):
         column_name_map = deepcopy(TableInfo.column_name_map)
         dataframe_name_map = deepcopy(TableInfo.ibis_table_name_map)
 
-        func()
+        func(*args, **kwargs)
 
         for key in TableInfo.ibis_table_map:
             assert table_state[key] == TableInfo.ibis_table_map[key]
@@ -123,9 +123,9 @@ def assert_state_not_change(func: Callable):
 
 
 def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr):
-    if not isinstance(obj1, TableExpr):
+    if not isinstance(obj1, (TableExpr, GroupedTableExpr)):
         raise AssertionError(f"{obj1} is not of type TableExpr")
-    if not isinstance(obj2, TableExpr):
+    if not isinstance(obj2, (TableExpr, GroupedTableExpr)):
         raise AssertionError(f"{obj2} is not of type TableExpr")
     try:
         assert_equal(obj1, obj2)

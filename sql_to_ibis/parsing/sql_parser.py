@@ -8,7 +8,10 @@ import ibis
 from ibis.expr.types import TableExpr
 from lark import Token, Tree, v_args
 
-from sql_to_ibis.exceptions.sql_exception import TableExprDoesNotExist
+from sql_to_ibis.exceptions.sql_exception import (
+    TableExprDoesNotExist,
+    InvalidQueryException,
+)
 from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
 from sql_to_ibis.query_info import QueryInfo
 from sql_to_ibis.sql_objects import (
@@ -409,6 +412,10 @@ class SQLTransformer(TransformerBaseClass):
         """
         return CrossJoin(left_table=table1, right_table=table2,)
 
+    @staticmethod
+    def format_column_needs_agg_or_group_msg(column):
+        return f"For column '{column}' you must either group or provide an aggregation"
+
     def handle_aggregation(
         self,
         aggregates,
@@ -428,12 +435,17 @@ class SQLTransformer(TransformerBaseClass):
         for aggregate_column in aggregates:
             column = aggregates[aggregate_column].value.name(aggregate_column)
             aggregate_ibis_columns.append(column)
+        if having is not None and not aggregates:
+            for column in table.columns:
+                if column not in group_columns:
+                    raise InvalidQueryException(
+                        self.format_column_needs_agg_or_group_msg(column)
+                    )
         if group_columns and not aggregates:
             for column in table.columns:
                 if column not in group_columns:
-                    raise Exception(
-                        f"For column {column} you must either group or "
-                        f"provide and aggregation"
+                    raise InvalidQueryException(
+                        self.format_column_needs_agg_or_group_msg(column)
                     )
             table = table.distinct()
         elif aggregates and not group_columns:
