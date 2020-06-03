@@ -405,11 +405,9 @@ def test_cross_joins():
         """select * from digimon_mon_list cross join
             digimon_move_list"""
     )
-    print(my_frame)
     ibis_table = DIGIMON_MON_LIST.cross_join(
         DIGIMON_MOVE_LIST, predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
     )
-    print(ibis_table)
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -1199,16 +1197,14 @@ def test_multiple_aliases_same_column():
         forest_fires
         """
     )
-    wind_column = FOREST_FIRES.get_column("wind")
+    wind_column = FOREST_FIRES.wind
     ibis_table = FOREST_FIRES.projection(
         [
-            FOREST_FIRES.wind.name("my_wind"),
-            FOREST_FIRES.wind.name("also_the_wind"),
-            FOREST_FIRES.wind.name("yes_wind"),
+            wind_column.name("my_wind"),
+            wind_column.name("also_the_wind"),
+            wind_column.name("yes_wind"),
         ]
     )
-    print(ibis_table)
-    raise Exception
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
@@ -1335,6 +1331,7 @@ def test_boolean_order_of_operations_with_parens():
     assert_ibis_equal_show_diff(ibis_table, my_frame)
 
 
+@assert_state_not_change
 def test_complex_subquery():
     my_frame = query(
         """
@@ -1354,6 +1351,7 @@ def test_complex_subquery():
     HAVING MAX(power) > 20
     """
     )
+
 
 @assert_state_not_change
 def test_cross_join_on_raise_error():

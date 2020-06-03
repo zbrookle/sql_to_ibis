@@ -1,15 +1,13 @@
 """
 Module containing all sql objects
 """
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional
 
 import ibis
 from ibis.expr.api import ValueExpr
-from lark import Transformer
 from pandas import Series
 
 
-# pylint: disable=too-few-public-methods
 class AmbiguousColumn:
     """
     Class for identifying ambiguous table names
@@ -419,16 +417,15 @@ class Subquery:
     def __repr__(self):
         return f"Subquery(name={self.name}, query_info={self.query_info})"
 
+
 class JoinBase:
     def __init__(
-        self,
-        left_table: str,
-        right_table: str,
-        join_type: str,
+        self, left_table: str, right_table: str, join_type: str,
     ):
         self.left_table = left_table
         self.right_table = right_table
         self.join_type = join_type
+
 
 class Join(JoinBase):
     """
@@ -447,39 +444,9 @@ class Join(JoinBase):
         self.left_on = left_on
         self.right_on = right_on
 
+
 class CrossJoin(JoinBase):
     def __init__(
-        self,
-        left_table: str,
-        right_table: str,
+        self, left_table: str, right_table: str,
     ):
         super().__init__(left_table, right_table, "cross")
-
-class QueryInfo:
-    """
-    Class that holds metadata extracted / derived from a sql query
-    """
-
-    def __init__(self):
-        self.column_selected = {}
-        self.columns = []
-        self.expressions = []
-        self.literals = []
-        self.frame_names = []
-        self.aliases = {}
-        self.all_names = []
-        self.name_order = {}
-        self.conversions = {}
-        self.aggregates = {}
-        self.group_columns = []
-        self.where_expr = None
-        self.distinct = False
-        self.having_expr = None
-        self.internal_transformer: Optional[Transformer] = None
-        self.order_by: List[Tuple[str, bool]] = []
-        self.limit: Optional[int] = None
-        self.having_transformer: Optional[Transformer] = None
-
-    @staticmethod
-    def set_none_var(value, default):
-        return default if not value else value
