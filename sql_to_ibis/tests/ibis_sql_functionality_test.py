@@ -164,7 +164,6 @@ def test_type_conversion():
             ibis.literal(0).cast("bool").name("my_bool"),
         ]
     )
-    print(my_frame)
     assert_ibis_equal_show_diff(fire_frame, my_frame)
 
 
@@ -1356,7 +1355,7 @@ def test_boolean_order_of_operations_with_parens():
 
 
 @assert_state_not_change
-def test_capitalized_built_in_functions():
+def test_capitalized_agg_functions():
     my_frame = query("select MAX(type), AVG(power), MiN(power) from DIGImON_move_LiST")
     ibis_table = DIGIMON_MOVE_LIST.aggregate(
         [
@@ -1366,7 +1365,6 @@ def test_capitalized_built_in_functions():
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_frame)
-
 
 @assert_state_not_change
 def test_complex_subquery():

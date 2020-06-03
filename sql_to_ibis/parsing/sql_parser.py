@@ -483,7 +483,6 @@ class SQLTransformer(TransformerBaseClass):
         for column in columns:
             if column.get_name() == "*":
                 return ibis_table
-            print(column.get_name())
             column_value = column.get_value().name(column.get_name())
             column_mutation.append(column_value)
         if column_mutation:

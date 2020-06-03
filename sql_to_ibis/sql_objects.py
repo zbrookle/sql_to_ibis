@@ -48,7 +48,6 @@ class Value:
                 ibis_repr = match.group("ibis_type")
         if ibis_repr:
             return "Ibis" + ibis_repr + "()"
-        print(type(self.value))
         return self.value
 
     def __repr__(self):
