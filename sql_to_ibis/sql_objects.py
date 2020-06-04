@@ -1,7 +1,7 @@
 """
 Module containing all sql objects
 """
-from typing import Any, List, Optional
+from typing import Any, Optional, Set
 
 import ibis
 from ibis.expr.api import ValueExpr, TableExpr, ColumnExpr
@@ -14,7 +14,7 @@ class AmbiguousColumn:
     Class for identifying ambiguous table names
     """
 
-    def __init__(self, tables: List[str]) -> None:
+    def __init__(self, tables: Set[str]) -> None:
         self.tables = tables
 
     def __repr__(self) -> str:

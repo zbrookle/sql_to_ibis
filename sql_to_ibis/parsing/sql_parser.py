@@ -2,7 +2,7 @@
 Module containing all lark internal_transformer classes
 """
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Set
 
 import ibis
 from ibis.expr.types import TableExpr
@@ -11,6 +11,7 @@ from lark import Token, Tree, v_args
 from sql_to_ibis.exceptions.sql_exception import (
     TableExprDoesNotExist,
     InvalidQueryException,
+    AmbiguousColumnException
 )
 from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
 from sql_to_ibis.query_info import QueryInfo
@@ -102,14 +103,14 @@ class SQLTransformer(TransformerBaseClass):
         :param table:
         :return:
         """
-        if self.column_to_dataframe_name.get(column) is None:
-            self.column_to_dataframe_name[column] = table
-        elif isinstance(self.column_to_dataframe_name[column], AmbiguousColumn):
-            self.column_to_dataframe_name[column].tables.append(table)
+        if self._column_to_dataframe_name.get(column) is None:
+            self._column_to_dataframe_name[column] = table
+        elif isinstance(self._column_to_dataframe_name[column], AmbiguousColumn):
+            self._column_to_dataframe_name[column].tables.add(table)
         else:
-            original_table = self.column_to_dataframe_name[column]
-            self.column_to_dataframe_name[column] = AmbiguousColumn(
-                [original_table, table]
+            original_table = self._column_to_dataframe_name[column]
+            self._column_to_dataframe_name[column] = AmbiguousColumn(
+                {original_table, table}
             )
 
     def table(self, table_name, alias=""):
@@ -181,10 +182,10 @@ class SQLTransformer(TransformerBaseClass):
         subquery = Subquery(
             name=alias_name, query_info=query_info, value=self.dataframe_map[alias_name]
         )
-        self.column_name_map[alias_name] = {}
+        self._column_name_map[alias_name] = {}
         for column in self.dataframe_map[alias_name].columns:
             self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
-            self.column_name_map[alias_name][column.lower()] = column
+            self._column_name_map[alias_name][column.lower()] = column
         return subquery
 
     def column_name(self, *names):
@@ -218,8 +219,8 @@ class SQLTransformer(TransformerBaseClass):
             column = column_match.group("column").lower()
             column_table = column_match.group("table").lower()
 
-        left_columns = self.column_name_map[left_table]
-        right_columns = self.column_name_map[right_table]
+        left_columns = self._column_name_map[left_table]
+        right_columns = self._column_name_map[right_table]
         if column not in left_columns and column not in right_columns:
             raise Exception("Column not found")
 
@@ -283,8 +284,8 @@ class SQLTransformer(TransformerBaseClass):
         column2_side, column2 = self.determine_column_side(column2, table1, table2)
         if column1_side == column2_side:
             raise Exception("Join columns must be one column from each join table!")
-        column1 = self.column_name_map[table1][column1]
-        column2 = self.column_name_map[table2][column2]
+        column1 = self._column_name_map[table1][column1]
+        column2 = self._column_name_map[table2][column2]
         if column1_side == "left":
             left_on = column1
             right_on = column2
@@ -386,8 +387,8 @@ class SQLTransformer(TransformerBaseClass):
         internal_transformer = InternalTransformer(
             tables,
             self.dataframe_map,
-            self.column_name_map,
-            self.column_to_dataframe_name,
+            self._column_name_map,
+            self._column_to_dataframe_name,
         )
 
         select_expressions = internal_transformer.transform(
@@ -422,8 +423,32 @@ class SQLTransformer(TransformerBaseClass):
     def format_column_needs_agg_or_group_msg(column):
         return f"For column '{column}' you must either group or provide an aggregation"
 
-    def _get_column_table(self, column: str):
-        print(column, self.column_to_dataframe_name[column])
+    def _get_column_table(self, column: str, available_tables: Set[str]):
+        table = self._column_to_dataframe_name[column.lower()]
+        available_tables = set(available_tables)
+        if isinstance(table, AmbiguousColumn):
+            global_table_possiblities = table.tables
+            contextual_table_possibilities = [
+                table_name
+                for table_name in global_table_possiblities
+                if table_name in available_tables
+            ]
+            if len(contextual_table_possibilities) > 1:
+                raise AmbiguousColumnException(column, list(available_tables))
+            return contextual_table_possibilities[0]
+        return table
+
+    def _get_true_column_name(self, column: str, available_tables: Set[str]):
+        return self._column_name_map[self._get_column_table(column, available_tables)][
+            column
+        ]
+
+    def _get_true_column_names(self, columns: List[str], available_tables: List[str]):
+        available_tables_set = set(available_tables)
+        return [
+            self._get_true_column_name(column, available_tables_set)
+            for column in columns
+        ]
 
     def handle_aggregation(
         self,
@@ -432,7 +457,8 @@ class SQLTransformer(TransformerBaseClass):
         table: TableExpr,
         having_expr: Tree,
         internal_transformer: InternalTransformer,
-        selected_columns: List[Value]
+        selected_columns: List[Value],
+        table_names: List[str],
     ):
         """
         Handles all aggregation operations when translating from dictionary info
@@ -461,11 +487,11 @@ class SQLTransformer(TransformerBaseClass):
         elif aggregates and not group_columns:
             table = table.aggregate(aggregate_ibis_columns, having=having)
         elif aggregates and group_columns:
-            # for group_column in group_columns:
-            #     print(self._get_column_table(group_column))
-            # group_column_true_names = [self.column_name_map[group_column] for
-            #                            group_column in group_columns]
-            table = table.group_by(group_columns)
+            group_column_true_names = self._get_true_column_names(
+                group_columns, table_names
+            )
+            print(group_column_true_names)
+            table = table.group_by(group_column_true_names)
             if having is not None:
                 table = table.having(having)
             table = table.aggregate(aggregate_ibis_columns)
@@ -547,28 +573,30 @@ class SQLTransformer(TransformerBaseClass):
         Returns the dataframe resulting from the SQL query
         :return:
         """
-        frame_names = query_info.table_names
+        table_names = query_info.table_names
         if not query_info.table_names:
             raise Exception("No table specified")
-        first_frame = self.get_table(frame_names[0])
+        first_table = self.get_table(table_names[0])
 
-        if isinstance(first_frame, JoinBase):
-            first_frame = self.handle_join(join=first_frame)
-        for frame_name in frame_names[1:]:
-            next_frame = self.get_table(frame_name)
-            first_frame = first_frame.cross_join(next_frame)
+        if isinstance(first_table, JoinBase):
+            first_table = self.handle_join(join=first_table)
+        for table_name in table_names[1:]:
+            next_frame = self.get_table(table_name)
+            first_table = first_table.cross_join(next_frame)
 
-        new_table = self.handle_selection(first_frame, query_info.columns)
+        new_table = self.handle_selection(first_table, query_info.columns)
         new_table = self.handle_filtering(
             new_table, query_info.where_expr, query_info.internal_transformer
         )
+        print(query_info)
         new_table = self.handle_aggregation(
             query_info.aggregates,
             query_info.group_columns,
             new_table,
             query_info.having_expr,
             query_info.internal_transformer,
-            query_info.columns
+            query_info.columns,
+            query_info.table_names,
         )
 
         if query_info.distinct:

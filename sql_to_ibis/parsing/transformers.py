@@ -72,8 +72,8 @@ class TransformerBaseClass(Transformer):
         Transformer.__init__(self, visit_tokens=False)
         self.dataframe_name_map = dataframe_name_map
         self.dataframe_map = dataframe_map
-        self.column_name_map = column_name_map
-        self.column_to_dataframe_name = column_to_dataframe_name
+        self._column_name_map = column_name_map
+        self._column_to_dataframe_name = column_to_dataframe_name
         self._temp_dataframes_dict = _temp_dataframes_dict
         self._execution_plan = ""
 
@@ -98,11 +98,14 @@ class TransformerBaseClass(Transformer):
         :return:
         """
         if column.name != "*":
-            dataframe_name = self.column_to_dataframe_name[column.name.lower()]
+            print(column)
+            dataframe_name = self._column_to_dataframe_name[column.name.lower()]
             if isinstance(dataframe_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
             dataframe = self.get_table(dataframe_name)
-            column_true_name = self.column_name_map[dataframe_name][column.name.lower()]
+            column_true_name = self._column_name_map[dataframe_name][
+                column.name.lower()
+            ]
             column.value = dataframe[column_true_name]
             column.table = dataframe_name
 
@@ -151,15 +154,15 @@ class InternalTransformer(TransformerBaseClass):
         self.tables = [
             table.name if isinstance(table, Subquery) else table for table in tables
         ]
-        self.column_to_dataframe_name = {}
+        self._column_to_dataframe_name = {}
         for column in column_to_dataframe_name:
             table = column_to_dataframe_name.get(column)
             if isinstance(table, AmbiguousColumn):
                 table_name = self.tables[0]
                 if table_name in table.tables:
-                    self.column_to_dataframe_name[column] = table_name
+                    self._column_to_dataframe_name[column] = table_name
             if table in self.tables:
-                self.column_to_dataframe_name[column] = table
+                self._column_to_dataframe_name[column] = table
 
     def transform(self, tree):
         new_tree = TransformerBaseClass.transform(self, tree)

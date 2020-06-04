@@ -172,11 +172,11 @@ class TableInfo:
         if self.column_to_dataframe_name.get(column) is None:
             self.column_to_dataframe_name[column] = table
         elif isinstance(self.column_to_dataframe_name[column], AmbiguousColumn):
-            self.column_to_dataframe_name[column].tables.append(table)
+            self.column_to_dataframe_name[column].tables.add(table)
         else:
             original_table = self.column_to_dataframe_name[column]
             self.column_to_dataframe_name[column] = AmbiguousColumn(
-                [original_table, table]
+                {original_table, table}
             )
 
     def register_temporary_table(self, ibis_table, table_name: str):
@@ -206,7 +206,8 @@ class TableInfo:
             if isinstance(value, AmbiguousColumn):
                 value.tables.remove(real_table_name)
                 if len(value.tables) == 1:
-                    self.column_to_dataframe_name[lower_column] = value.tables[0]
+                    last_remaining_table = list(value.tables)[0]
+                    self.column_to_dataframe_name[lower_column] = last_remaining_table
             else:
                 del self.column_to_dataframe_name[lower_column]
 
