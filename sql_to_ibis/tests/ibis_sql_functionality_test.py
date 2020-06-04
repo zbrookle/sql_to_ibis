@@ -1355,24 +1355,31 @@ def test_capitalized_agg_functions():
 
 
 @assert_state_not_change
+def test_aggregates_in_subquery():
+    my_table = query("select * from (select max(power) from digimon_move_list) test")
+    ibis_table = DIGIMON_MOVE_LIST.aggregate(
+        DIGIMON_MOVE_LIST.Power.max().name("_col0")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_column_values_in_subquery():
     my_table = query(
         """
-    select type from
+    select move, type, power from
     digimon_move_list
     where
-        type in 
-        (select 
-            type 
+        power in (select power from
+        ( select max(power) as power
          from digimon_move_list 
-         group by type 
-         having max(power) > 90
-        )
+         group by type ) t1
+    ) t2
     """
     )
     ibis_table = DIGIMON_MOVE_LIST.project(DIGIMON_MOVE_LIST.type).filter(
-        DIGIMON_MOVE_LIST.type.isin(
-            DIGIMON_MOVE_LIST.group_by("type").having(
+        DIGIMON_MOVE_LIST.Type.isin(
+            DIGIMON_MOVE_LIST.group_by("Type").having(
                 DIGIMON_MOVE_LIST.power.max() > 90
             )
         )
@@ -1411,5 +1418,5 @@ def test_invalid_queries(sql):
 
 if __name__ == "__main__":
     register_env_tables()
-    test_cross_join_on_raise_error()
+    test_nested_subquery()
     remove_env_tables()

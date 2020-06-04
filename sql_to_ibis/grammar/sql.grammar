@@ -28,8 +28,10 @@ window_expr: [window_expr ","] _window_name "AS"i ( window_definition )
 from_item: NAME [ [ "AS"i ] alias ] -> table
             | join -> join
             | cross_join -> cross_join_expression
-            | ( "(" query_expr ")" ) [ [ "AS"i ] alias ] -> subquery
+            | subquery
             | with_query_name [ [ "AS"i ] alias ]
+
+subquery: ( "(" query_expr ")" ) [ [ "AS"i ] alias ]
 
 cross_join: from_item "CROSS"i "JOIN"i from_item
 join: from_item [ JOIN_TYPE ] "JOIN"i from_item [ "ON"i bool_expression ] -> join_expression
@@ -99,7 +101,8 @@ bool_expression: bool_parentheses
 bool_parentheses: comparison_type
                  | "(" bool_expression "AND"i comparison_type ")" -> bool_and
                  | "(" bool_expression "OR"i comparison_type ")" -> bool_or
-comparison_type: equals | not_equals | greater_than | less_than | greater_than_or_equal | less_than_or_equal | between | in_expr | not_in_expr
+comparison_type: equals | not_equals | greater_than | less_than | greater_than_or_equal
+| less_than_or_equal | between | in_expr | not_in_expr | subquery_in
 equals: expression_math "=" expression_math
 not_equals: expression_math ("<>" | "!=") expression_math
 greater_than: expression_math ">" expression_math
@@ -108,6 +111,7 @@ greater_than_or_equal: expression_math ">=" expression_math
 less_than_or_equal: expression_math "<=" expression_math
 between: expression_math "BETWEEN"i expression_math "AND"i expression_math
 in_expr: expression_math "IN"i "(" [expression_math ","] expression_math ")"
+subquery_in: expression_math "IN"i subquery
 not_in_expr: expression_math "NOT"i "IN"i "(" [expression_math ","] expression_math ")"
 ?literal: boolean -> bool
        | number_expr -> number

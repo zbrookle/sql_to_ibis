@@ -420,9 +420,10 @@ class Subquery:
     Wrapper for subqueries
     """
 
-    def __init__(self, name: str, query_info: dict):
+    def __init__(self, name: str, query_info: "QueryInfo", value: TableExpr):
         self.name = name
         self.query_info = query_info
+        self.value = value
 
     def __repr__(self):
         return f"Subquery(name={self.name}, query_info={self.query_info})"

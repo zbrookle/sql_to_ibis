@@ -168,19 +168,25 @@ class SQLTransformer(TransformerBaseClass):
                     query_info.limit = token.value
         return query_info
 
-    def subquery(self, query_info, alias):
+    def subquery(self, query_info: QueryInfo, alias: Tree):
         """
         Handle subqueries amd return a subquery object
         :param query_info:
         :param alias:
         :return:
         """
+        print("query info", query_info)
+        assert alias.data == "alias_string"
         alias_name = alias.children[0].value
+        print(self.to_ibis_table(query_info))
+        print(query_info)
         self.dataframe_map[alias_name] = self.to_ibis_table(query_info)
-        subquery = Subquery(name=alias_name, query_info=query_info)
+        subquery = Subquery(
+            name=alias_name, query_info=query_info, value=self.dataframe_map[alias_name]
+        )
         self.column_name_map[alias_name] = {}
         for column in self.dataframe_map[alias_name].columns:
-            self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
+            # self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
             self.column_name_map[alias_name][column.lower()] = column
         return subquery
 
@@ -380,6 +386,10 @@ class SQLTransformer(TransformerBaseClass):
             or not isinstance(select_expression, Tree)
         )
 
+        # print("tables", tables)
+        # print("dataframe_map", self.dataframe_map)
+        # print("column name map", [column for column in self.column_name_map])
+        # print("column to dataframe name", self.column_to_dataframe_name)
         internal_transformer = InternalTransformer(
             tables,
             self.dataframe_map,

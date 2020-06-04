@@ -30,7 +30,7 @@ setup(
     project_urls={
         "Source Code": "https://github.com/zbrookle/sql_to_ibis",
         "Documentation": "https://github.com/zbrookle/sql_to_ibis",
-        "Bug Tracker": "https://github.com/zbrookle/sql_to_ibis/issues"
+        "Bug Tracker": "https://github.com/zbrookle/sql_to_ibis/issues",
     },
     url="https://github.com/zbrookle/sql_to_ibis",
     download_url="https://github.com/zbrookle/sql_to_ibis/archive/master.zip",
@@ -44,5 +44,5 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     long_description_content_type="text/markdown",
-    include_package_data=True
+    include_package_data=True,
 )

@@ -492,6 +492,8 @@ class InternalTransformer(TransformerBaseClass):
         :return: Token from sql_object
         """
         expression = expression[0]
+        if isinstance(expression, Tree):
+            expression = expression.children[0]
         if isinstance(expression, (Subquery, JoinBase)):
             value = expression
         else:
