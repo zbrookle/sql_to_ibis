@@ -175,19 +175,18 @@ class SQLTransformer(TransformerBaseClass):
         :param alias:
         :return:
         """
-        print("query info", query_info)
         assert alias.data == "alias_string"
         alias_name = alias.children[0].value
-        print(self.to_ibis_table(query_info))
-        print(query_info)
         self.dataframe_map[alias_name] = self.to_ibis_table(query_info)
         subquery = Subquery(
             name=alias_name, query_info=query_info, value=self.dataframe_map[alias_name]
         )
         self.column_name_map[alias_name] = {}
         for column in self.dataframe_map[alias_name].columns:
-            # self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
+            self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
             self.column_name_map[alias_name][column.lower()] = column
+        print()
+        print(subquery)
         return subquery
 
     def column_name(self, *names):
@@ -348,7 +347,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         if isinstance(token_or_tree, Token):
             if token_or_tree.type == "from_expression":
-                query_info.frame_names.append(token_or_tree.value)
+                query_info.table_names.append(token_or_tree.value)
             elif token_or_tree.type == "group":
                 query_info.group_columns.append(token_or_tree.value)
             elif token_or_tree.type == "where_expr":
@@ -386,10 +385,6 @@ class SQLTransformer(TransformerBaseClass):
             or not isinstance(select_expression, Tree)
         )
 
-        # print("tables", tables)
-        # print("dataframe_map", self.dataframe_map)
-        # print("column name map", [column for column in self.column_name_map])
-        # print("column to dataframe name", self.column_to_dataframe_name)
         internal_transformer = InternalTransformer(
             tables,
             self.dataframe_map,
@@ -421,6 +416,9 @@ class SQLTransformer(TransformerBaseClass):
         :return: Crossjoined dataframe
         """
         return CrossJoin(left_table=table1, right_table=table2,)
+
+    def from_item(self, item):
+        return item
 
     @staticmethod
     def format_column_needs_agg_or_group_msg(column):
@@ -534,8 +532,8 @@ class SQLTransformer(TransformerBaseClass):
         Returns the dataframe resulting from the SQL query
         :return:
         """
-        frame_names = query_info.frame_names
-        if not query_info.frame_names:
+        frame_names = query_info.table_names
+        if not query_info.table_names:
             raise Exception("No table specified")
         first_frame = self.get_table(frame_names[0])
 

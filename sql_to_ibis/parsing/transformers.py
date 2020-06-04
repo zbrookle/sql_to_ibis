@@ -151,9 +151,11 @@ class InternalTransformer(TransformerBaseClass):
         self.tables = [
             table.name if isinstance(table, Subquery) else table for table in tables
         ]
+        print(self.tables)
         self.column_to_dataframe_name = {}
         for column in column_to_dataframe_name:
             table = column_to_dataframe_name.get(column)
+            # print(table, self.tables, table in self.tables)
             if isinstance(table, AmbiguousColumn):
                 table_name = self.tables[0]
                 if table_name in table.tables:
