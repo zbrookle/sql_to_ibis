@@ -185,8 +185,6 @@ class SQLTransformer(TransformerBaseClass):
         for column in self.dataframe_map[alias_name].columns:
             self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
             self.column_name_map[alias_name][column.lower()] = column
-        print()
-        print(subquery)
         return subquery
 
     def column_name(self, *names):
@@ -424,6 +422,9 @@ class SQLTransformer(TransformerBaseClass):
     def format_column_needs_agg_or_group_msg(column):
         return f"For column '{column}' you must either group or provide an aggregation"
 
+    def _get_column_table(self, column: str):
+        print(column, self.column_to_dataframe_name[column])
+
     def handle_aggregation(
         self,
         aggregates,
@@ -431,6 +432,7 @@ class SQLTransformer(TransformerBaseClass):
         table: TableExpr,
         having_expr: Tree,
         internal_transformer: InternalTransformer,
+        selected_columns: List[Value]
     ):
         """
         Handles all aggregation operations when translating from dictionary info
@@ -459,10 +461,23 @@ class SQLTransformer(TransformerBaseClass):
         elif aggregates and not group_columns:
             table = table.aggregate(aggregate_ibis_columns, having=having)
         elif aggregates and group_columns:
+            # for group_column in group_columns:
+            #     print(self._get_column_table(group_column))
+            # group_column_true_names = [self.column_name_map[group_column] for
+            #                            group_column in group_columns]
             table = table.group_by(group_columns)
             if having is not None:
                 table = table.having(having)
             table = table.aggregate(aggregate_ibis_columns)
+
+        selected_column_names = {column.final_name for column in selected_columns}
+        non_selected_columns = []
+        if group_columns:
+            for group_column in group_columns:
+                if group_column not in selected_column_names:
+                    non_selected_columns.append(group_column)
+        table = table.drop(non_selected_columns)
+
         return table
 
     def _get_unique_list_maintain_order(self, item_list: list):
@@ -553,6 +568,7 @@ class SQLTransformer(TransformerBaseClass):
             new_table,
             query_info.having_expr,
             query_info.internal_transformer,
+            query_info.columns
         )
 
         if query_info.distinct:

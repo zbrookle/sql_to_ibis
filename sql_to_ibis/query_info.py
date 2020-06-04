@@ -28,9 +28,11 @@ class QueryInfo:
         return default if not value else value
 
     def __repr__(self):
-        return (f"Query Information\n"
-                f"-----------------\n"
-                f"Columns: {self.columns}\n"
-                f"Tables names: {self.table_names}\n"
-                f"All names: {self.all_names}\n"
-                f"Name order {self.name_order}\n")
+        return (
+            f"Query Information\n"
+            f"-----------------\n"
+            f"Columns: {self.columns}\n"
+            f"Tables names: {self.table_names}\n"
+            f"All names: {self.all_names}\n"
+            f"Name order {self.name_order}\n"
+        )

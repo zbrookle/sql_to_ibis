@@ -47,6 +47,11 @@ def register_temp_table(table: TableExpr, table_name: str):
     >>> df = pd.read_csv("a_csv_file.csv")
     >>> register_temp_table(df, "my_table_name")
     """
+    if not isinstance(table, TableExpr):
+        raise TypeError(
+            f"Cannot register table of type {type(table)}. Table must be "
+            f"of type {TableExpr}"
+        )
     table_info = TableInfo()
     table_info.register_temporary_table(table, table_name)
 
