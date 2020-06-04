@@ -1,4 +1,5 @@
 from distutils.core import setup
+from setuptools import find_packages
 import os
 from pathlib import Path
 
@@ -19,19 +20,21 @@ setup(
     name="sql_to_ibis",
     version=get_version(),
     cmdclass=get_cmdclass(),
+    packages=find_packages(),
     long_description="Coming soon...",
     maintainer="Zach Brookler",
     maintainer_email="zachb1996@yahoo.com",
-    description="A package for querying dataframes using SQL",
+    description="A package for converting sql into ibis expressions",
     python_requires=">=3.6.1",
-    install_requires=["lark-parser==0.8.1", "pandas>=1.0.0"],
+    install_requires=["lark-parser==0.8.1", "ibis"],
     project_urls={
-        "Source": "https://github.com/zbrookle/sql_to_ibis",
-        "Documentation": "",
+        "Source Code": "https://github.com/zbrookle/sql_to_ibis",
+        "Documentation": "https://github.com/zbrookle/sql_to_ibis",
+        "Bug Tracker": "https://github.com/zbrookle/sql_to_ibis/issues"
     },
     url="https://github.com/zbrookle/sql_to_ibis",
     download_url="https://github.com/zbrookle/sql_to_ibis/archive/master.zip",
-    keywords=["pandas", "data", "dataframe", "sql"],
+    keywords=["pandas", "data", "dataframe", "sql", "ibis"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -41,4 +44,5 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     long_description_content_type="text/markdown",
+    include_package_data=True
 )
