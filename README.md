@@ -81,7 +81,3 @@ CAST (<expression> AS <data_type>)
 * DATETIME64, TIMESTAMP
 * CATEGORY
 * OBJECT
-
-### Issues
-* Ibis needs a select columns operator not just a drop one
-* Ibis needs a way of choosing column order
