@@ -565,15 +565,6 @@ class SQLTransformer(TransformerBaseClass):
 
         return table
 
-    def _get_unique_list_maintain_order(self, item_list: list):
-        item_set = set()
-        new_list = []
-        for item in item_list:
-            if item not in item_set:
-                item_set.add(item)
-                new_list.append(item)
-        return new_list
-
     def handle_filtering(
         self,
         ibis_table: TableExpr,
