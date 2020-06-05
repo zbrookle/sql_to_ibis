@@ -790,77 +790,86 @@ def test_union_all():
 
 
 # TODO No ibis intersect method!
-@assert_state_not_change
-def test_intersect_distinct():
-    """
-    Test union distinct in queries
-    :return:
-    """
-    my_table = query(
-        """
-            select * from forest_fires order by wind desc limit 5
-             intersect distinct
-            select * from forest_fires order by wind desc limit 3
-            """
-    )
-    ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
-    ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
-    ibis_table = ibis_table1.union(ibis_table2, distinct=True)
-    assert_ibis_equal_show_diff(ibis_table, my_table)
+# @assert_state_not_change
+# def test_intersect_distinct():
+#     """
+#     Test union distinct in queries
+#     :return:
+#     """
+#     my_table = query(
+#         """
+#             select * from forest_fires order by wind desc limit 5
+#              intersect distinct
+#             select * from forest_fires order by wind desc limit 3
+#             """
+#     )
+#     ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
+#     ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
+#     ibis_table = ibis_table1.union(ibis_table2, distinct=True)
+#     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 # TODO No ibis except method!
-@assert_state_not_change
-def test_except_distinct():
-    """
-    Test except distinct in queries
-    :return:
-    """
-    my_table = query(
-        """
-                select * from forest_fires order by wind desc limit 5
-                 except distinct
-                select * from forest_fires order by wind desc limit 3
-                """
-    )
-    ibis_table1 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-    )
-    ibis_table2 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-    )
-    ibis_table = (
-        ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
+# @assert_state_not_change
+# def test_except_distinct():
+#     """
+#     Test except distinct in queries
+#     :return:
+#     """
+#     my_table = query(
+#         """
+#                 select * from forest_fires order by wind desc limit 5
+#                  except distinct
+#                 select * from forest_fires order by wind desc limit 3
+#                 """
+#     )
+#     ibis_table1 = (
+#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
+#     )
+#     ibis_table2 = (
+#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
+#     )
+#     ibis_table = (
+#         ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
+#         .drop_duplicates()
+#         .reset_index(drop=True)
+#     )
+#     assert_ibis_equal_show_diff(ibis_table, my_table)
 
+@pytest.mark.parametrize("set_op", ["except distinct", "except all", "intersect",
+                                    "intersect distinct"])
+def test_not_implemented_errors(set_op: str):
+    with pytest.raises(NotImplementedError):
+        query(f"""
+        select * from forest_fires order by wind desc limit 5
+         {set_op}
+        select * from forest_fires order by wind desc limit 3
+        """)
 
-# TODO No ibis except method!
-@assert_state_not_change
-def test_except_all():
-    """
-    Test except distinct in queries
-    :return:
-    """
-    my_table = query(
-        """
-                select * from forest_fires order by wind desc limit 5
-                 except all
-                select * from forest_fires order by wind desc limit 3
-                """
-    )
-    ibis_table1 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-    )
-    ibis_table2 = (
-        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-    )
-    ibis_table = ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)].reset_index(
-        drop=True
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
+# # TODO No ibis except method!
+# @assert_state_not_change
+# def test_except_all():
+#     """
+#     Test except distinct in queries
+#     :return:
+#     """
+#     my_table = query(
+#         """
+#                 select * from forest_fires order by wind desc limit 5
+#                  except all
+#                 select * from forest_fires order by wind desc limit 3
+#                 """
+#     )
+#     ibis_table1 = (
+#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
+#     )
+#     ibis_table2 = (
+#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
+#     )
+#     ibis_table = ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)].reset_index(
+#         drop=True
+#     )
+#     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
@@ -1456,18 +1465,18 @@ def test_column_values_in_subquery():
     ).filter(DIGIMON_MOVE_LIST.Power.isin(subquery.get_column("power")))
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
-
-@assert_state_not_change
-def test_group_by_having():
-    my_table = query(
-        "select type from digimon_move_list group by type having avg(power) > 50"
-    )
-    ibis_table = (
-        DIGIMON_MOVE_LIST.group_by("Type")
-        .aggregate(DIGIMON_MOVE_LIST.Type.first())
-        .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
+# TODO Not implemented in ibis
+# @assert_state_not_change
+# def test_group_by_having():
+#     my_table = query(
+#         "select type from digimon_move_list group by type having avg(power) > 50"
+#     )
+#     ibis_table = (
+#         DIGIMON_MOVE_LIST.group_by("Type")
+#         .aggregate(DIGIMON_MOVE_LIST.Type.first())
+#         .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
+#     )
+#     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @pytest.mark.parametrize(
@@ -1481,10 +1490,10 @@ def test_group_by_having():
         """select move, type, power from
             digimon_move_list
             where
-                power in
-                ( select max(power) as power, type
-                 from digimon_move_list
-                 group by type ) t1""",
+            power in
+            ( select max(power) as power, type
+             from digimon_move_list
+             group by type ) t1""",
     ],
 )
 def test_invalid_queries(sql):

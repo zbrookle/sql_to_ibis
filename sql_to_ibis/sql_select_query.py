@@ -144,23 +144,9 @@ class SqlToDataFrame:
             )
             raise InvalidQueryException(message)
         except VisitError as err:
-            tbl_missing_regex = re.match(
-                r"(\n|.)*Table\s(?P<table>.*)\shas\snot\sbeen\sdefined(\n|.)*",
-                str(err),
-                re.MULTILINE,
-            )
-            invalid_query_regex = re.match(
-                r"(\n|.)*Invalid query!(?P<message>.*)(" r"\n|.)*",
-                str(err),
-                re.MULTILINE,
-            )
-            if tbl_missing_regex:
-                raise TableExprDoesNotExist(table_name=tbl_missing_regex.group("table"))
-            elif invalid_query_regex:
-                raise InvalidQueryException(invalid_query_regex.group("message"))
-            else:
-                raise err
-
+            while isinstance(err, VisitError):
+                err = err.orig_exc
+            raise err
 
 class TableInfo:
     column_to_dataframe_name: Dict[str, Any] = {}
