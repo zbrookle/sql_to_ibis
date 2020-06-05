@@ -3,17 +3,13 @@ Convert sql_to_ibis statement to run on pandas dataframes
 """
 import os
 from pathlib import Path
-import re
 from typing import Any, Dict
 
 from ibis.expr.types import TableExpr
 from lark import Lark, UnexpectedToken
 from lark.exceptions import VisitError
 
-from sql_to_ibis.exceptions.sql_exception import (
-    InvalidQueryException,
-    TableExprDoesNotExist,
-)
+from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
 from sql_to_ibis.sql_objects import AmbiguousColumn
 
@@ -147,6 +143,7 @@ class SqlToDataFrame:
             while isinstance(err, VisitError):
                 err = err.orig_exc
             raise err
+
 
 class TableInfo:
     column_to_dataframe_name: Dict[str, Any] = {}

@@ -836,15 +836,20 @@ def test_union_all():
 #     )
 #     assert_ibis_equal_show_diff(ibis_table, my_table)
 
-@pytest.mark.parametrize("set_op", ["except distinct", "except all", "intersect",
-                                    "intersect distinct"])
+
+@pytest.mark.parametrize(
+    "set_op", ["except distinct", "except all", "intersect", "intersect distinct"]
+)
 def test_not_implemented_errors(set_op: str):
     with pytest.raises(NotImplementedError):
-        query(f"""
+        query(
+            f"""
         select * from forest_fires order by wind desc limit 5
          {set_op}
         select * from forest_fires order by wind desc limit 3
-        """)
+        """
+        )
+
 
 # # TODO No ibis except method!
 # @assert_state_not_change
@@ -1464,6 +1469,7 @@ def test_column_values_in_subquery():
         ]
     ).filter(DIGIMON_MOVE_LIST.Power.isin(subquery.get_column("power")))
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
 
 # TODO Not implemented in ibis
 # @assert_state_not_change
