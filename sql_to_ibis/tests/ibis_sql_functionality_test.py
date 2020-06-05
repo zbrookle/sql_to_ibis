@@ -512,7 +512,7 @@ def test_agg_w_groupby_select_group_by_column():
     temp_column = FOREST_FIRES.get_column("temp")
     ibis_table = (
         FOREST_FIRES[["day", "month"]]
-        .group_by(["day", "month"])
+        .group_by([FOREST_FIRES.day, FOREST_FIRES.month])
         .aggregate([temp_column.min().name("_col0"), temp_column.max().name("_col1")])
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
@@ -528,19 +528,21 @@ def test_agg_w_groupby_select_group_by_column_different_casing():
         "select min(temp), max(temp), Day, month from forest_fires group by day, month"
     )
     temp_column = FOREST_FIRES.get_column("temp")
+    selection_and_grouping = [FOREST_FIRES.day.name("Day"), FOREST_FIRES.month]
     ibis_table = (
-        FOREST_FIRES[["day", "month"]]
-        .group_by(["day", "month"])
+        FOREST_FIRES[selection_and_grouping]
+        .group_by(selection_and_grouping)
         .aggregate([temp_column.min().name("_col0"), temp_column.max().name("_col1")])
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
 
 @assert_state_not_change
 def test_group_by_casing_with_selection():
     my_table = query(
         "select max(power) as power, type from digimon_move_list group by type"
     )
-    ibis_table = DIGIMON_MOVE_LIST.group_by(
+    ibis_table = DIGIMON_MOVE_LIST[DIGIMON_MOVE_LIST.Type.name("type")].group_by(
         [DIGIMON_MOVE_LIST.Type.name("type")]
     ).aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
     assert_ibis_equal_show_diff(ibis_table, my_table)
@@ -549,10 +551,10 @@ def test_group_by_casing_with_selection():
 @assert_state_not_change
 def test_agg_group_by_different_casing_group_by():
     my_table = query("select max(power) as power from digimon_move_list group by type")
+    type_col = DIGIMON_MOVE_LIST.Type
     ibis_table = (
-        DIGIMON_MOVE_LIST.group_by("Type")
-        .aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
-        .drop(["Type"])
+        DIGIMON_MOVE_LIST.group_by(type_col)
+        .aggregate(DIGIMON_MOVE_LIST.Power.max().name("power")).drop(["Type"])
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -1358,6 +1360,7 @@ def test_math_order_of_operations_no_parens():
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
+
 @assert_state_not_change
 def test_math_order_of_operations_with_parens():
     """
@@ -1462,6 +1465,17 @@ def test_group_by_having():
         .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+# @assert_state_not_change
+# def test_something():
+#     query( """select move, type, power from
+#             digimon_move_list
+#             where
+#                 power in
+#                 ( select max(power) as power, type
+#                  from digimon_move_list
+#                  group by type ) t1""")
+
 
 @assert_state_not_change
 @pytest.mark.parametrize(
