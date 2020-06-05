@@ -1466,18 +1466,7 @@ def test_group_by_having():
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
-# @assert_state_not_change
-# def test_something():
-#     query( """select move, type, power from
-#             digimon_move_list
-#             where
-#                 power in
-#                 ( select max(power) as power, type
-#                  from digimon_move_list
-#                  group by type ) t1""")
 
-
-@assert_state_not_change
 @pytest.mark.parametrize(
     "sql",
     [

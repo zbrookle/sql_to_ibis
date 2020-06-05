@@ -531,6 +531,10 @@ class SQLTransformer(TransformerBaseClass):
         group_column_names, group_column_vals = self._handle_grouping_vals(
             group_column_names, table_names, selected_columns)
 
+        if group_column_names and having is not None and not aggregates:
+            raise NotImplementedError("Group by, having, without aggregation not yet "
+                                      "implemented")
+
         if group_column_names and not aggregates:
             for column in table.columns:
                 if column not in group_column_names:
@@ -545,10 +549,6 @@ class SQLTransformer(TransformerBaseClass):
             if having is not None:
                 table = table.having(having)
             table = table.aggregate(aggregate_ibis_columns)
-
-        print(table)
-        print(group_column_names)
-        print(column_name_to_column)
 
         non_selected_columns = []
         if group_column_names:
