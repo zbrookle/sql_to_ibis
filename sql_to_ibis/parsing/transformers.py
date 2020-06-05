@@ -31,6 +31,7 @@ from sql_to_ibis.sql_objects import (
     Value,
     ValueWithPlan,
 )
+from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 
 
 def num_eval(arg):
@@ -86,7 +87,7 @@ class TransformerBaseClass(Transformer):
         if isinstance(frame_name, Token):
             frame_name = frame_name.value
         if isinstance(frame_name, Subquery):
-            frame_name = frame_name.name
+            return frame_name.value
         if isinstance(frame_name, JoinBase):
             return frame_name
         return self.dataframe_map[frame_name]
@@ -98,8 +99,8 @@ class TransformerBaseClass(Transformer):
         :return:
         """
         if column.name != "*":
-            print(column)
             dataframe_name = self._column_to_dataframe_name[column.name.lower()]
+            print(dataframe_name)
             if isinstance(dataframe_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
             dataframe = self.get_table(dataframe_name)
@@ -677,3 +678,17 @@ class InternalTransformer(TransformerBaseClass):
         new_type = TYPE_TO_SQL_TYPE[given_type]
         new_value = new_type(value_wrapper.value.cast(to_ibis_type(given_type)))
         return new_value
+
+    def subquery_in(self, column_and_subquery):
+        column: Column = column_and_subquery[0]
+        subquery: Subquery = column_and_subquery[1]
+        subquery_table = self.get_table(subquery)
+        if len(subquery_table.columns) != 1:
+            raise InvalidQueryException(
+                "Can only perform 'in' operation on subquery with one column present"
+            )
+        print("mine\n", self.get_table(subquery))
+        print("end mine")
+        return column.value.isin(
+            subquery_table.get_column(subquery_table.columns[0])
+        )

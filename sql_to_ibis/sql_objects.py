@@ -7,6 +7,7 @@ import ibis
 from ibis.expr.api import ValueExpr, TableExpr, ColumnExpr
 from pandas import Series
 import re
+from lark import Tree
 
 
 class AmbiguousColumn:
@@ -28,8 +29,6 @@ class Value:
     """
     Parent class for expression_count and columns
     """
-
-    print_value_map = {TableExpr: "IbisTable", ColumnExpr: "IbisColumn"}
 
     def __init__(self, value, alias="", typename=""):
         self.value = value
@@ -365,7 +364,9 @@ class Column(Value):
     Store information about columns
     """
 
-    def __init__(self, name: str, alias="", typename="", value=None):
+    def __init__(
+        self, name: str, alias="", typename="", value: Optional[ColumnExpr] = None
+    ):
         Value.__init__(self, value, alias, typename)
         self.name = name
         if self.alias:
@@ -420,7 +421,7 @@ class Subquery:
     Wrapper for subqueries
     """
 
-    def __init__(self, name: str, query_info: "QueryInfo", value: TableExpr):
+    def __init__(self, name: str, query_info, value: TableExpr):
         self.name = name
         self.query_info = query_info
         self.value = value

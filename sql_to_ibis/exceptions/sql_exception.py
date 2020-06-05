@@ -30,10 +30,14 @@ class TableExprDoesNotExist(Exception):
     def __init__(self, table_name):
         Exception.__init__(self, f"Table {table_name} has not been defined")
 
+
 class AmbiguousColumnException(Exception):
     """
     Raised when a column name is not specific enough
     """
+
     def __init__(self, columnn: str, possible_tables: List[str]):
-        Exception.__init__(self, f"For column {columnn}, one of {possible_tables} "
-                                 f"must be specified")
+        Exception.__init__(
+            self,
+            f"For column {columnn}, one of {possible_tables} " f"must be specified",
+        )

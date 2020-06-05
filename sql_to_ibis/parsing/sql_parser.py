@@ -11,7 +11,7 @@ from lark import Token, Tree, v_args
 from sql_to_ibis.exceptions.sql_exception import (
     TableExprDoesNotExist,
     InvalidQueryException,
-    AmbiguousColumnException
+    AmbiguousColumnException,
 )
 from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
 from sql_to_ibis.query_info import QueryInfo
@@ -178,12 +178,13 @@ class SQLTransformer(TransformerBaseClass):
         """
         assert alias.data == "alias_string"
         alias_name = alias.children[0].value
-        self.dataframe_map[alias_name] = self.to_ibis_table(query_info)
+        subquery_value = self.to_ibis_table(query_info)
+        self.dataframe_map[alias_name] = subquery_value
         subquery = Subquery(
-            name=alias_name, query_info=query_info, value=self.dataframe_map[alias_name]
+            name=alias_name, query_info=query_info, value=subquery_value
         )
         self._column_name_map[alias_name] = {}
-        for column in self.dataframe_map[alias_name].columns:
+        for column in subquery.value.columns:
             self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
             self._column_name_map[alias_name][column.lower()] = column
         return subquery
@@ -327,9 +328,6 @@ class SQLTransformer(TransformerBaseClass):
         query_info.all_names.append(token.final_name)
         query_info.name_order[token.final_name] = token_pos
 
-        if token.typename:
-            query_info.conversions[token.final_name] = token.typename
-
         if isinstance(token, (Column, Literal, Expression)):
             query_info.columns.append(token)
 
@@ -453,7 +451,7 @@ class SQLTransformer(TransformerBaseClass):
     def handle_aggregation(
         self,
         aggregates,
-        group_columns,
+        group_columns: List[str],
         table: TableExpr,
         having_expr: Tree,
         internal_transformer: InternalTransformer,
@@ -477,6 +475,9 @@ class SQLTransformer(TransformerBaseClass):
                     raise InvalidQueryException(
                         self.format_column_needs_agg_or_group_msg(column)
                     )
+        if group_columns:
+            group_columns = self._get_true_column_names(group_columns, table_names)
+
         if group_columns and not aggregates:
             for column in table.columns:
                 if column not in group_columns:
@@ -487,22 +488,18 @@ class SQLTransformer(TransformerBaseClass):
         elif aggregates and not group_columns:
             table = table.aggregate(aggregate_ibis_columns, having=having)
         elif aggregates and group_columns:
-            group_column_true_names = self._get_true_column_names(
-                group_columns, table_names
-            )
-            print(group_column_true_names)
-            table = table.group_by(group_column_true_names)
+            table = table.group_by(group_columns)
             if having is not None:
                 table = table.having(having)
             table = table.aggregate(aggregate_ibis_columns)
 
-        selected_column_names = {column.final_name for column in selected_columns}
+        selected_column_names = {column.get_name() for column in selected_columns}
         non_selected_columns = []
         if group_columns:
             for group_column in group_columns:
                 if group_column not in selected_column_names:
                     non_selected_columns.append(group_column)
-        table = table.drop(non_selected_columns)
+            table = table.drop(non_selected_columns)
 
         return table
 
@@ -526,16 +523,18 @@ class SQLTransformer(TransformerBaseClass):
         :param ibis_table: Ibis expression table to manipulate
         :param where_expr: Syntax tree containing where clause
         :param internal_transformer: Transformer to transform the where clauses
-        :return:
+        :return: Filtered TableExpr
         """
         where_value = None
         if where_expr is not None:
             where_value_token = internal_transformer.transform(where_expr)
             where_value = where_value_token.value
-
         if where_value is not None:
             return ibis_table.filter(where_value)
         return ibis_table
+
+    def subquery_in(self, column: Tree, subquery: Subquery):
+        return Tree("subquery_in", (column, subquery))
 
     def handle_selection(
         self, ibis_table: TableExpr, columns: List[Value]
@@ -588,7 +587,6 @@ class SQLTransformer(TransformerBaseClass):
         new_table = self.handle_filtering(
             new_table, query_info.where_expr, query_info.internal_transformer
         )
-        print(query_info)
         new_table = self.handle_aggregation(
             query_info.aggregates,
             query_info.group_columns,
