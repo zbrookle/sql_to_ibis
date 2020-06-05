@@ -1,8 +1,7 @@
 # sql_to_ibis
 
 ![CI](https://github.com/zbrookle/sql_to_ibis/workflows/CI/badge.svg)
-[![Downloads](https://pepy.tech/badge/dataframe-sql)](https://pepy.tech/project/sql
--to-ibis)
+[![Downloads](https://pepy.tech/badge/sql-to-ibis)](https://pepy.tech/project/sql-to-ibis)
 [![PyPI license](https://img.shields.io/pypi/l/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI status](https://img.shields.io/pypi/status/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
