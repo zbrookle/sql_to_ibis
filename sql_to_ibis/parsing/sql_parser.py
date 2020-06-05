@@ -2,31 +2,31 @@
 Module containing all lark internal_transformer classes
 """
 import re
-from typing import List, Tuple, Set, Dict
+from typing import Dict, List, Set, Tuple
 
 import ibis
 from ibis.expr.types import TableExpr
 from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
-    TableExprDoesNotExist,
-    InvalidQueryException,
     AmbiguousColumnException,
+    InvalidQueryException,
+    TableExprDoesNotExist,
 )
 from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
 from sql_to_ibis.query_info import QueryInfo
 from sql_to_ibis.sql_objects import (
     Aggregate,
     AmbiguousColumn,
-    Value,
-    CrossJoin,
     Column,
+    CrossJoin,
     DerivedColumn,
     Expression,
     Join,
     JoinBase,
     Literal,
     Subquery,
+    Value,
 )
 
 ORDER_TYPES = ["asc", "desc", "ascending", "descending"]
@@ -361,18 +361,17 @@ class SQLTransformer(TransformerBaseClass):
         :param select_expressions:
         :return:
         """
-
         tables = []
-        query_info = QueryInfo()
-
+        having_expr = None
+        where_expr = None
         for select_expression in select_expressions:
             if isinstance(select_expression, Tree):
                 if select_expression.data == "from_expression":
                     tables.append(select_expression.children[0])
                 elif select_expression.data == "having_expr":
-                    query_info.having_expr = select_expression
+                    having_expr = select_expression
                 elif select_expression.data == "where_expr":
-                    query_info.where_expr = select_expression
+                    where_expr = select_expression
 
         select_expressions_no_boolean_clauses = tuple(
             select_expression
@@ -393,12 +392,13 @@ class SQLTransformer(TransformerBaseClass):
             Tree("select", select_expressions_no_boolean_clauses)
         ).children
 
-        query_info.internal_transformer = internal_transformer
-
+        distinct = False
         if isinstance(select_expressions[0], Token):
             if str(select_expressions[0]) == "distinct":
-                query_info.distinct = True
+                distinct = True
             select_expressions = select_expressions[1:]
+
+        query_info = QueryInfo(having_expr, where_expr, internal_transformer, distinct)
 
         for token_pos, token in enumerate(select_expressions):
             self.handle_token_or_tree(query_info, token, token_pos)
@@ -483,8 +483,12 @@ class SQLTransformer(TransformerBaseClass):
                     )
         return having
 
-    def _handle_grouping_vals(self, group_column_names: List[str], table_names: List[
-        str], selected_columns: List[Value]):
+    def _handle_grouping_vals(
+        self,
+        group_column_names: List[str],
+        table_names: List[str],
+        selected_columns: List[Value],
+    ):
         group_column_vals = None
         column_name_lower_to_column = {
             column.get_name().lower(): column for column in selected_columns
@@ -497,12 +501,12 @@ class SQLTransformer(TransformerBaseClass):
             if selected_columns:
                 # If the value was selected and named something, that's what it
                 # should be grouped by if capitalized
-                for i, column in enumerate(group_column_names):
-                    lower_column_name = column.lower()
+                for i, group_column_name in enumerate(group_column_names):
+                    lower_column_name = group_column_name.lower()
                     if lower_column_name in column_name_lower_to_column:
-                        column = column_name_lower_to_column[lower_column_name]
+                        column_object = column_name_lower_to_column[lower_column_name]
                         group_column_vals[i] = group_column_vals[i].name(
-                            column.get_name()
+                            column_object.get_name()
                         )
         return group_column_names, group_column_vals
 
@@ -529,11 +533,13 @@ class SQLTransformer(TransformerBaseClass):
             having_expr, internal_transformer, table, aggregates, group_column_names
         )
         group_column_names, group_column_vals = self._handle_grouping_vals(
-            group_column_names, table_names, selected_columns)
+            group_column_names, table_names, selected_columns
+        )
 
         if group_column_names and having is not None and not aggregates:
-            raise NotImplementedError("Group by, having, without aggregation not yet "
-                                      "implemented")
+            raise NotImplementedError(
+                "Group by, having, without aggregation not yet " "implemented"
+            )
 
         if group_column_names and not aggregates:
             for column in table.columns:

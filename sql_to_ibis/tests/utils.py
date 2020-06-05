@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import Callable
 
 import ibis
-from ibis.expr.api import TableExpr, GroupedTableExpr
+from ibis.expr.api import GroupedTableExpr, TableExpr
 from ibis.tests.util import assert_equal
 from pandas import DataFrame, read_csv
 

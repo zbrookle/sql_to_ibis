@@ -1,13 +1,12 @@
 """
 Module containing all sql objects
 """
+import re
 from typing import Any, Optional, Set
 
 import ibis
-from ibis.expr.api import ValueExpr, TableExpr, ColumnExpr
+from ibis.expr.api import ColumnExpr, TableExpr, ValueExpr
 from pandas import Series
-import re
-from lark import Tree
 
 
 class AmbiguousColumn:

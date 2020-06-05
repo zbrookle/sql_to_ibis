@@ -542,9 +542,11 @@ def test_group_by_casing_with_selection():
     my_table = query(
         "select max(power) as power, type from digimon_move_list group by type"
     )
-    ibis_table = DIGIMON_MOVE_LIST[DIGIMON_MOVE_LIST.Type.name("type")].group_by(
-        [DIGIMON_MOVE_LIST.Type.name("type")]
-    ).aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
+    ibis_table = (
+        DIGIMON_MOVE_LIST[DIGIMON_MOVE_LIST.Type.name("type")]
+        .group_by([DIGIMON_MOVE_LIST.Type.name("type")])
+        .aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
+    )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -554,7 +556,8 @@ def test_agg_group_by_different_casing_group_by():
     type_col = DIGIMON_MOVE_LIST.Type
     ibis_table = (
         DIGIMON_MOVE_LIST.group_by(type_col)
-        .aggregate(DIGIMON_MOVE_LIST.Power.max().name("power")).drop(["Type"])
+        .aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
+        .drop(["Type"])
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -1433,7 +1436,7 @@ def test_column_values_in_subquery():
     select move, type, power from
     digimon_move_list
     where
-        power in 
+    power in
         ( select max(power) as power
          from digimon_move_list
          group by type ) t1
@@ -1480,7 +1483,7 @@ def test_group_by_having():
             where
                 power in
                 ( select max(power) as power, type
-                 from digimon_move_list 
+                 from digimon_move_list
                  group by type ) t1""",
     ],
 )

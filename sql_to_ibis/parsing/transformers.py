@@ -9,6 +9,7 @@ from lark import Token, Transformer, Tree
 from pandas import Series
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
+from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
     MAX_AGGREGATIONS,
@@ -31,7 +32,6 @@ from sql_to_ibis.sql_objects import (
     Value,
     ValueWithPlan,
 )
-from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 
 
 def num_eval(arg):
