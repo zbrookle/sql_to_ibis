@@ -34,5 +34,6 @@ class QueryInfo:
             f"Columns: {self.columns}\n"
             f"Tables names: {self.table_names}\n"
             f"All names: {self.all_names}\n"
-            f"Name order {self.name_order}\n"
+            f"Name order: {self.name_order}\n"
+            f"Aggregates: {self.aggregates}\n"
         )

@@ -518,23 +518,32 @@ def test_agg_w_groupby_select_group_by_column():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-# TODO Fix this
-# @assert_state_not_change
-# def test_agg_w_groupby_select_group_by_column_different_casing():
-#     """
-#     Test using aggregates and group by together
-#     :return:
-#     """
-#     my_table = query(
-#         "select min(temp), max(temp), Day, month from forest_fires group by day, month"
-#     )
-#     temp_column = FOREST_FIRES.get_column("temp")
-#     ibis_table = (
-#         FOREST_FIRES[["day", "month"]]
-#         .group_by(["day", "month"])
-#         .aggregate([temp_column.min().name("_col0"), temp_column.max().name("_col1")])
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@assert_state_not_change
+def test_agg_w_groupby_select_group_by_column_different_casing():
+    """
+    Test using aggregates and group by together
+    :return:
+    """
+    my_table = query(
+        "select min(temp), max(temp), Day, month from forest_fires group by day, month"
+    )
+    temp_column = FOREST_FIRES.get_column("temp")
+    ibis_table = (
+        FOREST_FIRES[["day", "month"]]
+        .group_by(["day", "month"])
+        .aggregate([temp_column.min().name("_col0"), temp_column.max().name("_col1")])
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+@assert_state_not_change
+def test_group_by_casing_with_selection():
+    my_table = query(
+        "select max(power) as power, type from digimon_move_list group by type"
+    )
+    ibis_table = DIGIMON_MOVE_LIST.group_by(
+        [DIGIMON_MOVE_LIST.Type.name("type")]
+    ).aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
@@ -1349,7 +1358,7 @@ def test_math_order_of_operations_no_parens():
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
-
+@assert_state_not_change
 def test_math_order_of_operations_with_parens():
     """
     Test math parentheses
@@ -1427,11 +1436,11 @@ def test_column_values_in_subquery():
          group by type ) t1
     """
     )
-    subquery = DIGIMON_MOVE_LIST.groupby("Type").aggregate(
-        DIGIMON_MOVE_LIST.Power.max().name("power")
+    subquery = (
+        DIGIMON_MOVE_LIST.groupby("Type")
+        .aggregate(DIGIMON_MOVE_LIST.Power.max().name("power"))
+        .drop(["Type"])
     )
-    print("ibis\n", subquery)
-    print("end ibis")
     ibis_table = DIGIMON_MOVE_LIST.projection(
         [
             DIGIMON_MOVE_LIST.Move.name("move"),
@@ -1454,7 +1463,6 @@ def test_group_by_having():
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
-
 @assert_state_not_change
 @pytest.mark.parametrize(
     "sql",
@@ -1467,11 +1475,10 @@ def test_group_by_having():
         """select move, type, power from
             digimon_move_list
             where
-                power in (select power, type from
+                power in
                 ( select max(power) as power, type
                  from digimon_move_list 
-                 group by type ) t1
-        ) t2""",
+                 group by type ) t1""",
     ],
 )
 def test_invalid_queries(sql):

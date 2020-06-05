@@ -100,7 +100,6 @@ class TransformerBaseClass(Transformer):
         """
         if column.name != "*":
             dataframe_name = self._column_to_dataframe_name[column.name.lower()]
-            print(dataframe_name)
             if isinstance(dataframe_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
             dataframe = self.get_table(dataframe_name)
@@ -687,8 +686,4 @@ class InternalTransformer(TransformerBaseClass):
             raise InvalidQueryException(
                 "Can only perform 'in' operation on subquery with one column present"
             )
-        print("mine\n", self.get_table(subquery))
-        print("end mine")
-        return column.value.isin(
-            subquery_table.get_column(subquery_table.columns[0])
-        )
+        return column.value.isin(subquery_table.get_column(subquery_table.columns[0]))

@@ -448,10 +448,19 @@ class SQLTransformer(TransformerBaseClass):
             for column in columns
         ]
 
+    def _get_columns(self, columns: List[str], available_tables: List[str]):
+        table_set = set(available_tables)
+        column_values = []
+        for column in columns:
+            table = self._get_column_table(column, table_set)
+            true_name = self._column_name_map[table][column.lower()]
+            column_values.append(self.dataframe_map[table][true_name])
+        return column_values
+
     def handle_aggregation(
         self,
         aggregates,
-        group_columns: List[str],
+        group_column_names: List[str],
         table: TableExpr,
         having_expr: Tree,
         internal_transformer: InternalTransformer,
@@ -462,7 +471,12 @@ class SQLTransformer(TransformerBaseClass):
         Handles all aggregation operations when translating from dictionary info
         to dataframe
         """
+        column_name_to_column = {column.get_name(): column for column in
+                                 selected_columns}
+        column_name_lower_to_column = {column.get_name().lower(): column for column in
+                                 selected_columns}
         having = None
+        group_column_vals = None
         if having_expr:
             having = internal_transformer.transform(having_expr.children[0]).value
         aggregate_ibis_columns = []
@@ -471,33 +485,41 @@ class SQLTransformer(TransformerBaseClass):
             aggregate_ibis_columns.append(column)
         if having is not None and not aggregates:
             for column in table.columns:
-                if column not in group_columns:
+                if column not in group_column_names:
                     raise InvalidQueryException(
                         self.format_column_needs_agg_or_group_msg(column)
                     )
-        if group_columns:
-            group_columns = self._get_true_column_names(group_columns, table_names)
+        if group_column_names:
+            group_column_names = self._get_true_column_names(group_column_names, table_names)
+            group_column_vals = self._get_columns(group_column_names, table_names)
+            if selected_columns:
+                # If the value was selected and named something, that's what it
+                # should be grouped by if capitalized
+                for i, column in enumerate(group_column_names):
+                    lower_column_name = column.lower()
+                    if lower_column_name in column_name_lower_to_column:
+                        column = column_name_lower_to_column[lower_column_name]
+                        group_column_vals[i] = group_column_vals[i].name(column.get_name())
 
-        if group_columns and not aggregates:
+        if group_column_names and not aggregates:
             for column in table.columns:
-                if column not in group_columns:
+                if column not in group_column_names:
                     raise InvalidQueryException(
                         self.format_column_needs_agg_or_group_msg(column)
                     )
             table = table.distinct()
-        elif aggregates and not group_columns:
+        elif aggregates and not group_column_names:
             table = table.aggregate(aggregate_ibis_columns, having=having)
-        elif aggregates and group_columns:
-            table = table.group_by(group_columns)
+        elif aggregates and group_column_names:
+            table = table.group_by(group_column_vals)
             if having is not None:
                 table = table.having(having)
             table = table.aggregate(aggregate_ibis_columns)
 
-        selected_column_names = {column.get_name() for column in selected_columns}
         non_selected_columns = []
-        if group_columns:
-            for group_column in group_columns:
-                if group_column not in selected_column_names:
+        if group_column_names:
+            for group_column in group_column_names:
+                if group_column not in column_name_to_column:
                     non_selected_columns.append(group_column)
             table = table.drop(non_selected_columns)
 
