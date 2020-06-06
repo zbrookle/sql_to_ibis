@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from setuptools import find_packages
-
+import versioneer
 from versioneer import get_cmdclass, get_version
 
 CODE_DIRECTORY = Path(__file__).parent
@@ -19,8 +19,8 @@ def read_file(filename):
 
 setup(
     name="sql_to_ibis",
-    version=get_version(),
-    cmdclass=get_cmdclass(),
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
     long_description="Coming soon...",
     maintainer="Zach Brookler",
