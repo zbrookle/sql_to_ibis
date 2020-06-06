@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from setuptools import find_packages
+
 import versioneer
 
 CODE_DIRECTORY = Path(__file__).parent
