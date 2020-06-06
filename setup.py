@@ -4,7 +4,6 @@ from pathlib import Path
 
 from setuptools import find_packages
 import versioneer
-from versioneer import get_cmdclass, get_version
 
 CODE_DIRECTORY = Path(__file__).parent
 

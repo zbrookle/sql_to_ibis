@@ -1,3 +1,7 @@
+"""
+isort:skip_file
+"""
+
 # flake8: noqa
 from sql_to_ibis.sql_select_query import query, register_temp_table, remove_temp_table
 
