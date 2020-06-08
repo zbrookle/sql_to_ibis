@@ -229,6 +229,25 @@ def test_join_no_inner():
 
 
 @assert_state_not_change
+def test_join_no_inner_specify_selection():
+    """
+    Test join
+    :return:
+    """
+    my_table = query(
+        """select power from digimon_mon_list join
+            digimon_move_list
+            on digimon_mon_list.attribute = digimon_move_list.attribute"""
+    )
+    ibis_table = DIGIMON_MON_LIST.join(
+        DIGIMON_MOVE_LIST,
+        predicates=DIGIMON_MON_LIST.Attribute == DIGIMON_MOVE_LIST.Attribute,
+        how="inner",
+    )[DIGIMON_MOVE_LIST.Power.name("power")]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_join_wo_specifying_table():
     """
     Test join where table isn't specified in join
@@ -1509,5 +1528,5 @@ def test_invalid_queries(sql):
 
 if __name__ == "__main__":
     register_env_tables()
-    test_column_values_in_subquery()
+    test_join_w_inner()
     remove_env_tables()

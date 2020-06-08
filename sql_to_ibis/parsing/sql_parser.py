@@ -273,7 +273,7 @@ class SQLTransformer(TransformerBaseClass):
                 match = re.match(r"(?P<type>.*)\souter", join_type)
                 if match:
                     join_type = match.group("type")
-            if join_type in ("full", "cross"):
+            if join_type in {"full", "cross"}:
                 join_type = "outer"
 
         # Check that there is a column from both sides
@@ -361,13 +361,20 @@ class SQLTransformer(TransformerBaseClass):
         :param select_expressions:
         :return:
         """
-        tables = []
+        tables: List[Token] = []
         having_expr = None
         where_expr = None
         for select_expression in select_expressions:
             if isinstance(select_expression, Tree):
                 if select_expression.data == "from_expression":
-                    tables.append(select_expression.children[0])
+                    table_object = select_expression.children[0]
+                    if isinstance(table_object, JoinBase):
+                        tables += [
+                            table_object.right_table_name,
+                            table_object.left_table_name,
+                        ]
+                    else:
+                        tables.append(table_object)
                 elif select_expression.data == "having_expr":
                     having_expr = select_expression
                 elif select_expression.data == "where_expr":
@@ -602,23 +609,57 @@ class SQLTransformer(TransformerBaseClass):
             return ibis_table.projection(column_mutation)
         return ibis_table
 
+    def _get_table_expr_columns(self, table: TableExpr):
+        return table.get_columns(table.columns)
+
+    # TODO Put code in here
+    def handle_duplicate_columns_in_join(
+        self, right_table: TableExpr, left_table: TableExpr, join: JoinBase
+    ):
+        duplicate_columns = set(left_table.columns).intersection(right_table.columns)
+        for column in duplicate_columns:
+            left_table = left_table.relabel(
+                {column: f"{join.left_table_name}." f"{column}"}
+            )
+            right_table = right_table.relabel(
+                {column: f"{join.right_table_name}" f".{column}"}
+            )
+
+        if isinstance(join, Join) and join.left_on == join.right_on:
+            join.left_on = f"{join.left_table_name}.{join.left_on}"
+            join.right_on = f"{join.right_table_name}.{join.right_on}"
+
+        return left_table, right_table
+
     def handle_join(self, join: JoinBase) -> TableExpr:
         """
         Return the dataframe and execution plan resulting from a join
         :param join:
         :return:
         """
-        left_table = self.get_table(join.left_table)
-        right_table = self.get_table(join.right_table)
+        result = None
+        left_table = self.get_table(join.left_table_name)
+        right_table = self.get_table(join.right_table_name)
+
+        # TODO Implement this for joins with select *
+        # left_table, right_table = self.handle_duplicate_columns_in_join(
+        #     left_table, right_table, join
+        # )
+        # all_columns = self._get_table_expr_columns(
+        #     right_table
+        # ) + self._get_table_expr_columns(left_table)
+
         if isinstance(join, Join):
-            return left_table.join(
+            result = left_table.join(
                 right_table,
                 predicates=left_table.get_column(join.left_on)
                 == right_table.get_column(join.right_on),
                 how=join.join_type,
             )
         if isinstance(join, CrossJoin):
-            return ibis.cross_join(left_table, right_table)
+            result = ibis.cross_join(left_table, right_table)
+
+        return result
 
     def to_ibis_table(self, query_info: QueryInfo):
         """

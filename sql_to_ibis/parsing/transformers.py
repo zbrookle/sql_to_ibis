@@ -146,7 +146,11 @@ class InternalTransformer(TransformerBaseClass):
     """
 
     def __init__(
-        self, tables, dataframe_map, column_name_map, column_to_dataframe_name
+        self,
+        tables: List[Token],
+        dataframe_map,
+        column_name_map,
+        column_to_dataframe_name,
     ):
         TransformerBaseClass.__init__(
             self, dataframe_map=dataframe_map, column_name_map=column_name_map
