@@ -46,7 +46,7 @@ def digimon_move_mon_join_columns(digimon_mon_list, digimon_move_list):
 
 
 @join_params
-def test_join_execution(
+def test_select_star_join_execution(
     pandas_client,
     sql_join,
     ibis_join,

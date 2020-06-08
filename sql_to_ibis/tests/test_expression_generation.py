@@ -306,7 +306,7 @@ def test_cross_join_with_selection():
     )
     ibis_table = DIGIMON_MON_LIST.cross_join(
         DIGIMON_MOVE_LIST, predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-    )
+    )[DIGIMON_MOVE_LIST.Power.name("power")]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -1421,5 +1421,5 @@ def test_invalid_queries(sql):
 
 if __name__ == "__main__":
     register_env_tables()
-    test_join_w_inner()
+    test_cross_join_with_selection()
     remove_env_tables()
