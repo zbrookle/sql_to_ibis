@@ -45,7 +45,7 @@ echo "conda info -a"
 conda info -a
 
 echo "conda deactivate"
-conda deactivate
+source deactivate
 
 echo "conda list (root environment)"
 conda list
