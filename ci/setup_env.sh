@@ -44,8 +44,8 @@ conda update -n base conda
 echo "conda info -a"
 conda info -a
 
-echo "source deactivate"
-source deactivate
+echo "conda deactivate"
+conda deactivate
 
 echo "conda list (root environment)"
 conda list
