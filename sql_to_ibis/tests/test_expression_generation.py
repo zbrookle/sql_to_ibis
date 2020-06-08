@@ -22,10 +22,10 @@ from sql_to_ibis.tests.utils import (
     FOREST_FIRES,
     assert_ibis_equal_show_diff,
     assert_state_not_change,
-    register_env_tables,
-    remove_env_tables,
     get_all_join_columns_handle_duplicates,
     join_params,
+    register_env_tables,
+    remove_env_tables,
 )
 
 

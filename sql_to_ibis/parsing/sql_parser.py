@@ -373,12 +373,14 @@ class SQLTransformer(TransformerBaseClass):
                             table_object.right_table_name,
                             table_object.left_table_name,
                         ]
-                    elif isinstance(table_object, Tree) and table_object.data == \
-                            "cross_join_expression":
+                    elif (
+                        isinstance(table_object, Tree)
+                        and table_object.data == "cross_join_expression"
+                    ):
                         cross_join: CrossJoin = table_object.children[0]
                         tables += [
                             cross_join.right_table_name,
-                            cross_join.left_table_name
+                            cross_join.left_table_name,
                         ]
                     else:
                         tables.append(table_object)
@@ -674,7 +676,7 @@ class SQLTransformer(TransformerBaseClass):
         :param columns: List of all column values
         :return:
         """
-        result = None
+        result: TableExpr = None
         all_columns: List[Value] = []
         left_table = self.get_table(join.left_table_name)
         right_table = self.get_table(join.right_table_name)
