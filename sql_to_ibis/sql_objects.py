@@ -433,8 +433,8 @@ class JoinBase:
     def __init__(
         self, left_table: str, right_table: str, join_type: str,
     ):
-        self.left_table = left_table
-        self.right_table = right_table
+        self.left_table_name = left_table
+        self.right_table_name = right_table
         self.join_type = join_type
 
 

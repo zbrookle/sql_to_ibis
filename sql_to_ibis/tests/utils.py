@@ -6,12 +6,13 @@ from functools import wraps
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
-from typing import Callable
+from typing import Callable, Set
 
 import ibis
 from ibis.expr.api import GroupedTableExpr, TableExpr
 from ibis.tests.util import assert_equal
 from pandas import DataFrame, read_csv
+import pytest
 
 from sql_to_ibis import register_temp_table, remove_temp_table
 from sql_to_ibis.sql_select_query import TableInfo
@@ -46,6 +47,20 @@ DIGIMON_MON_LIST["mon_attribute"] = DIGIMON_MON_LIST["Attribute"]
 DIGIMON_MOVE_LIST["move_attribute"] = DIGIMON_MOVE_LIST["Attribute"]
 DIGIMON_MON_LIST = pandas_to_ibis(DIGIMON_MON_LIST, "DIGIMON_MON_LIST")
 DIGIMON_MOVE_LIST = pandas_to_ibis(DIGIMON_MOVE_LIST, "DIGIMON_MOVE_LIST")
+
+join_params = pytest.mark.parametrize(
+    ("sql_join", "ibis_join"),
+    [
+        ("", "inner"),
+        ("inner", "inner"),
+        ("full outer", "outer"),
+        ("full", "outer"),
+        ("left outer", "left"),
+        ("left", "left"),
+        ("right outer", "right"),
+        ("right", "right"),
+    ],
+)
 
 
 def register_env_tables():
@@ -150,3 +165,27 @@ def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr):
 
             msg = f"Plan representations not equal!\n{str_output}"
             raise AssertionError(msg)
+
+
+def _get_all_columns(table: TableExpr):
+    return table.get_columns(table.columns)
+
+
+def _rename_duplicates(
+    table: TableExpr, duplicates: Set[str], table_name: str, table_columns: list
+):
+    for i, column in enumerate(table.columns):
+        if column in duplicates:
+            table_columns[i] = table_columns[i].name(f"{table_name}.{column}")
+    return table_columns
+
+
+def get_all_join_columns_handle_duplicates(
+    left: TableExpr, right: TableExpr, left_name: str, right_name: str
+):
+    left_columns = _get_all_columns(left)
+    right_columns = _get_all_columns(right)
+    duplicates = set(left.columns).intersection(right.columns)
+    left_columns = _rename_duplicates(left, duplicates, left_name, left_columns)
+    right_columns = _rename_duplicates(right, duplicates, right_name, right_columns)
+    return left_columns + right_columns

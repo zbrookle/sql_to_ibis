@@ -22,6 +22,8 @@ from sql_to_ibis.tests.utils import (
     FOREST_FIRES,
     assert_ibis_equal_show_diff,
     assert_state_not_change,
+    get_all_join_columns_handle_duplicates,
+    join_params,
     register_env_tables,
     remove_env_tables,
 )
@@ -209,34 +211,61 @@ def test_subquery():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@pytest.fixture
+def digimon_move_mon_join_columns():
+    return get_all_join_columns_handle_duplicates(
+        DIGIMON_MON_LIST, DIGIMON_MOVE_LIST, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
+    )
+
+
+@join_params
 @assert_state_not_change
-def test_join_no_inner():
+def test_joins(digimon_move_mon_join_columns, sql_join: str, ibis_join: str):
+    my_table = query(
+        f"select * from digimon_mon_list {sql_join} join "
+        "digimon_move_list on "
+        "digimon_mon_list.attribute = digimon_move_list.attribute"
+    )
+    ibis_table = DIGIMON_MON_LIST.join(
+        DIGIMON_MOVE_LIST,
+        predicates=DIGIMON_MON_LIST.Attribute == DIGIMON_MOVE_LIST.Attribute,
+        how=ibis_join,
+    )[digimon_move_mon_join_columns]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@join_params
+@assert_state_not_change
+def test_join_specify_selection(sql_join: str, ibis_join: str):
     """
     Test join
     :return:
     """
     my_table = query(
-        """select * from digimon_mon_list join
+        f"""select power from digimon_mon_list {sql_join} join
             digimon_move_list
             on digimon_mon_list.attribute = digimon_move_list.attribute"""
     )
     ibis_table = DIGIMON_MON_LIST.join(
         DIGIMON_MOVE_LIST,
         predicates=DIGIMON_MON_LIST.Attribute == DIGIMON_MOVE_LIST.Attribute,
-        how="inner",
-    )
+        how=ibis_join,
+    )[DIGIMON_MOVE_LIST.Power.name("power")]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@join_params
 @assert_state_not_change
-def test_join_wo_specifying_table():
+def test_join_wo_specifying_table(
+    digimon_move_mon_join_columns, sql_join: str, ibis_join: str
+):
     """
     Test join where table isn't specified in join
     :return:
     """
     my_table = query(
-        """
-        select * from digimon_mon_list join
+        f"""
+        select * from digimon_mon_list {sql_join} join
         digimon_move_list
         on mon_attribute = move_attribute
         """
@@ -244,146 +273,13 @@ def test_join_wo_specifying_table():
     ibis_table = DIGIMON_MON_LIST.join(
         DIGIMON_MOVE_LIST,
         predicates=DIGIMON_MON_LIST.mon_attribute == DIGIMON_MOVE_LIST.move_attribute,
-        how="inner",
-    )
+        how=ibis_join,
+    )[digimon_move_mon_join_columns]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
-def test_join_w_inner():
-    """
-    Test join
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list inner join
-            digimon_move_list
-            on digimon_mon_list.attribute = digimon_move_list.attribute"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Attribute == DIGIMON_MOVE_LIST.Attribute,
-        how="inner",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_outer_join_w_outer():
-    """
-    Test outer join
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list full outer join
-            digimon_move_list
-            on digimon_mon_list.type = digimon_move_list.type"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-        how="outer",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_outer_join_no_outer():
-    """
-    Test outer join
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list full join
-            digimon_move_list
-            on digimon_mon_list.type = digimon_move_list.type"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-        how="outer",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_left_joins():
-    """
-    Test right, left, inner, and outer joins
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list left join
-            digimon_move_list
-            on digimon_mon_list.type = digimon_move_list.type"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-        how="left",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_left_outer_joins():
-    """
-    Test right, left, inner, and outer joins
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list left outer join
-            digimon_move_list
-            on digimon_mon_list.type = digimon_move_list.type"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-        how="left",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_right_joins():
-    """
-    Test right, left, inner, and outer joins
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list right join
-            digimon_move_list
-            on digimon_mon_list.type = digimon_move_list.type"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-        how="right",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_right_outer_joins():
-    """
-    Test right, left, inner, and outer joins
-    :return:
-    """
-    my_table = query(
-        """select * from digimon_mon_list right outer join
-            digimon_move_list
-            on digimon_mon_list.type = digimon_move_list.type"""
-    )
-    ibis_table = DIGIMON_MON_LIST.join(
-        DIGIMON_MOVE_LIST,
-        predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-        how="right",
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_cross_joins():
+def test_cross_joins(digimon_move_mon_join_columns):
     """
     Test right, left, inner, and outer joins
     :return:
@@ -394,7 +290,23 @@ def test_cross_joins():
     )
     ibis_table = DIGIMON_MON_LIST.cross_join(
         DIGIMON_MOVE_LIST, predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
+    )[digimon_move_mon_join_columns]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_cross_join_with_selection():
+    """
+    Test right, left, inner, and outer joins
+    :return:
+    """
+    my_table = query(
+        """select power from digimon_mon_list cross join
+            digimon_move_list"""
     )
+    ibis_table = DIGIMON_MON_LIST.cross_join(
+        DIGIMON_MOVE_LIST, predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
+    )[DIGIMON_MOVE_LIST.Power.name("power")]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -1509,5 +1421,5 @@ def test_invalid_queries(sql):
 
 if __name__ == "__main__":
     register_env_tables()
-    test_column_values_in_subquery()
+    test_cross_join_with_selection()
     remove_env_tables()
