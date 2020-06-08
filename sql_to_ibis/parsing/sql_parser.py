@@ -612,7 +612,6 @@ class SQLTransformer(TransformerBaseClass):
     def _get_table_expr_columns(self, table: TableExpr):
         return table.get_columns(table.columns)
 
-    # TODO Put code in here
     def handle_duplicate_columns_in_join(
         self, right_table: TableExpr, left_table: TableExpr, join: JoinBase
     ):
@@ -631,23 +630,52 @@ class SQLTransformer(TransformerBaseClass):
 
         return left_table, right_table
 
-    def handle_join(self, join: JoinBase) -> TableExpr:
+    @staticmethod
+    def _columns_have_select_star(columns: List[Value]):
+        for column in columns:
+            if column.get_name() == "*":
+                return True
+        return False
+
+    @staticmethod
+    def _rename_duplicates(
+        table: TableExpr, duplicates: Set[str], table_name: str, table_columns: list
+    ):
+        for i, column in enumerate(table.columns):
+            if column in duplicates:
+                table_columns[i] = table_columns[i].name(f"{table_name}.{column}")
+        return table_columns
+
+    def get_all_join_columns_handle_duplicates(
+        self, left: TableExpr, right: TableExpr, join: JoinBase
+    ):
+        left_columns = self._get_table_expr_columns(left)
+        right_columns = self._get_table_expr_columns(right)
+        duplicates = set(left.columns).intersection(right.columns)
+        left_columns = self._rename_duplicates(
+            left, duplicates, join.left_table_name, left_columns
+        )
+        right_columns = self._rename_duplicates(
+            right, duplicates, join.right_table_name, right_columns
+        )
+        return left_columns + right_columns
+
+    def handle_join(self, join: JoinBase, columns: List[Value]) -> TableExpr:
         """
         Return the dataframe and execution plan resulting from a join
         :param join:
+        :param columns: List of all column values
         :return:
         """
         result = None
+        all_columns: List[Value] = []
         left_table = self.get_table(join.left_table_name)
         right_table = self.get_table(join.right_table_name)
 
-        # TODO Implement this for joins with select *
-        # left_table, right_table = self.handle_duplicate_columns_in_join(
-        #     left_table, right_table, join
-        # )
-        # all_columns = self._get_table_expr_columns(
-        #     right_table
-        # ) + self._get_table_expr_columns(left_table)
+        if self._columns_have_select_star(columns):
+            all_columns = self.get_all_join_columns_handle_duplicates(
+                left_table, right_table, join
+            )
 
         if isinstance(join, Join):
             result = left_table.join(
@@ -659,6 +687,8 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(join, CrossJoin):
             result = ibis.cross_join(left_table, right_table)
 
+        if all_columns:
+            return result[all_columns]
         return result
 
     def to_ibis_table(self, query_info: QueryInfo):
@@ -672,7 +702,7 @@ class SQLTransformer(TransformerBaseClass):
         first_table = self.get_table(table_names[0])
 
         if isinstance(first_table, JoinBase):
-            first_table = self.handle_join(join=first_table)
+            first_table = self.handle_join(join=first_table, columns=query_info.columns)
         for table_name in table_names[1:]:
             next_frame = self.get_table(table_name)
             first_table = first_table.cross_join(next_frame)
