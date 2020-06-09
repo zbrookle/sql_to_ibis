@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
-from sql_to_ibis.sql_objects import Aggregate, Value
+from sql_to_ibis.sql_objects import Aggregate, GroupByColumn, Value
 
 
 class QueryInfo:
@@ -21,7 +21,7 @@ class QueryInfo:
         self.all_names: List[str] = []
         self.name_order: Dict[str, int] = {}
         self.aggregates: Dict[str, Aggregate] = {}
-        self.group_columns: List[str] = []
+        self.group_columns: List[GroupByColumn] = []
         self.where_expr = where_expr
         self.distinct = distinct
         self.having_expr = having_expr

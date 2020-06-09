@@ -33,12 +33,20 @@ def digimon_move_list(pandas_client):
     )
 
 
+@pytest.fixture(scope="module")
+def forest_fires(pandas_client):
+    return ibis.pandas.from_dataframe(
+        read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES", pandas_client
+    )
+
+
 @pytest.fixture(autouse=True, scope="module")
-def register_temp_tables(digimon_mon_list, digimon_move_list):
+def register_temp_tables(digimon_mon_list, digimon_move_list, forest_fires):
     register_temp_table(digimon_mon_list, "DIGIMON_MON_LIST")
     register_temp_table(digimon_move_list, "DIGIMON_MOVE_LIST")
+    register_temp_table(forest_fires, "FOREST_FIRES")
     yield
-    for table in ["DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"]:
+    for table in ["DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST", "FOREST_FIRES"]:
         remove_temp_table(table)
 
 
@@ -68,4 +76,39 @@ def test_select_star_join_execution(
         predicates=digimon_mon_list.Attribute == digimon_move_list.Attribute,
         how=ibis_join,
     )[digimon_move_mon_join_columns].execute()
+    assert_frame_equal(ibis_frame, my_frame)
+
+
+def test_agg_with_group_by_with_select_groupby_execution(forest_fires):
+    my_frame = query(
+        "select day, month, min(temp), max(temp) from forest_fires group by day, month"
+    ).execute()
+    ibis_frame = (
+        forest_fires.groupby([forest_fires.day, forest_fires.month])
+        .aggregate(
+            [
+                forest_fires.temp.min().name("_col0"),
+                forest_fires.temp.max().name("_col1"),
+            ]
+        )
+        .execute()
+    )
+    assert_frame_equal(ibis_frame, my_frame)
+
+
+def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
+    my_frame = query(
+        "select min(temp), max(temp) from forest_fires group by day, month"
+    ).execute()
+    ibis_frame = (
+        forest_fires.groupby([forest_fires.day, forest_fires.month])
+        .aggregate(
+            [
+                forest_fires.temp.min().name("_col0"),
+                forest_fires.temp.max().name("_col1"),
+            ]
+        )
+        .drop(["day", "month"])
+        .execute()
+    )
     assert_frame_equal(ibis_frame, my_frame)
