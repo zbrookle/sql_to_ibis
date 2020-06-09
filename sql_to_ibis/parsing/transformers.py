@@ -31,6 +31,7 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Value,
     ValueWithPlan,
+    GroupByColumn,
 )
 
 
@@ -651,14 +652,16 @@ class InternalTransformer(TransformerBaseClass):
         """
         return args[0]
 
-    def group_by(self, column):
+    def group_by(self, columns: List[Column]):
         """
         Returns a group token_or_tree
-        :param column: Column to group by
+        :param columns: Column to group by
         :return: group token_or_tree
         """
-        column = column[0]
-        return Token("group", str(column.name))
+        assert len(columns) == 1
+        column = columns[0]
+        group_by = GroupByColumn.from_column_type(column)
+        return group_by
 
     def as_type(self, column_and_type):
         """

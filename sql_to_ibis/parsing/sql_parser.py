@@ -27,6 +27,7 @@ from sql_to_ibis.sql_objects import (
     Literal,
     Subquery,
     Value,
+    GroupByColumn,
 )
 
 ORDER_TYPES = ["asc", "desc", "ascending", "descending"]
@@ -328,10 +329,11 @@ class SQLTransformer(TransformerBaseClass):
         query_info.all_names.append(token.final_name)
         query_info.name_order[token.final_name] = token_pos
 
-        if isinstance(token, (Column, Literal, Expression)):
+        if isinstance(token, GroupByColumn):
+            query_info.group_columns.append(token)
+        elif isinstance(token, (Column, Literal, Expression)):
             query_info.columns.append(token)
-
-        if isinstance(token, Aggregate):
+        elif isinstance(token, Aggregate):
             query_info.aggregates[token.final_name] = token
 
     def handle_token_or_tree(self, query_info: QueryInfo, token_or_tree, item_pos):
@@ -345,8 +347,6 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(token_or_tree, Token):
             if token_or_tree.type == "from_expression":
                 query_info.table_names.append(token_or_tree.value)
-            elif token_or_tree.type == "group":
-                query_info.group_columns.append(token_or_tree.value)
             elif token_or_tree.type == "where_expr":
                 query_info.where_expr = token_or_tree.value
         elif isinstance(token_or_tree, Tree):
@@ -499,85 +499,63 @@ class SQLTransformer(TransformerBaseClass):
                     )
         return having
 
-    def _handle_grouping_vals(
-        self,
-        group_column_names: List[str],
-        table_names: List[str],
-        selected_columns: List[Value],
-    ):
-        group_column_vals = None
-        column_name_lower_to_column = {
-            column.get_name().lower(): column for column in selected_columns
-        }
-        if group_column_names:
-            group_column_names = self._get_true_column_names(
-                group_column_names, table_names
-            )
-            group_column_vals = self._get_columns(group_column_names, table_names)
-            if selected_columns:
-                # If the value was selected and named something, that's what it
-                # should be grouped by if capitalized
-                for i, group_column_name in enumerate(group_column_names):
-                    lower_column_name = group_column_name.lower()
-                    if lower_column_name in column_name_lower_to_column:
-                        column_object = column_name_lower_to_column[lower_column_name]
-                        group_column_vals[i] = group_column_vals[i].name(
-                            column_object.get_name()
-                        )
-        return group_column_names, group_column_vals
-
     def handle_aggregation(
         self,
         aggregates: Dict[str, Aggregate],
-        group_column_names: List[str],
+        group_columns: List[GroupByColumn],
         table: TableExpr,
         having_expr: Tree,
         internal_transformer: InternalTransformer,
         selected_columns: List[Value],
-        table_names: List[str],
     ):
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
         """
-        column_name_to_column = {
-            column.get_name().lower(): column for column in selected_columns
+        selected_column_names = {
+            column.get_name().lower() for column in selected_columns
         }
-
         aggregate_ibis_columns = self._get_aggregate_ibis_columns(aggregates)
         having = self._handle_having_expressions(
-            having_expr, internal_transformer, table, aggregates, group_column_names
-        )
-        group_column_names, group_column_vals = self._handle_grouping_vals(
-            group_column_names, table_names, selected_columns
+            having_expr, internal_transformer, table, aggregates, group_columns
         )
 
-        if group_column_names and having is not None and not aggregates:
+        if group_columns and not selected_column_names:
+            for group_column in group_columns:
+                group_column.set_ibis_name_to_name()
+
+        if group_columns and having is not None and not aggregates:
             raise NotImplementedError(
-                "Group by, having, without aggregation not yet " "implemented"
+                "Group by, having, without aggregation not yet implemented"
             )
-
-        if group_column_names and not aggregates:
-            for column in table.columns:
-                if column not in group_column_names:
+        if group_columns and not aggregates:
+            for column in [
+                selected_column.get_name() for selected_column in selected_columns
+            ]:
+                if column not in group_columns:
                     raise InvalidQueryException(
                         self.format_column_needs_agg_or_group_msg(column)
                     )
             table = table.distinct()
-        elif aggregates and not group_column_names:
+        elif aggregates and not group_columns:
             table = table.aggregate(aggregate_ibis_columns, having=having)
-        elif aggregates and group_column_names:
-            table = table.group_by(group_column_vals)
+        elif aggregates and group_columns:
+            table = table.group_by(
+                [group_column.value for group_column in group_columns]
+            )
             if having is not None:
                 table = table.having(having)
             table = table.aggregate(aggregate_ibis_columns)
 
         non_selected_columns = []
-        if group_column_names:
-            for group_column in group_column_names:
-                if group_column.lower() not in column_name_to_column:
-                    non_selected_columns.append(group_column)
-            table = table.drop(non_selected_columns)
+        print("Selected column names", selected_column_names)
+        if group_columns and aggregates:
+            for group_column in group_columns:
+                if group_column.get_name().lower() not in selected_column_names:
+                    non_selected_columns.append(group_column.group_by_name)
+            print("Non selected columns", non_selected_columns)
+            if non_selected_columns:
+                table = table.drop(non_selected_columns)
 
         return table
 
@@ -700,6 +678,24 @@ class SQLTransformer(TransformerBaseClass):
             return result[all_columns]
         return result
 
+    def _set_casing_for_groupby_names(
+        self, groupby_columns: List[GroupByColumn], selected_columns: List[Value]
+    ):
+        lower_case_to_true_column_name = {
+            column.get_name().lower(): column.get_name() for column in selected_columns
+        }
+        for groupby_column in groupby_columns:
+            lower_case_group_name = groupby_column.get_name().lower()
+            if lower_case_group_name in lower_case_to_true_column_name:
+                selection_statement_name = lower_case_to_true_column_name[
+                    lower_case_group_name
+                ]
+                print(selection_statement_name)
+                groupby_column.group_by_name = selection_statement_name
+                groupby_column.value = groupby_column.value.name(
+                    selection_statement_name
+                )
+
     def to_ibis_table(self, query_info: QueryInfo):
         """
         Returns the dataframe resulting from the SQL query
@@ -716,6 +712,34 @@ class SQLTransformer(TransformerBaseClass):
             next_frame = self.get_table(table_name)
             first_table = first_table.cross_join(next_frame)
 
+        self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)
+
+        selected_group_columns = []
+        group_column_names = {
+            group_column.group_by_name for group_column in query_info.group_columns
+        }
+        if query_info.group_columns and query_info.aggregates:
+            selection_column_names = [
+                column.get_name() for column in query_info.columns
+            ]
+            remaining_columns = set(selection_column_names) - group_column_names
+            if remaining_columns:
+                raise InvalidQueryException(
+                    f"Must have grouping for columns in {remaining_columns}"
+                )
+            selected_group_columns = [
+                column
+                for column in query_info.columns
+                if column.get_name() in set(group_column_names)
+            ]
+
+            query_info.columns = [
+                column
+                for column in query_info.columns
+                if column.get_name() in remaining_columns
+            ]
+        print("Selected group columns:", selected_group_columns)
+        print("Group Columns", query_info.group_columns)
         new_table = self.handle_selection(first_table, query_info.columns)
         new_table = self.handle_filtering(
             new_table, query_info.where_expr, query_info.internal_transformer
@@ -726,8 +750,7 @@ class SQLTransformer(TransformerBaseClass):
             new_table,
             query_info.having_expr,
             query_info.internal_transformer,
-            query_info.columns,
-            query_info.table_names,
+            selected_group_columns,
         )
 
         if query_info.distinct:

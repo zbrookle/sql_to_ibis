@@ -400,7 +400,7 @@ class Column(Value):
         other = self.get_other_value(other)
         return self.value <= other
 
-    def set_value(self, new_value: Series):
+    def set_value(self, new_value: ValueExpr):
         """
         Set the value of the column to value
         :param new_value:
@@ -413,6 +413,32 @@ class Column(Value):
 
     def get_plan_representation(self):
         return f"{self.table}['{self.name}']"
+
+
+class GroupByColumn(Column):
+    def __init__(
+        self,
+        name: str,
+        groupby_name: str,
+        alias="",
+        typename="",
+        value: Optional[ColumnExpr] = None,
+    ):
+        super().__init__(name, alias, typename, value)
+        self.group_by_name = groupby_name
+
+    @classmethod
+    def from_column_type(cls, column: Column):
+        return cls(
+            name=column.name,
+            groupby_name=column.name,
+            alias=column.alias,
+            typename=column.typename,
+            value=column.value,
+        )
+
+    def set_ibis_name_to_name(self):
+        self.value = self.value.name(self.get_name())
 
 
 class Subquery:
