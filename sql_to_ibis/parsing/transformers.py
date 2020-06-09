@@ -24,6 +24,7 @@ from sql_to_ibis.sql_objects import (
     CrossJoin,
     Date,
     Expression,
+    GroupByColumn,
     JoinBase,
     Literal,
     Number,
@@ -31,7 +32,6 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Value,
     ValueWithPlan,
-    GroupByColumn,
 )
 
 

@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
-from sql_to_ibis.sql_objects import Aggregate, Value, GroupByColumn
+from sql_to_ibis.sql_objects import Aggregate, GroupByColumn, Value
 
 
 class QueryInfo:

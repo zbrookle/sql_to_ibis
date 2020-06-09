@@ -409,7 +409,6 @@ def test_agg_w_groupby_no_select_group_by_column():
         .aggregate([temp_column.min().name("_col0"), temp_column.max().name("_col1")])
         .drop(["day", "month"])
     )
-    print(ibis_table)
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 

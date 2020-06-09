@@ -3,7 +3,6 @@ from ibis.expr.api import TableExpr
 from pandas import read_csv
 from pandas.testing import assert_frame_equal
 import pytest
-import numpy as np
 
 from sql_to_ibis import query, register_temp_table, remove_temp_table
 from sql_to_ibis.tests.utils import (
@@ -84,7 +83,6 @@ def test_agg_with_group_by_with_select_groupby_execution(forest_fires):
     my_frame = query(
         "select day, month, min(temp), max(temp) from forest_fires group by day, month"
     ).execute()
-    print(my_frame)
     ibis_frame = (
         forest_fires.groupby([forest_fires.day, forest_fires.month])
         .aggregate(
@@ -95,7 +93,6 @@ def test_agg_with_group_by_with_select_groupby_execution(forest_fires):
         )
         .execute()
     )
-    print(ibis_frame)
     assert_frame_equal(ibis_frame, my_frame)
 
 
@@ -103,7 +100,6 @@ def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
     my_frame = query(
         "select min(temp), max(temp) from forest_fires group by day, month"
     ).execute()
-    print(my_frame)
     ibis_frame = (
         forest_fires.groupby([forest_fires.day, forest_fires.month])
         .aggregate(

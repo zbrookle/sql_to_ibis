@@ -22,12 +22,12 @@ from sql_to_ibis.sql_objects import (
     CrossJoin,
     DerivedColumn,
     Expression,
+    GroupByColumn,
     Join,
     JoinBase,
     Literal,
     Subquery,
     Value,
-    GroupByColumn,
 )
 
 ORDER_TYPES = ["asc", "desc", "ascending", "descending"]
@@ -517,7 +517,11 @@ class SQLTransformer(TransformerBaseClass):
         }
         aggregate_ibis_columns = self._get_aggregate_ibis_columns(aggregates)
         having = self._handle_having_expressions(
-            having_expr, internal_transformer, table, aggregates, group_columns
+            having_expr,
+            internal_transformer,
+            table,
+            aggregates,
+            [group_column.get_name() for group_column in group_columns],
         )
 
         if group_columns and not selected_column_names:
@@ -548,12 +552,10 @@ class SQLTransformer(TransformerBaseClass):
             table = table.aggregate(aggregate_ibis_columns)
 
         non_selected_columns = []
-        print("Selected column names", selected_column_names)
         if group_columns and aggregates:
             for group_column in group_columns:
                 if group_column.get_name().lower() not in selected_column_names:
                     non_selected_columns.append(group_column.group_by_name)
-            print("Non selected columns", non_selected_columns)
             if non_selected_columns:
                 table = table.drop(non_selected_columns)
 
@@ -690,7 +692,6 @@ class SQLTransformer(TransformerBaseClass):
                 selection_statement_name = lower_case_to_true_column_name[
                     lower_case_group_name
                 ]
-                print(selection_statement_name)
                 groupby_column.group_by_name = selection_statement_name
                 groupby_column.value = groupby_column.value.name(
                     selection_statement_name
@@ -738,8 +739,6 @@ class SQLTransformer(TransformerBaseClass):
                 for column in query_info.columns
                 if column.get_name() in remaining_columns
             ]
-        print("Selected group columns:", selected_group_columns)
-        print("Group Columns", query_info.group_columns)
         new_table = self.handle_selection(first_table, query_info.columns)
         new_table = self.handle_filtering(
             new_table, query_info.where_expr, query_info.internal_transformer
