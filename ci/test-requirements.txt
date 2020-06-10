@@ -1,0 +1,7 @@
+black
+flake8
+mypy
+isort
+freezegun
+pytest
+pandas

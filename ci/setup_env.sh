@@ -91,9 +91,8 @@ conda list
 conda remove --all -q -y -n sql_to_ibis
 
 echo
-echo "conda env create -q --file=${ENV_FILE}"
-time conda env create -q --file="${ENV_FILE}"
-
+echo "conda env create -n sql_to_ibis -y python=3.7"
+time conda env create -n sql_to_ibis -y python=3.7
 
 if [[ "$BITS32" == "yes" ]]; then
     # activate 32-bit compiler
@@ -102,6 +101,8 @@ fi
 
 echo "activate sql_to_ibis"
 conda activate sql_to_ibis
+pip install -r ci/test-requirements.txt
+pip install -r requirements.txt
 
 echo
 echo "remove qt"
