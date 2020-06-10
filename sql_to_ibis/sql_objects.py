@@ -487,3 +487,10 @@ class CrossJoin(JoinBase):
         self, left_table: str, right_table: str,
     ):
         super().__init__(left_table, right_table, "cross")
+
+
+class Table:
+    def __init__(self, value: TableExpr, name: str, alias: str = ""):
+        self.value = value
+        self.name = name
+        self.alias = alias
