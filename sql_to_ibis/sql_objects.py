@@ -441,15 +441,32 @@ class GroupByColumn(Column):
         self.value = self.value.name(self.get_name())
 
 
-class Subquery:
+class Table:
+    def __init__(self, value: TableExpr, name: str, alias: str = ""):
+        assert isinstance(value, TableExpr)
+        self._value = value
+        self.name = name
+        self.alias = alias
+
+    def get_table_expr(self):
+        return self._value
+
+    def get_ibis_columns(self):
+        return self._value.get_columns(self.column_names)
+
+    @property
+    def column_names(self):
+        return self._value.columns
+
+
+class Subquery(Table):
     """
     Wrapper for subqueries
     """
 
     def __init__(self, name: str, query_info, value: TableExpr):
-        self.name = name
+        super().__init__(value, name, name)
         self.query_info = query_info
-        self.value = value
 
     def __repr__(self):
         return f"Subquery(name={self.name}, query_info={self.query_info})"
@@ -457,11 +474,17 @@ class Subquery:
 
 class JoinBase:
     def __init__(
-        self, left_table: str, right_table: str, join_type: str,
+        self, left_table: Table, right_table: Table, join_type: str,
     ):
-        self.left_table_name = left_table
-        self.right_table_name = right_table
-        self.join_type = join_type
+        self.left_table: Table = left_table
+        self.right_table: Table = right_table
+        self.join_type: str = join_type
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}(left={self.left_table}, right="
+            f"{self.right_table}, type={self.join_type})"
+        )
 
 
 class Join(JoinBase):
@@ -471,8 +494,8 @@ class Join(JoinBase):
 
     def __init__(
         self,
-        left_table: str,
-        right_table: str,
+        left_table: Table,
+        right_table: Table,
         join_type: str,
         left_on: str,
         right_on: str,
@@ -484,13 +507,6 @@ class Join(JoinBase):
 
 class CrossJoin(JoinBase):
     def __init__(
-        self, left_table: str, right_table: str,
+        self, left_table: Table, right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")
-
-
-class Table:
-    def __init__(self, value: TableExpr, name: str, alias: str = ""):
-        self.value = value
-        self.name = name
-        self.alias = alias

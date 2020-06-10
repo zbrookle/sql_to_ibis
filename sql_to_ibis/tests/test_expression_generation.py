@@ -70,7 +70,8 @@ def test_add_remove_temp_table():
     )
 
     assert_ibis_equal_show_diff(
-        TableInfo.ibis_table_map[registered_frame_name], DIGIMON_MON_LIST
+        TableInfo.ibis_table_map[registered_frame_name].get_table_expr(),
+        DIGIMON_MON_LIST,
     )
 
     # Ensure column metadata is added correctly
@@ -1414,5 +1415,9 @@ def test_invalid_queries(sql):
 
 if __name__ == "__main__":
     register_env_tables()
-    test_group_by()
+    # digimon_move_mon_join_columns = get_all_join_columns_handle_duplicates(
+    #     DIGIMON_MON_LIST, DIGIMON_MOVE_LIST, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
+    # )
+    # test_joins(digimon_move_mon_join_columns, "inner", "inner")
+    test_select_star()
     remove_env_tables()
