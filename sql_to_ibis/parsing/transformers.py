@@ -1,10 +1,10 @@
 from datetime import date, datetime
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.operations import TableColumn
-from ibis.expr.types import ColumnExpr, TableExpr
+from ibis.expr.types import ColumnExpr
 from lark import Token, Transformer, Tree
 from pandas import Series
 
@@ -30,8 +30,8 @@ from sql_to_ibis.sql_objects import (
     Number,
     String,
     Subquery,
+    Table,
     Value,
-    ValueWithPlan,
 )
 
 
@@ -65,50 +65,43 @@ class TransformerBaseClass(Transformer):
 
     def __init__(
         self,
-        dataframe_name_map=None,
-        dataframe_map=None,
-        column_name_map=None,
-        column_to_dataframe_name=None,
+        table_name_map: Dict[str, str],
+        table_map: Dict[str, Table],
+        column_name_map: Dict[str, Dict[str, str]],
+        column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         _temp_dataframes_dict=None,
     ):
         Transformer.__init__(self, visit_tokens=False)
-        self.dataframe_name_map = dataframe_name_map
-        self.dataframe_map = dataframe_map
+        self.table_name_map = table_name_map
+        self.table_map = table_map
         self._column_name_map = column_name_map
-        self._column_to_dataframe_name = column_to_dataframe_name
+        self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
-        self._execution_plan = ""
 
-    def get_table(self, frame_name) -> Union[TableExpr]:
+    def get_table(self, frame_name) -> Table:
         """
         Returns the dataframe with the name given
         :param frame_name:
         :return:
         """
-        if isinstance(frame_name, Token):
-            frame_name = frame_name.value
-        if isinstance(frame_name, Subquery):
-            return frame_name.value
-        if isinstance(frame_name, JoinBase):
+        if isinstance(frame_name, Table):
             return frame_name
-        return self.dataframe_map[frame_name]
+        return self.table_map[frame_name]
 
     def set_column_value(self, column: Column) -> None:
         """
-        Sets the column value based on what it is in the dataframe
+        Sets the column value based on what it is in the table
         :param column:
         :return:
         """
         if column.name != "*":
-            dataframe_name = self._column_to_dataframe_name[column.name.lower()]
-            if isinstance(dataframe_name, AmbiguousColumn):
+            table_name = self._column_to_table_name[column.name.lower()]
+            if isinstance(table_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
-            dataframe = self.get_table(dataframe_name)
-            column_true_name = self._column_name_map[dataframe_name][
-                column.name.lower()
-            ]
-            column.value = dataframe[column_true_name]
-            column.table = dataframe_name
+            table = self.get_table(table_name)
+            column_true_name = self._column_name_map[table_name][column.name.lower()]
+            column.value = table.get_table_expr()[column_true_name]
+            column.set_table(table)
 
     def column_name(self, name_list_format: List[str]):
         """
@@ -148,30 +141,46 @@ class InternalTransformer(TransformerBaseClass):
 
     def __init__(
         self,
-        tables: List[Token],
-        dataframe_map,
-        column_name_map,
-        column_to_dataframe_name,
+        tables: List[Table],
+        table_map: Dict[str, Table],
+        column_name_map: Dict[str, Dict[str, str]],
+        column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
     ):
-        TransformerBaseClass.__init__(
-            self, dataframe_map=dataframe_map, column_name_map=column_name_map
+        super().__init__(
+            {},
+            table_map=table_map,
+            column_name_map=column_name_map,
+            column_to_table_name=column_to_table_name,
         )
         self.tables = [
             table.name if isinstance(table, Subquery) else table for table in tables
         ]
-        self._column_to_dataframe_name = {}
-        for column in column_to_dataframe_name:
-            table = column_to_dataframe_name.get(column)
+        self.column_to_table_name = column_to_table_name
+        self._remove_non_selected_tables_from_transformation()
+
+    def _remove_non_selected_tables_from_transformation(self):
+        print(self.tables)
+        all_selected_table_names = {
+            table.name if isinstance(table, Table) else table for table in self.tables
+        }
+        for column in self.column_to_table_name:
+            table = self.column_to_table_name[column]
             if isinstance(table, AmbiguousColumn):
-                table_name = self.tables[0]
-                if table_name in table.tables:
-                    self._column_to_dataframe_name[column] = table_name
-            if table in self.tables:
-                self._column_to_dataframe_name[column] = table
+                present_tables = [
+                    ambig_table
+                    for ambig_table in table.tables
+                    if ambig_table in all_selected_table_names
+                ]
+                if len(present_tables) == 1:
+                    self.column_to_table_name[column] = present_tables[0]
+                else:
+                    self.column_to_table_name[column] = AmbiguousColumn(
+                        set(present_tables)
+                    )
 
     def transform(self, tree):
         new_tree = TransformerBaseClass.transform(self, tree)
-        if isinstance(new_tree, Token) and isinstance(new_tree.value, ValueWithPlan):
+        if isinstance(new_tree, Token) and isinstance(new_tree.value, Value):
             new_tree.value = new_tree.value.value
         return new_tree
 
@@ -333,37 +342,13 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("today()")
         return date_value
 
-    def create_execution_plan_expression(
-        self, expression1: Value, expression2: Value, relationship
-    ):
-        """
-        Returns the execution plan for both expressions taking relationship into account
-
-        :param expression1:
-        :param expression2:
-        :param relationship:
-        :return:
-        """
-        return (
-            f"{expression1.get_plan_representation()}{relationship}"
-            f"{expression2.get_plan_representation()}"
-        )
-
-    def equals(self, expressions):
-        """
-        Compares two expressions for equality
-        :param expressions:
-        :return:
-        """
-        return ValueWithPlan(expressions[0] == expressions[1])
-
     def not_equals(self, expressions):
         """
         Compares two expressions for inequality
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] != expressions[1])
+        return Value(expressions[0] != expressions[1])
 
     def greater_than(self, expressions):
         """
@@ -371,7 +356,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] > expressions[1])
+        return Value(expressions[0] > expressions[1])
 
     def greater_than_or_equal(self, expressions):
         """
@@ -379,7 +364,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] >= expressions[1])
+        return Value(expressions[0] >= expressions[1])
 
     def less_than(self, expressions):
         """
@@ -387,7 +372,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] < expressions[1])
+        return Value(expressions[0] < expressions[1])
 
     def less_than_or_equal(self, expressions):
         """
@@ -395,7 +380,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] <= expressions[1])
+        return Value(expressions[0] <= expressions[1])
 
     def between(self, expressions: List[Value]):
         """
@@ -405,7 +390,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         main_expression = expressions[0]
         between_expressions = expressions[1:]
-        return ValueWithPlan(
+        return Value(
             main_expression.value.between(
                 between_expressions[0].value, between_expressions[1].value
             )
@@ -421,7 +406,7 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         in_list = self._get_expression_values(expressions[1:])
-        return ValueWithPlan(expressions[0].value.isin(in_list))
+        return Value(expressions[0].value.isin(in_list))
 
     def not_in_expr(self, expressions: List[Value]):
         """
@@ -430,9 +415,9 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         not_in_list = self._get_expression_values(expressions[1:])
-        return ValueWithPlan(expressions[0].value.notin(not_in_list))
+        return Value(expressions[0].value.notin(not_in_list))
 
-    def bool_expression(self, expression: List[ValueWithPlan]) -> ValueWithPlan:
+    def bool_expression(self, expression: List[Value]) -> Value:
         """
         Return the bool sql_object
         :param expression:
@@ -440,19 +425,25 @@ class InternalTransformer(TransformerBaseClass):
         """
         return expression[0]
 
-    def bool_and(self, truth_series_pair: List[Value]) -> ValueWithPlan:
+    def equals(self, expressions):
+        """
+        Compares two expressions for equality
+        :param expressions:
+        :return:
+        """
+        return Value(expressions[0] == expressions[1])
+
+    def bool_and(self, truth_series_pair: List[Value]) -> Value:
         """
         Return the truth value of the series pair
         :param truth_series_pair:
         :return:
         """
-        plans: List[str] = []
         truth_series_pair_values: List[Series] = []
         for i, value in enumerate(truth_series_pair):
             truth_series_pair_values.append(value.get_value())
-            plans.append(value.get_plan_representation())
 
-        return ValueWithPlan(truth_series_pair_values[0] & truth_series_pair_values[1],)
+        return Value(truth_series_pair_values[0] & truth_series_pair_values[1],)
 
     def bool_parentheses(self, bool_expression_in_list: list):
         return bool_expression_in_list[0]
@@ -502,7 +493,7 @@ class InternalTransformer(TransformerBaseClass):
         expression = expression[0]
         if isinstance(expression, Tree):
             expression = expression.children[0]
-        if isinstance(expression, (Subquery, JoinBase)):
+        if isinstance(expression, (Subquery, JoinBase, Table)):
             value = expression
         else:
             value = expression.value
@@ -689,8 +680,10 @@ class InternalTransformer(TransformerBaseClass):
         column: Column = column_and_subquery[0]
         subquery: Subquery = column_and_subquery[1]
         subquery_table = self.get_table(subquery)
-        if len(subquery_table.columns) != 1:
+        if len(subquery_table.column_names) != 1:
             raise InvalidQueryException(
                 "Can only perform 'in' operation on subquery with one column present"
             )
-        return column.value.isin(subquery_table.get_column(subquery_table.columns[0]))
+        return column.value.isin(
+            subquery_table.get_table_expr().get_column(subquery_table.column_names[0])
+        )

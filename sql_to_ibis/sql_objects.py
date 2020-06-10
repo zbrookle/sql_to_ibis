@@ -9,6 +9,37 @@ from ibis.expr.api import ColumnExpr, TableExpr, ValueExpr
 from pandas import Series
 
 
+class Table:
+    def __init__(self, value: TableExpr, name: str, alias: str = ""):
+        assert isinstance(value, TableExpr)
+        self._value = value
+        self.name = name
+        self.alias = alias
+
+    def get_table_expr(self):
+        return self._value
+
+    def get_ibis_columns(self):
+        return self._value.get_columns(self.column_names)
+
+    @property
+    def column_names(self):
+        return self._value.columns
+
+
+class Subquery(Table):
+    """
+    Wrapper for subqueries
+    """
+
+    def __init__(self, name: str, query_info, value: TableExpr):
+        super().__init__(value, name, name)
+        self.query_info = query_info
+
+    def __repr__(self):
+        return f"Subquery(name={self.name}, query_info={self.query_info})"
+
+
 class AmbiguousColumn:
     """
     Class for identifying ambiguous table names
@@ -62,34 +93,22 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other),
-            alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} + "
-            f"{other.get_plan_representation()}",
+            value=self.value + self.get_other_value(other), alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other),
-            alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} - "
-            f"{other.get_plan_representation()}",
+            value=self.value - self.get_other_value(other), alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other),
-            alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} * "
-            f"{other.get_plan_representation()}",
+            value=self.value * self.get_other_value(other), alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other),
-            alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} / "
-            f"{other.get_plan_representation()}",
+            value=self.value / self.get_other_value(other), alias=self.alias,
         )
 
     def get_table(self):
@@ -114,33 +133,6 @@ class Value:
         :return:
         """
         return self.value
-
-    def get_plan_representation(self) -> str:
-        """
-        Return the representation that the object will have in the execution plan
-        :return:
-        """
-        return f"{self.get_value()}"
-
-    @staticmethod
-    def get_other_name(other) -> str:
-        """
-        Gets the name representation for the other value
-        :param other:
-        :return:
-        """
-        if isinstance(other, Value):
-            return other.get_name()
-        return str(other)
-
-    @staticmethod
-    def get_other_table(other) -> Optional[str]:
-        """
-        Gets the name representation for the other value
-        :param other:
-        :return:
-        """
-        return other.get_table()
 
     @staticmethod
     def get_other_value(other):
@@ -189,6 +181,16 @@ class Value:
         if isinstance(other, Value):
             return self.value != other.value
         return self.value != other
+
+    def __or__(self, other):
+        if isinstance(other, Value):
+            return self.value | other.value
+        return self.value | other
+
+    def __and__(self, other):
+        if isinstance(other, Value):
+            return self.value & other.value
+        return self.value & other
 
 
 class Literal(Value):
@@ -249,32 +251,6 @@ class Bool(Literal):
         Literal.__init__(self, value)
 
 
-class ValueWithPlan(Value):
-    def __init__(self, value):
-        Value.__init__(self, value)
-
-    def __repr__(self):
-        return Value.__repr__(self) + ")"
-
-    def __or__(self, other):
-        if not isinstance(other, Value):
-            raise Exception(
-                f"Operator | is not supported between type {type(other)} "
-                f"and type ValueWithPlan"
-            )
-
-        return ValueWithPlan(self.get_value() | other.get_value(),)
-
-    def __and__(self, other):
-        if not isinstance(other, Value):
-            raise Exception(
-                f"Operator && is not supported between type {type(other)} "
-                f"and type ValueWithPlan"
-            )
-
-        ValueWithPlan(self.get_value() & other.get_value(),)
-
-
 class DerivedColumn(Value):
     """
     Base class for expressions and aggregates
@@ -296,7 +272,6 @@ class DerivedColumn(Value):
                 DerivedColumn.increment_expression_count()
             else:
                 self.final_name = str(self.value)
-        self.has_columns = True
 
     def __repr__(self):
         display = Value.__repr__(self)
@@ -318,24 +293,11 @@ class Expression(DerivedColumn):
     Store information about an sql_object
     """
 
-    def __init__(self, value, alias="", typename="", function="", execution_plan=""):
+    def __init__(self, value, alias="", typename="", function=""):
         DerivedColumn.__init__(self, value, alias, typename, function)
-        self.execution_plan = execution_plan
-
-    def evaluate(self):
-        """
-        Returns the value from the sql_object
-        :return:
-        """
-        if isinstance(self.value, Column):
-            return self.value.value
-        return self.value
 
     def get_name(self) -> str:
         return self.alias
-
-    def get_plan_representation(self) -> str:
-        return self.execution_plan
 
 
 class Aggregate(DerivedColumn):
@@ -372,12 +334,12 @@ class Column(Value):
             self.final_name = self.alias
         else:
             self.final_name = self.name
-        self.table = None
+        self._table: Optional[Table] = None
 
     def __repr__(self):
         display = Value.__repr__(self)
         display += f", name={self.name}"
-        display += f", table={self.table}"
+        display += f", table={self._table}"
         return display + ")"
 
     def __eq__(self, other):
@@ -400,19 +362,11 @@ class Column(Value):
         other = self.get_other_value(other)
         return self.value <= other
 
-    def set_value(self, new_value: ValueExpr):
-        """
-        Set the value of the column to value
-        :param new_value:
-        :return:
-        """
-        self.value = new_value
-
     def get_table(self):
-        return self.table
+        return self._table
 
-    def get_plan_representation(self):
-        return f"{self.table}['{self.name}']"
+    def set_table(self, table: Table):
+        self._table = table
 
 
 class GroupByColumn(Column):
@@ -441,27 +395,19 @@ class GroupByColumn(Column):
         self.value = self.value.name(self.get_name())
 
 
-class Subquery:
-    """
-    Wrapper for subqueries
-    """
-
-    def __init__(self, name: str, query_info, value: TableExpr):
-        self.name = name
-        self.query_info = query_info
-        self.value = value
-
-    def __repr__(self):
-        return f"Subquery(name={self.name}, query_info={self.query_info})"
-
-
 class JoinBase:
     def __init__(
-        self, left_table: str, right_table: str, join_type: str,
+        self, left_table: Table, right_table: Table, join_type: str,
     ):
-        self.left_table_name = left_table
-        self.right_table_name = right_table
-        self.join_type = join_type
+        self.left_table: Table = left_table
+        self.right_table: Table = right_table
+        self.join_type: str = join_type
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}(left={self.left_table}, right="
+            f"{self.right_table}, type={self.join_type})"
+        )
 
 
 class Join(JoinBase):
@@ -471,8 +417,8 @@ class Join(JoinBase):
 
     def __init__(
         self,
-        left_table: str,
-        right_table: str,
+        left_table: Table,
+        right_table: Table,
         join_type: str,
         left_on: str,
         right_on: str,
@@ -484,6 +430,6 @@ class Join(JoinBase):
 
 class CrossJoin(JoinBase):
     def __init__(
-        self, left_table: str, right_table: str,
+        self, left_table: Table, right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")

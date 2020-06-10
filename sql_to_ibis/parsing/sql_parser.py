@@ -2,14 +2,13 @@
 Module containing all lark internal_transformer classes
 """
 import re
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Union
 
 import ibis
 from ibis.expr.types import TableExpr
 from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
-    AmbiguousColumnException,
     InvalidQueryException,
     TableExprDoesNotExist,
 )
@@ -27,16 +26,10 @@ from sql_to_ibis.sql_objects import (
     JoinBase,
     Literal,
     Subquery,
+    Table,
     Value,
 )
 
-ORDER_TYPES = ["asc", "desc", "ascending", "descending"]
-ORDER_TYPES_MAPPING = {
-    "asc": "asc",
-    "desc": "desc",
-    "ascending": "asc",
-    "descending": "desc",
-}
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
 )
@@ -75,25 +68,25 @@ class SQLTransformer(TransformerBaseClass):
 
     def __init__(
         self,
-        dataframe_name_map=None,
-        dataframe_map=None,
+        table_name_map=None,
+        table_map=None,
         column_name_map=None,
-        column_to_dataframe_name=None,
+        column_to_table_name=None,
     ):
-        if dataframe_name_map is None:
-            dataframe_name_map = {}
-        if dataframe_map is None:
-            dataframe_map = {}
+        if table_name_map is None:
+            table_name_map = {}
+        if table_map is None:
+            table_map = {}
         if column_name_map is None:
             column_name_map = {}
-        if column_to_dataframe_name is None:
-            column_to_dataframe_name = {}
+        if column_to_table_name is None:
+            column_to_table_name = {}
         TransformerBaseClass.__init__(
             self,
-            dataframe_name_map,
-            dataframe_map,
+            table_name_map,
+            table_map,
             column_name_map,
-            column_to_dataframe_name,
+            column_to_table_name,
             _temp_dataframes_dict={},
         )
 
@@ -104,13 +97,15 @@ class SQLTransformer(TransformerBaseClass):
         :param table:
         :return:
         """
-        if self._column_to_dataframe_name.get(column) is None:
-            self._column_to_dataframe_name[column] = table
-        elif isinstance(self._column_to_dataframe_name[column], AmbiguousColumn):
-            self._column_to_dataframe_name[column].tables.add(table)
+        if self._column_to_table_name.get(column) is None:
+            self._column_to_table_name[column] = table
+            return
+        table_name = self._column_to_table_name[column]
+        if isinstance(table_name, AmbiguousColumn):
+            table_name.tables.add(table)
         else:
-            original_table = self._column_to_dataframe_name[column]
-            self._column_to_dataframe_name[column] = AmbiguousColumn(
+            original_table = table_name
+            self._column_to_table_name[column] = AmbiguousColumn(
                 {original_table, table}
             )
 
@@ -122,11 +117,14 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         table_name = table_name.lower()
-        if table_name not in self.dataframe_name_map:
+        if table_name not in self.table_name_map:
             raise TableExprDoesNotExist(table_name)
-        if alias:
-            self.dataframe_name_map[alias] = self.dataframe_name_map[table_name]
-        return Token("table", self.dataframe_name_map[table_name])
+        true_name = self.table_name_map[table_name]
+        return Table(
+            value=self.table_map[true_name].get_table_expr(),
+            name=true_name,
+            alias=alias,
+        )
 
     def order_by_expression(self, rank_tree):
         """
@@ -180,12 +178,12 @@ class SQLTransformer(TransformerBaseClass):
         assert alias.data == "alias_string"
         alias_name = alias.children[0].value
         subquery_value = self.to_ibis_table(query_info)
-        self.dataframe_map[alias_name] = subquery_value
         subquery = Subquery(
             name=alias_name, query_info=query_info, value=subquery_value
         )
+        self.table_map[alias_name] = subquery
         self._column_name_map[alias_name] = {}
-        for column in subquery.value.columns:
+        for column in subquery.column_names:
             self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
             self._column_name_map[alias_name][column.lower()] = column
         return subquery
@@ -202,36 +200,28 @@ class SQLTransformer(TransformerBaseClass):
         """
         return join_expression
 
-    def get_lower_columns(self, table_name):
-        """
-        Returns a list of lower case column names for a given table name
-        :param column_list:
-        :return:
-        """
-        return [column.lower() for column in list(self.get_table(table_name).columns)]
-
-    def determine_column_side(self, column, left_table, right_table):
+    def _determine_column_side(self, column, left_table: Table, right_table: Table):
         """
         Check if column table prefix is one of the two tables (if there is one) AND
         the column has to be in one of the two tables
         """
+        # TODO Refactor so that this fits with the new table object framework
         column_match = GET_TABLE_REGEX.match(column)
         column_table = ""
         if column_match:
             column = column_match.group("column").lower()
             column_table = column_match.group("table").lower()
-
-        left_columns = self._column_name_map[left_table]
-        right_columns = self._column_name_map[right_table]
+        left_columns = self._column_name_map[left_table.name]
+        right_columns = self._column_name_map[right_table.name]
         if column not in left_columns and column not in right_columns:
             raise Exception("Column not found")
 
-        left_table = left_table.lower()
-        right_table = right_table.lower()
+        left_table_name = left_table.name.lower()
+        right_table_name = right_table.name.lower()
         if column_table:
-            if column_table == left_table and column in left_columns:
+            if column_table == left_table_name and column in left_columns:
                 return "left", column
-            if column_table == right_table and column in right_columns:
+            if column_table == right_table_name and column in right_columns:
                 return "right", column
             raise Exception("Table specified in join columns not present in join")
         if column in left_columns and column in right_columns:
@@ -254,10 +244,6 @@ class SQLTransformer(TransformerBaseClass):
         return comparison
 
     def join_expression(self, *args):
-        """
-        Evaluate a join into one dataframe using a merge method
-        :return:
-        """
         # There will only ever be four args if a join is specified and three if a
         # join isn't specified
         if len(args) == 3:
@@ -282,12 +268,12 @@ class SQLTransformer(TransformerBaseClass):
         column1 = str(column_comparison[0].children)
         column2 = str(column_comparison[1].children)
 
-        column1_side, column1 = self.determine_column_side(column1, table1, table2)
-        column2_side, column2 = self.determine_column_side(column2, table1, table2)
+        column1_side, column1 = self._determine_column_side(column1, table1, table2)
+        column2_side, column2 = self._determine_column_side(column2, table1, table2)
         if column1_side == column2_side:
             raise Exception("Join columns must be one column from each join table!")
-        column1 = self._column_name_map[table1][column1]
-        column2 = self._column_name_map[table2][column2]
+        column1 = self._column_name_map[table1.name][column1]
+        column2 = self._column_name_map[table2.name][column2]
         if column1_side == "left":
             left_on = column1
             right_on = column2
@@ -346,7 +332,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         if isinstance(token_or_tree, Token):
             if token_or_tree.type == "from_expression":
-                query_info.table_names.append(token_or_tree.value)
+                query_info.add_table(token_or_tree.value)
             elif token_or_tree.type == "where_expr":
                 query_info.where_expr = token_or_tree.value
         elif isinstance(token_or_tree, Tree):
@@ -370,8 +356,8 @@ class SQLTransformer(TransformerBaseClass):
                     table_object = select_expression.children[0]
                     if isinstance(table_object, JoinBase):
                         tables += [
-                            table_object.right_table_name,
-                            table_object.left_table_name,
+                            table_object.right_table,
+                            table_object.left_table,
                         ]
                     elif (
                         isinstance(table_object, Tree)
@@ -379,8 +365,8 @@ class SQLTransformer(TransformerBaseClass):
                     ):
                         cross_join: CrossJoin = table_object.children[0]
                         tables += [
-                            cross_join.right_table_name,
-                            cross_join.left_table_name,
+                            cross_join.right_table,
+                            cross_join.left_table,
                         ]
                     else:
                         tables.append(table_object)
@@ -398,10 +384,7 @@ class SQLTransformer(TransformerBaseClass):
         )
 
         internal_transformer = InternalTransformer(
-            tables,
-            self.dataframe_map,
-            self._column_name_map,
-            self._column_to_dataframe_name,
+            tables, self.table_map, self._column_name_map, self._column_to_table_name,
         )
 
         select_expressions = internal_transformer.transform(
@@ -421,7 +404,7 @@ class SQLTransformer(TransformerBaseClass):
 
         return query_info
 
-    def cross_join(self, table1: str, table2: str):
+    def cross_join(self, table1: Table, table2: Table):
         """
         Returns the crossjoin between two dataframes
         :param table1: TableExpr1
@@ -436,42 +419,6 @@ class SQLTransformer(TransformerBaseClass):
     @staticmethod
     def format_column_needs_agg_or_group_msg(column):
         return f"For column '{column}' you must either group or provide an aggregation"
-
-    def _get_column_table(self, column: str, available_tables: Set[str]):
-        table = self._column_to_dataframe_name[column.lower()]
-        available_tables = set(available_tables)
-        if isinstance(table, AmbiguousColumn):
-            global_table_possiblities = table.tables
-            contextual_table_possibilities = [
-                table_name
-                for table_name in global_table_possiblities
-                if table_name in available_tables
-            ]
-            if len(contextual_table_possibilities) > 1:
-                raise AmbiguousColumnException(column, list(available_tables))
-            return contextual_table_possibilities[0]
-        return table
-
-    def _get_true_column_name(self, column: str, available_tables: Set[str]):
-        return self._column_name_map[self._get_column_table(column, available_tables)][
-            column
-        ]
-
-    def _get_true_column_names(self, columns: List[str], available_tables: List[str]):
-        available_tables_set = set(available_tables)
-        return [
-            self._get_true_column_name(column, available_tables_set)
-            for column in columns
-        ]
-
-    def _get_columns(self, columns: List[str], available_tables: List[str]):
-        table_set = set(available_tables)
-        column_values = []
-        for column in columns:
-            table = self._get_column_table(column, table_set)
-            true_name = self._column_name_map[table][column.lower()]
-            column_values.append(self.dataframe_map[table][true_name])
-        return column_values
 
     def _get_aggregate_ibis_columns(self, aggregates: Dict[str, Aggregate]):
         aggregate_ibis_columns = []
@@ -598,24 +545,19 @@ class SQLTransformer(TransformerBaseClass):
             return ibis_table.projection(column_mutation)
         return ibis_table
 
-    def _get_table_expr_columns(self, table: TableExpr):
-        return table.get_columns(table.columns)
-
     def handle_duplicate_columns_in_join(
         self, right_table: TableExpr, left_table: TableExpr, join: JoinBase
     ):
         duplicate_columns = set(left_table.columns).intersection(right_table.columns)
         for column in duplicate_columns:
-            left_table = left_table.relabel(
-                {column: f"{join.left_table_name}." f"{column}"}
-            )
+            left_table = left_table.relabel({column: f"{join.left_table}." f"{column}"})
             right_table = right_table.relabel(
-                {column: f"{join.right_table_name}" f".{column}"}
+                {column: f"{join.right_table}" f".{column}"}
             )
 
         if isinstance(join, Join) and join.left_on == join.right_on:
-            join.left_on = f"{join.left_table_name}.{join.left_on}"
-            join.right_on = f"{join.right_table_name}.{join.right_on}"
+            join.left_on = f"{join.left_table}.{join.left_on}"
+            join.right_on = f"{join.right_table}.{join.right_on}"
 
         return left_table, right_table
 
@@ -628,54 +570,57 @@ class SQLTransformer(TransformerBaseClass):
 
     @staticmethod
     def _rename_duplicates(
-        table: TableExpr, duplicates: Set[str], table_name: str, table_columns: list
+        table: Table, duplicates: Set[str], table_name: str, table_columns: list
     ):
-        for i, column in enumerate(table.columns):
+        for i, column in enumerate(table.column_names):
             if column in duplicates:
                 table_columns[i] = table_columns[i].name(f"{table_name}.{column}")
         return table_columns
 
-    def get_all_join_columns_handle_duplicates(
-        self, left: TableExpr, right: TableExpr, join: JoinBase
+    def _get_all_join_columns_handle_duplicates(
+        self, left: Table, right: Table, join: JoinBase
     ):
-        left_columns = self._get_table_expr_columns(left)
-        right_columns = self._get_table_expr_columns(right)
-        duplicates = set(left.columns).intersection(right.columns)
+        left_columns = left.get_ibis_columns()
+        right_columns = right.get_ibis_columns()
+        duplicates = set(left.column_names).intersection(right.column_names)
         left_columns = self._rename_duplicates(
-            left, duplicates, join.left_table_name, left_columns
+            left, duplicates, join.left_table.name, left_columns
         )
         right_columns = self._rename_duplicates(
-            right, duplicates, join.right_table_name, right_columns
+            right, duplicates, join.right_table.name, right_columns
         )
         return left_columns + right_columns
 
     def handle_join(self, join: JoinBase, columns: List[Value]) -> TableExpr:
         """
-        Return the dataframe and execution plan resulting from a join
+        Return the table expr resulting from the join
         :param join:
         :param columns: List of all column values
         :return:
         """
         result: TableExpr = None
         all_columns: List[Value] = []
-        left_table = self.get_table(join.left_table_name)
-        right_table = self.get_table(join.right_table_name)
+        left_table = join.left_table
+        right_table = join.right_table
 
         if self._columns_have_select_star(columns):
-            all_columns = self.get_all_join_columns_handle_duplicates(
+            all_columns = self._get_all_join_columns_handle_duplicates(
                 left_table, right_table, join
             )
 
+        left_ibis_table = left_table.get_table_expr()
+        right_ibis_table = right_table.get_table_expr()
         if isinstance(join, Join):
-            result = left_table.join(
-                right_table,
-                predicates=left_table.get_column(join.left_on)
-                == right_table.get_column(join.right_on),
+            result = left_ibis_table.join(
+                right_ibis_table,
+                predicates=left_ibis_table.get_column(join.left_on)
+                == right_ibis_table.get_column(join.right_on),
                 how=join.join_type,
             )
         if isinstance(join, CrossJoin):
-            result = ibis.cross_join(left_table, right_table)
+            result = ibis.cross_join(left_ibis_table, right_ibis_table)
 
+        print(all_columns)
         if all_columns:
             return result[all_columns]
         return result
@@ -697,20 +642,27 @@ class SQLTransformer(TransformerBaseClass):
                     selection_statement_name
                 )
 
+    def get_table_value(self, table: Union[Table, JoinBase, Subquery]):
+        assert isinstance(table, (Table, JoinBase, Subquery))
+        if isinstance(table, Table):
+            return table.get_table_expr()
+        if isinstance(table, JoinBase):
+            return table
+
     def to_ibis_table(self, query_info: QueryInfo):
         """
         Returns the dataframe resulting from the SQL query
         :return:
         """
-        table_names = query_info.table_names
-        if not query_info.table_names:
+        tables = query_info.tables
+        if not query_info.tables:
             raise Exception("No table specified")
-        first_table = self.get_table(table_names[0])
+        first_table = self.get_table_value(tables[0])
 
         if isinstance(first_table, JoinBase):
             first_table = self.handle_join(join=first_table, columns=query_info.columns)
-        for table_name in table_names[1:]:
-            next_frame = self.get_table(table_name)
+        for table_name in tables[1:]:
+            next_frame = self.get_table_value(table_name)
             first_table = first_table.cross_join(next_frame)
 
         self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)
@@ -778,8 +730,8 @@ class SQLTransformer(TransformerBaseClass):
     ):
         """
         Return union distinct of two TableExpr
-        :param expr1: Left TableExpr and execution plan
-        :param expr2: Right TableExpr and execution plan
+        :param expr1: Left TableExpr
+        :param expr2: Right TableExpr
         :return:
         """
         return expr1.union(expr2)

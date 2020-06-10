@@ -1,2 +1,2 @@
 ibis-framework
-lark-parser
+lark-parser==0.8.5

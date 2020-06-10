@@ -11,13 +11,10 @@ from lark.exceptions import VisitError
 
 from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
-from sql_to_ibis.sql_objects import AmbiguousColumn
-
-SHOW_TREE = False
-SHOW_DF = False
+from sql_to_ibis.sql_objects import AmbiguousColumn, Table
 
 _ROOT = Path(__file__).parent
-GRAMMAR_PATH = os.path.join(_ROOT, "grammar", "sql.grammar")
+GRAMMAR_PATH = os.path.join(_ROOT, "grammar", "sql.lark")
 with open(file=GRAMMAR_PATH) as sql_grammar_file:
     _GRAMMAR_TEXT = sql_grammar_file.read()
 
@@ -115,7 +112,6 @@ class SqlToDataFrame:
 
     def __init__(self, sql: str):
         self.sql = sql
-        self.execution_plan = ""
 
         self.ast = self.parse_sql()
         self.data_frame = self.ast
@@ -149,7 +145,7 @@ class TableInfo:
     column_to_dataframe_name: Dict[str, Any] = {}
     column_name_map: Dict[str, Dict[str, str]] = {}
     ibis_table_name_map: Dict[str, str] = {}
-    ibis_table_map: Dict[str, TableExpr] = {}
+    ibis_table_map: Dict[str, Table] = {}
 
     def add_column_to_column_to_dataframe_name_map(self, column, table):
         if self.column_to_dataframe_name.get(column) is None:
@@ -170,7 +166,7 @@ class TableInfo:
             )
 
         self.ibis_table_name_map[table_name.lower()] = table_name
-        self.ibis_table_map[table_name] = ibis_table
+        self.ibis_table_map[table_name] = Table(value=ibis_table, name=table_name)
         self.column_name_map[table_name] = {}
         for column in ibis_table.columns:
             lower_column = column.lower()
@@ -182,7 +178,7 @@ class TableInfo:
             raise Exception(f"Table {table_name.lower()} is not registered")
         real_table_name = self.ibis_table_name_map[table_name.lower()]
 
-        columns = self.ibis_table_map[real_table_name].columns
+        columns = self.ibis_table_map[real_table_name].get_table_expr().columns
         for column in columns:
             lower_column = column.lower()
             value = self.column_to_dataframe_name[lower_column]
