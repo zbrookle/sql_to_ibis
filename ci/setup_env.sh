@@ -91,8 +91,8 @@ conda list
 conda remove --all -q -y -n sql_to_ibis
 
 echo
-echo "conda env create -n sql_to_ibis -y python=3.7"
-time conda env create -n sql_to_ibis -y python=3.7
+echo "conda create -n sql_to_ibis python=3.7 -y"
+time conda create -n sql_to_ibis python=3.7 -y
 
 if [[ "$BITS32" == "yes" ]]; then
     # activate 32-bit compiler
