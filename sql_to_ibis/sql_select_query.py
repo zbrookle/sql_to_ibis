@@ -112,7 +112,6 @@ class SqlToDataFrame:
 
     def __init__(self, sql: str):
         self.sql = sql
-        self.execution_plan = ""
 
         self.ast = self.parse_sql()
         self.data_frame = self.ast

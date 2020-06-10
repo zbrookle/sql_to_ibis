@@ -93,26 +93,22 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other),
-            alias=self.alias,
+            value=self.value + self.get_other_value(other), alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other),
-            alias=self.alias,
+            value=self.value - self.get_other_value(other), alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other),
-            alias=self.alias,
+            value=self.value * self.get_other_value(other), alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other),
-            alias=self.alias,
+            value=self.value / self.get_other_value(other), alias=self.alias,
         )
 
     def get_table(self):
@@ -186,6 +182,16 @@ class Value:
             return self.value != other.value
         return self.value != other
 
+    def __or__(self, other):
+        if isinstance(other, Value):
+            return self.value | other.value
+        return self.value | other
+
+    def __and__(self, other):
+        if isinstance(other, Value):
+            return self.value & other.value
+        return self.value & other
+
 
 class Literal(Value):
     """
@@ -245,32 +251,6 @@ class Bool(Literal):
         Literal.__init__(self, value)
 
 
-class ValueWithPlan(Value):
-    def __init__(self, value):
-        Value.__init__(self, value)
-
-    def __repr__(self):
-        return Value.__repr__(self) + ")"
-
-    def __or__(self, other):
-        if not isinstance(other, Value):
-            raise Exception(
-                f"Operator | is not supported between type {type(other)} "
-                f"and type ValueWithPlan"
-            )
-
-        return ValueWithPlan(self.get_value() | other.get_value(),)
-
-    def __and__(self, other):
-        if not isinstance(other, Value):
-            raise Exception(
-                f"Operator && is not supported between type {type(other)} "
-                f"and type ValueWithPlan"
-            )
-
-        ValueWithPlan(self.get_value() & other.get_value(),)
-
-
 class DerivedColumn(Value):
     """
     Base class for expressions and aggregates
@@ -313,15 +293,11 @@ class Expression(DerivedColumn):
     Store information about an sql_object
     """
 
-    def __init__(self, value, alias="", typename="", function="", execution_plan=""):
+    def __init__(self, value, alias="", typename="", function=""):
         DerivedColumn.__init__(self, value, alias, typename, function)
-        self.execution_plan = execution_plan
 
     def get_name(self) -> str:
         return self.alias
-
-    def get_plan_representation(self) -> str:
-        return self.execution_plan
 
 
 class Aggregate(DerivedColumn):
@@ -388,9 +364,6 @@ class Column(Value):
 
     def get_table(self):
         return self._table
-
-    def get_plan_representation(self):
-        return f"{self._table}['{self.name}']"
 
     def set_table(self, table: Table):
         self._table = table

@@ -32,7 +32,6 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Table,
     Value,
-    ValueWithPlan,
 )
 
 
@@ -181,7 +180,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def transform(self, tree):
         new_tree = TransformerBaseClass.transform(self, tree)
-        if isinstance(new_tree, Token) and isinstance(new_tree.value, ValueWithPlan):
+        if isinstance(new_tree, Token) and isinstance(new_tree.value, Value):
             new_tree.value = new_tree.value.value
         return new_tree
 
@@ -343,29 +342,13 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("today()")
         return date_value
 
-    def create_execution_plan_expression(
-        self, expression1: Value, expression2: Value, relationship
-    ):
-        """
-        Returns the execution plan for both expressions taking relationship into account
-
-        :param expression1:
-        :param expression2:
-        :param relationship:
-        :return:
-        """
-        return (
-            f"{expression1.get_plan_representation()}{relationship}"
-            f"{expression2.get_plan_representation()}"
-        )
-
     def not_equals(self, expressions):
         """
         Compares two expressions for inequality
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] != expressions[1])
+        return Value(expressions[0] != expressions[1])
 
     def greater_than(self, expressions):
         """
@@ -373,7 +356,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] > expressions[1])
+        return Value(expressions[0] > expressions[1])
 
     def greater_than_or_equal(self, expressions):
         """
@@ -381,7 +364,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] >= expressions[1])
+        return Value(expressions[0] >= expressions[1])
 
     def less_than(self, expressions):
         """
@@ -389,7 +372,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] < expressions[1])
+        return Value(expressions[0] < expressions[1])
 
     def less_than_or_equal(self, expressions):
         """
@@ -397,7 +380,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] <= expressions[1])
+        return Value(expressions[0] <= expressions[1])
 
     def between(self, expressions: List[Value]):
         """
@@ -407,7 +390,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         main_expression = expressions[0]
         between_expressions = expressions[1:]
-        return ValueWithPlan(
+        return Value(
             main_expression.value.between(
                 between_expressions[0].value, between_expressions[1].value
             )
@@ -423,7 +406,7 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         in_list = self._get_expression_values(expressions[1:])
-        return ValueWithPlan(expressions[0].value.isin(in_list))
+        return Value(expressions[0].value.isin(in_list))
 
     def not_in_expr(self, expressions: List[Value]):
         """
@@ -432,9 +415,9 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         not_in_list = self._get_expression_values(expressions[1:])
-        return ValueWithPlan(expressions[0].value.notin(not_in_list))
+        return Value(expressions[0].value.notin(not_in_list))
 
-    def bool_expression(self, expression: List[ValueWithPlan]) -> ValueWithPlan:
+    def bool_expression(self, expression: List[Value]) -> Value:
         """
         Return the bool sql_object
         :param expression:
@@ -448,9 +431,9 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        return ValueWithPlan(expressions[0] == expressions[1])
+        return Value(expressions[0] == expressions[1])
 
-    def bool_and(self, truth_series_pair: List[Value]) -> ValueWithPlan:
+    def bool_and(self, truth_series_pair: List[Value]) -> Value:
         """
         Return the truth value of the series pair
         :param truth_series_pair:
@@ -460,7 +443,7 @@ class InternalTransformer(TransformerBaseClass):
         for i, value in enumerate(truth_series_pair):
             truth_series_pair_values.append(value.get_value())
 
-        return ValueWithPlan(truth_series_pair_values[0] & truth_series_pair_values[1],)
+        return Value(truth_series_pair_values[0] & truth_series_pair_values[1],)
 
     def bool_parentheses(self, bool_expression_in_list: list):
         return bool_expression_in_list[0]

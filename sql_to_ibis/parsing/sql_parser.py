@@ -30,7 +30,6 @@ from sql_to_ibis.sql_objects import (
     Value,
 )
 
-
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
 )
@@ -594,7 +593,7 @@ class SQLTransformer(TransformerBaseClass):
 
     def handle_join(self, join: JoinBase, columns: List[Value]) -> TableExpr:
         """
-        Return the dataframe and execution plan resulting from a join
+        Return the table expr resulting from the join
         :param join:
         :param columns: List of all column values
         :return:
@@ -731,8 +730,8 @@ class SQLTransformer(TransformerBaseClass):
     ):
         """
         Return union distinct of two TableExpr
-        :param expr1: Left TableExpr and execution plan
-        :param expr2: Right TableExpr and execution plan
+        :param expr1: Left TableExpr
+        :param expr2: Right TableExpr
         :return:
         """
         return expr1.union(expr2)
