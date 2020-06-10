@@ -591,13 +591,13 @@ def test_operations_between_columns_and_numbers():
 
 
 @assert_state_not_change
-def test_select_star_from_multiple_tables():
+def test_select_star_from_multiple_tables(digimon_move_mon_join_columns):
     """
     Test selecting from two different tables
     :return:
     """
     my_table = query("""select * from forest_fires, digimon_mon_list""")
-    ibis_table = FOREST_FIRES.cross_join(DIGIMON_MON_LIST)
+    ibis_table = FOREST_FIRES.cross_join(DIGIMON_MON_LIST)[digimon_move_mon_join_columns]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 

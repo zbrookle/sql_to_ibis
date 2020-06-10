@@ -112,3 +112,26 @@ def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
         .execute()
     )
     assert_frame_equal(ibis_frame, my_frame)
+
+def test_select_columns_from_two_tables_with_same_column_name(forest_fires):
+    """
+    Test selecting tables
+    :return:
+    """
+    my_frame = query(
+        """select * from forest_fires table1, forest_fires table2"""
+    ).execute()
+    table1 = forest_fires.name()
+    table2 = forest_fires.name()
+    ibis_frame = table1.cross_join(table2).execute()
+    assert_frame_equal(ibis_frame, my_frame)
+
+
+def test_select_star_from_multiple_tables(forest_fires, digimon_mon_list):
+    """
+    Test selecting from two different tables
+    :return:
+    """
+    my_frame = query("""select * from forest_fires, digimon_mon_list""").execute()
+    ibis_frame = forest_fires.cross_join(digimon_mon_list).execute()
+    assert_frame_equal(ibis_frame, my_frame)
