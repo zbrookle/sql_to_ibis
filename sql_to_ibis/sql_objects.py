@@ -9,6 +9,37 @@ from ibis.expr.api import ColumnExpr, TableExpr, ValueExpr
 from pandas import Series
 
 
+class Table:
+    def __init__(self, value: TableExpr, name: str, alias: str = ""):
+        assert isinstance(value, TableExpr)
+        self._value = value
+        self.name = name
+        self.alias = alias
+
+    def get_table_expr(self):
+        return self._value
+
+    def get_ibis_columns(self):
+        return self._value.get_columns(self.column_names)
+
+    @property
+    def column_names(self):
+        return self._value.columns
+
+
+class Subquery(Table):
+    """
+    Wrapper for subqueries
+    """
+
+    def __init__(self, name: str, query_info, value: TableExpr):
+        super().__init__(value, name, name)
+        self.query_info = query_info
+
+    def __repr__(self):
+        return f"Subquery(name={self.name}, query_info={self.query_info})"
+
+
 class AmbiguousColumn:
     """
     Class for identifying ambiguous table names
@@ -372,12 +403,12 @@ class Column(Value):
             self.final_name = self.alias
         else:
             self.final_name = self.name
-        self.table = None
+        self._table: Optional[Table] = None
 
     def __repr__(self):
         display = Value.__repr__(self)
         display += f", name={self.name}"
-        display += f", table={self.table}"
+        display += f", table={self._table}"
         return display + ")"
 
     def __eq__(self, other):
@@ -409,10 +440,13 @@ class Column(Value):
         self.value = new_value
 
     def get_table(self):
-        return self.table
+        return self._table
 
     def get_plan_representation(self):
-        return f"{self.table}['{self.name}']"
+        return f"{self._table}['{self.name}']"
+
+    def set_table(self, table: Table):
+        self._table = table
 
 
 class GroupByColumn(Column):
@@ -439,37 +473,6 @@ class GroupByColumn(Column):
 
     def set_ibis_name_to_name(self):
         self.value = self.value.name(self.get_name())
-
-
-class Table:
-    def __init__(self, value: TableExpr, name: str, alias: str = ""):
-        assert isinstance(value, TableExpr)
-        self._value = value
-        self.name = name
-        self.alias = alias
-
-    def get_table_expr(self):
-        return self._value
-
-    def get_ibis_columns(self):
-        return self._value.get_columns(self.column_names)
-
-    @property
-    def column_names(self):
-        return self._value.columns
-
-
-class Subquery(Table):
-    """
-    Wrapper for subqueries
-    """
-
-    def __init__(self, name: str, query_info, value: TableExpr):
-        super().__init__(value, name, name)
-        self.query_info = query_info
-
-    def __repr__(self):
-        return f"Subquery(name={self.name}, query_info={self.query_info})"
 
 
 class JoinBase:

@@ -107,10 +107,12 @@ class SQLTransformer(TransformerBaseClass):
         """
         if self._column_to_table_name.get(column) is None:
             self._column_to_table_name[column] = table
-        elif isinstance(self._column_to_table_name[column], AmbiguousColumn):
-            self._column_to_table_name[column].tables.add(table)
+            return
+        table_name = self._column_to_table_name[column]
+        if isinstance(table_name, AmbiguousColumn):
+            table_name.tables.add(table)
         else:
-            original_table = self._column_to_table_name[column]
+            original_table = table_name
             self._column_to_table_name[column] = AmbiguousColumn(
                 {original_table, table}
             )
@@ -206,14 +208,6 @@ class SQLTransformer(TransformerBaseClass):
         """
         return join_expression
 
-    def get_lower_columns(self, table_name):
-        """
-        Returns a list of lower case column names for a given table name
-        :param column_list:
-        :return:
-        """
-        return [column.lower() for column in list(self.get_table(table_name).columns)]
-
     def _determine_column_side(self, column, left_table: Table, right_table: Table):
         """
         Check if column table prefix is one of the two tables (if there is one) AND
@@ -229,12 +223,12 @@ class SQLTransformer(TransformerBaseClass):
         if column not in left_columns and column not in right_columns:
             raise Exception("Column not found")
 
-        left_table = left_table.name.lower()
-        right_table = right_table.name.lower()
+        left_table_name = left_table.name.lower()
+        right_table_name = right_table.name.lower()
         if column_table:
-            if column_table == left_table and column in left_columns:
+            if column_table == left_table_name and column in left_columns:
                 return "left", column
-            if column_table == right_table and column in right_columns:
+            if column_table == right_table_name and column in right_columns:
                 return "right", column
             raise Exception("Table specified in join columns not present in join")
         if column in left_columns and column in right_columns:
@@ -447,27 +441,6 @@ class SQLTransformer(TransformerBaseClass):
                 raise AmbiguousColumnException(column, list(available_tables))
             return contextual_table_possibilities[0]
         return table
-
-    def _get_true_column_name(self, column: str, available_tables: Set[str]):
-        return self._column_name_map[self._get_column_table(column, available_tables)][
-            column
-        ]
-
-    def _get_true_column_names(self, columns: List[str], available_tables: List[str]):
-        available_tables_set = set(available_tables)
-        return [
-            self._get_true_column_name(column, available_tables_set)
-            for column in columns
-        ]
-
-    def _get_columns(self, columns: List[str], available_tables: List[str]):
-        table_set = set(available_tables)
-        column_values = []
-        for column in columns:
-            table = self._get_column_table(column, table_set)
-            true_name = self._column_name_map[table][column.lower()]
-            column_values.append(self.table_map[table][true_name])
-        return column_values
 
     def _get_aggregate_ibis_columns(self, aggregates: Dict[str, Aggregate]):
         aggregate_ibis_columns = []

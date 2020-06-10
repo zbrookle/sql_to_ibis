@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union
 
 import ibis
 from ibis.expr.api import NumericColumn
@@ -68,24 +68,24 @@ class TransformerBaseClass(Transformer):
         self,
         table_name_map: Dict[str, str],
         table_map: Dict[str, Table],
-        column_name_map: Dict[str, str],
-        column_to_table_name: Dict[str, str],
+        column_name_map: Dict[str, Dict[str, str]],
+        column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         _temp_dataframes_dict=None,
     ):
         Transformer.__init__(self, visit_tokens=False)
         self.table_name_map = table_name_map
         self.table_map = table_map
-        self._column_name_map: Dict[str, str] = column_name_map
+        self._column_name_map = column_name_map
         self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
 
-    def get_table(self, frame_name) -> Union[Subquery, Table, JoinBase]:
+    def get_table(self, frame_name) -> Table:
         """
         Returns the dataframe with the name given
         :param frame_name:
         :return:
         """
-        if isinstance(frame_name, (Subquery, JoinBase, Table)):
+        if isinstance(frame_name, Table):
             return frame_name
         return self.table_map[frame_name]
 
@@ -100,11 +100,9 @@ class TransformerBaseClass(Transformer):
             if isinstance(table_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
             table = self.get_table(table_name)
-            column_true_name = self._column_name_map[table_name][
-                column.name.lower()
-            ]
+            column_true_name = self._column_name_map[table_name][column.name.lower()]
             column.value = table.get_table_expr()[column_true_name]
-            column.table = table
+            column._table = table
 
     def column_name(self, name_list_format: List[str]):
         """
@@ -146,8 +144,8 @@ class InternalTransformer(TransformerBaseClass):
         self,
         tables: List[Table],
         table_map: Dict[str, Table],
-        column_name_map: Dict[str, str],
-        column_to_table_name: Dict[str, str],
+        column_name_map: Dict[str, Dict[str, str]],
+        column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
     ):
         super().__init__(
             {},
