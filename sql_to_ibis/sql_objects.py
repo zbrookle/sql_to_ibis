@@ -95,32 +95,24 @@ class Value:
         return Expression(
             value=self.value + self.get_other_value(other),
             alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} + "
-            f"{other.get_plan_representation()}",
         )
 
     def __sub__(self, other):
         return Expression(
             value=self.value - self.get_other_value(other),
             alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} - "
-            f"{other.get_plan_representation()}",
         )
 
     def __mul__(self, other):
         return Expression(
             value=self.value * self.get_other_value(other),
             alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} * "
-            f"{other.get_plan_representation()}",
         )
 
     def __truediv__(self, other):
         return Expression(
             value=self.value / self.get_other_value(other),
             alias=self.alias,
-            execution_plan=f"{self.get_plan_representation()} / "
-            f"{other.get_plan_representation()}",
         )
 
     def get_table(self):
@@ -145,33 +137,6 @@ class Value:
         :return:
         """
         return self.value
-
-    def get_plan_representation(self) -> str:
-        """
-        Return the representation that the object will have in the execution plan
-        :return:
-        """
-        return f"{self.get_value()}"
-
-    @staticmethod
-    def get_other_name(other) -> str:
-        """
-        Gets the name representation for the other value
-        :param other:
-        :return:
-        """
-        if isinstance(other, Value):
-            return other.get_name()
-        return str(other)
-
-    @staticmethod
-    def get_other_table(other) -> Optional[str]:
-        """
-        Gets the name representation for the other value
-        :param other:
-        :return:
-        """
-        return other.get_table()
 
     @staticmethod
     def get_other_value(other):
@@ -327,7 +292,6 @@ class DerivedColumn(Value):
                 DerivedColumn.increment_expression_count()
             else:
                 self.final_name = str(self.value)
-        self.has_columns = True
 
     def __repr__(self):
         display = Value.__repr__(self)
@@ -352,15 +316,6 @@ class Expression(DerivedColumn):
     def __init__(self, value, alias="", typename="", function="", execution_plan=""):
         DerivedColumn.__init__(self, value, alias, typename, function)
         self.execution_plan = execution_plan
-
-    def evaluate(self):
-        """
-        Returns the value from the sql_object
-        :return:
-        """
-        if isinstance(self.value, Column):
-            return self.value.value
-        return self.value
 
     def get_name(self) -> str:
         return self.alias
@@ -430,14 +385,6 @@ class Column(Value):
     def __le__(self, other):
         other = self.get_other_value(other)
         return self.value <= other
-
-    def set_value(self, new_value: ValueExpr):
-        """
-        Set the value of the column to value
-        :param new_value:
-        :return:
-        """
-        self.value = new_value
 
     def get_table(self):
         return self._table

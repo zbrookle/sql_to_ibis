@@ -102,7 +102,7 @@ class TransformerBaseClass(Transformer):
             table = self.get_table(table_name)
             column_true_name = self._column_name_map[table_name][column.name.lower()]
             column.value = table.get_table_expr()[column_true_name]
-            column._table = table
+            column.set_table(table)
 
     def column_name(self, name_list_format: List[str]):
         """
@@ -448,7 +448,6 @@ class InternalTransformer(TransformerBaseClass):
         :param expressions:
         :return:
         """
-        print(expressions)
         return ValueWithPlan(expressions[0] == expressions[1])
 
     def bool_and(self, truth_series_pair: List[Value]) -> ValueWithPlan:
@@ -457,11 +456,9 @@ class InternalTransformer(TransformerBaseClass):
         :param truth_series_pair:
         :return:
         """
-        plans: List[str] = []
         truth_series_pair_values: List[Series] = []
         for i, value in enumerate(truth_series_pair):
             truth_series_pair_values.append(value.get_value())
-            plans.append(value.get_plan_representation())
 
         return ValueWithPlan(truth_series_pair_values[0] & truth_series_pair_values[1],)
 

@@ -9,7 +9,6 @@ from ibis.expr.types import TableExpr
 from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
-    AmbiguousColumnException,
     InvalidQueryException,
     TableExprDoesNotExist,
 )
@@ -31,13 +30,7 @@ from sql_to_ibis.sql_objects import (
     Value,
 )
 
-ORDER_TYPES = ["asc", "desc", "ascending", "descending"]
-ORDER_TYPES_MAPPING = {
-    "asc": "asc",
-    "desc": "desc",
-    "ascending": "asc",
-    "descending": "desc",
-}
+
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
 )
@@ -213,6 +206,7 @@ class SQLTransformer(TransformerBaseClass):
         Check if column table prefix is one of the two tables (if there is one) AND
         the column has to be in one of the two tables
         """
+        # TODO Refactor so that this fits with the new table object framework
         column_match = GET_TABLE_REGEX.match(column)
         column_table = ""
         if column_match:
@@ -427,21 +421,6 @@ class SQLTransformer(TransformerBaseClass):
     def format_column_needs_agg_or_group_msg(column):
         return f"For column '{column}' you must either group or provide an aggregation"
 
-    def _get_column_table(self, column: str, available_tables: Set[str]):
-        table = self._column_to_table_name[column.lower()]
-        available_tables = set(available_tables)
-        if isinstance(table, AmbiguousColumn):
-            global_table_possiblities = table.tables
-            contextual_table_possibilities = [
-                table_name
-                for table_name in global_table_possiblities
-                if table_name in available_tables
-            ]
-            if len(contextual_table_possibilities) > 1:
-                raise AmbiguousColumnException(column, list(available_tables))
-            return contextual_table_possibilities[0]
-        return table
-
     def _get_aggregate_ibis_columns(self, aggregates: Dict[str, Aggregate]):
         aggregate_ibis_columns = []
         for aggregate_column in aggregates:
@@ -599,7 +578,7 @@ class SQLTransformer(TransformerBaseClass):
                 table_columns[i] = table_columns[i].name(f"{table_name}.{column}")
         return table_columns
 
-    def get_all_join_columns_handle_duplicates(
+    def _get_all_join_columns_handle_duplicates(
         self, left: Table, right: Table, join: JoinBase
     ):
         left_columns = left.get_ibis_columns()
@@ -626,7 +605,7 @@ class SQLTransformer(TransformerBaseClass):
         right_table = join.right_table
 
         if self._columns_have_select_star(columns):
-            all_columns = self.get_all_join_columns_handle_duplicates(
+            all_columns = self._get_all_join_columns_handle_duplicates(
                 left_table, right_table, join
             )
 
@@ -670,8 +649,6 @@ class SQLTransformer(TransformerBaseClass):
             return table.get_table_expr()
         if isinstance(table, JoinBase):
             return table
-        if isinstance(table, Subquery):
-            return table.value
 
     def to_ibis_table(self, query_info: QueryInfo):
         """

@@ -29,10 +29,6 @@ class QueryInfo:
         self.order_by: List[Tuple[str, bool]] = []
         self.limit: Optional[int] = None
 
-    @staticmethod
-    def set_none_var(value, default):
-        return default if not value else value
-
     def add_table(self, table: Table):
         self.tables.append(table)
 
