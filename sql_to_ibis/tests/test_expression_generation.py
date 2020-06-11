@@ -625,7 +625,7 @@ def test_select_columns_from_three_with_same_column_name():
     :return:
     """
     my_table = query(
-        """select * from forest_fires table1, forest_fires table2, forest_fires 
+        """select * from forest_fires table1, forest_fires table2, forest_fires
         table3"""
     )
     ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES).cross_join(FOREST_FIRES)[
