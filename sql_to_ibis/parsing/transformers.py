@@ -159,7 +159,6 @@ class InternalTransformer(TransformerBaseClass):
         self._remove_non_selected_tables_from_transformation()
 
     def _remove_non_selected_tables_from_transformation(self):
-        print(self.tables)
         all_selected_table_names = {
             table.name if isinstance(table, Table) else table for table in self.tables
         }

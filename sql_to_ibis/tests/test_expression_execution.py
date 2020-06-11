@@ -8,6 +8,7 @@ from sql_to_ibis import query, register_temp_table, remove_temp_table
 from sql_to_ibis.tests.utils import (
     DATA_PATH,
     get_all_join_columns_handle_duplicates,
+    get_columns_with_alias,
     join_params,
 )
 
@@ -111,4 +112,33 @@ def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
         .drop(["day", "month"])
         .execute()
     )
+    assert_frame_equal(ibis_frame, my_frame)
+
+
+def test_select_columns_from_two_tables_with_same_column_name(forest_fires):
+    """
+    Test selecting tables
+    :return:
+    """
+    my_frame = query(
+        """select * from forest_fires table1, forest_fires table2"""
+    ).execute()
+    ibis_frame = forest_fires.cross_join(forest_fires)[
+        get_columns_with_alias(forest_fires, "table1")
+        + get_columns_with_alias(forest_fires, "table2")
+    ].execute()
+    assert_frame_equal(ibis_frame, my_frame)
+
+
+def test_select_star_from_multiple_tables(
+    digimon_move_list, digimon_mon_list, digimon_move_mon_join_columns
+):
+    """
+    Test selecting from two different tables
+    :return:
+    """
+    my_frame = query("""select * from digimon_mon_list, digimon_move_list""").execute()
+    ibis_frame = digimon_mon_list.cross_join(digimon_move_list)[
+        digimon_move_mon_join_columns
+    ].execute()
     assert_frame_equal(ibis_frame, my_frame)

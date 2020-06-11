@@ -189,3 +189,10 @@ def get_all_join_columns_handle_duplicates(
     left_columns = _rename_duplicates(left, duplicates, left_name, left_columns)
     right_columns = _rename_duplicates(right, duplicates, right_name, right_columns)
     return left_columns + right_columns
+
+
+def get_columns_with_alias(table: TableExpr, alias: str):
+    return [
+        column.name(f"{alias}.{column_name}")
+        for column_name, column in zip(table.columns, table.get_columns(table.columns))
+    ]

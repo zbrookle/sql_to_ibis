@@ -23,6 +23,7 @@ from sql_to_ibis.tests.utils import (
     assert_ibis_equal_show_diff,
     assert_state_not_change,
     get_all_join_columns_handle_duplicates,
+    get_columns_with_alias,
     join_params,
     register_env_tables,
     remove_env_tables,
@@ -289,9 +290,9 @@ def test_cross_joins(digimon_move_mon_join_columns):
         """select * from digimon_mon_list cross join
             digimon_move_list"""
     )
-    ibis_table = DIGIMON_MON_LIST.cross_join(
-        DIGIMON_MOVE_LIST, predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-    )[digimon_move_mon_join_columns]
+    ibis_table = DIGIMON_MON_LIST.cross_join(DIGIMON_MOVE_LIST)[
+        digimon_move_mon_join_columns
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -305,9 +306,9 @@ def test_cross_join_with_selection():
         """select power from digimon_mon_list cross join
             digimon_move_list"""
     )
-    ibis_table = DIGIMON_MON_LIST.cross_join(
-        DIGIMON_MOVE_LIST, predicates=DIGIMON_MON_LIST.Type == DIGIMON_MOVE_LIST.Type,
-    )[DIGIMON_MOVE_LIST.Power.name("power")]
+    ibis_table = DIGIMON_MON_LIST.cross_join(DIGIMON_MOVE_LIST)[
+        DIGIMON_MOVE_LIST.Power.name("power")
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -591,13 +592,15 @@ def test_operations_between_columns_and_numbers():
 
 
 @assert_state_not_change
-def test_select_star_from_multiple_tables():
+def test_select_star_from_multiple_tables(digimon_move_mon_join_columns):
     """
     Test selecting from two different tables
     :return:
     """
-    my_table = query("""select * from forest_fires, digimon_mon_list""")
-    ibis_table = FOREST_FIRES.cross_join(DIGIMON_MON_LIST)
+    my_table = query("""select * from digimon_mon_list, digimon_move_list""")
+    ibis_table = DIGIMON_MON_LIST.cross_join(DIGIMON_MOVE_LIST)[
+        digimon_move_mon_join_columns
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -608,7 +611,28 @@ def test_select_columns_from_two_tables_with_same_column_name():
     :return:
     """
     my_table = query("""select * from forest_fires table1, forest_fires table2""")
-    ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES)
+    ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES)[
+        get_columns_with_alias(FOREST_FIRES, "table1")
+        + get_columns_with_alias(FOREST_FIRES, "table2")
+    ]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_select_columns_from_three_with_same_column_name():
+    """
+    Test selecting tables
+    :return:
+    """
+    my_table = query(
+        """select * from forest_fires table1, forest_fires table2, forest_fires
+        table3"""
+    )
+    ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES).cross_join(FOREST_FIRES)[
+        get_columns_with_alias(FOREST_FIRES, "table1")
+        + get_columns_with_alias(FOREST_FIRES, "table2")
+        + get_columns_with_alias(FOREST_FIRES, "table3")
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
