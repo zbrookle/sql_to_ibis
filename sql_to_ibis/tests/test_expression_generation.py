@@ -1075,6 +1075,39 @@ def test_rank_over_partition_by():
 
 
 @assert_state_not_change
+def test_partition_by_multiple_columns():
+    """
+    Test rank partition by statement
+    :return:
+    """
+    my_table = query(
+        """
+    select wind, rain, month, day,
+    rank() over(partition by day, month order by wind) as rank
+    from forest_fires
+    """
+    )
+    ibis_table = FOREST_FIRES[["wind", "rain", "month", "day"]]
+    ibis_table = ibis_table.projection(
+        [
+            FOREST_FIRES.wind,
+            FOREST_FIRES.rain,
+            FOREST_FIRES.month,
+            FOREST_FIRES.day,
+            FOREST_FIRES.wind.rank()
+            .over(
+                ibis.window(
+                    order_by=[FOREST_FIRES.wind],
+                    group_by=[FOREST_FIRES.day, FOREST_FIRES.month],
+                )
+            )
+            .name("rank"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_dense_rank_over_partition_by():
     """
     Test rank partition by statement
