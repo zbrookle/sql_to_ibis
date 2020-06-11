@@ -23,6 +23,7 @@ from sql_to_ibis.tests.utils import (
     assert_ibis_equal_show_diff,
     assert_state_not_change,
     get_all_join_columns_handle_duplicates,
+    get_columns_with_alias,
     join_params,
     register_env_tables,
     remove_env_tables,
@@ -603,15 +604,6 @@ def test_select_star_from_multiple_tables(digimon_move_mon_join_columns):
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-def get_forest_fire_columns_with_alias(alias: str):
-    return [
-        column.name(f"{alias}.{column_name}")
-        for column_name, column in zip(
-            FOREST_FIRES.columns, FOREST_FIRES.get_columns(FOREST_FIRES.columns)
-        )
-    ]
-
-
 @assert_state_not_change
 def test_select_columns_from_two_tables_with_same_column_name():
     """
@@ -620,8 +612,8 @@ def test_select_columns_from_two_tables_with_same_column_name():
     """
     my_table = query("""select * from forest_fires table1, forest_fires table2""")
     ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES)[
-        get_forest_fire_columns_with_alias("table1")
-        + get_forest_fire_columns_with_alias("table2")
+        get_columns_with_alias(FOREST_FIRES, "table1")
+        + get_columns_with_alias(FOREST_FIRES, "table2")
     ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -637,9 +629,9 @@ def test_select_columns_from_three_with_same_column_name():
         table3"""
     )
     ibis_table = FOREST_FIRES.cross_join(FOREST_FIRES).cross_join(FOREST_FIRES)[
-        get_forest_fire_columns_with_alias("table1")
-        + get_forest_fire_columns_with_alias("table2")
-        + get_forest_fire_columns_with_alias("table3")
+        get_columns_with_alias(FOREST_FIRES, "table1")
+        + get_columns_with_alias(FOREST_FIRES, "table2")
+        + get_columns_with_alias(FOREST_FIRES, "table3")
     ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
