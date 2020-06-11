@@ -563,7 +563,7 @@ class InternalTransformer(TransformerBaseClass):
         column = column_list[0]
         return Token("partition", column)
 
-    def get_rank_orders_and_partitions(self, tokens: List[List[Token]]):
+    def _get_rank_orders_and_partitions(self, tokens: List[List[Token]]):
         """
         Returns the evaluated rank expressions
         :param tokens: Tokens making up the rank sql_object
@@ -584,7 +584,8 @@ class InternalTransformer(TransformerBaseClass):
                 order_list.append(ibis_value)
             elif token.type == "partition":
                 column: Column = token.value
-                partition_list.append(column.value)
+                partition_list.append(column.get_value())
+        print(partition_list)
         return order_list, partition_list, rank_column
 
     def apply_rank_function(self, first_column: ColumnExpr, rank_function: str):
@@ -595,7 +596,7 @@ class InternalTransformer(TransformerBaseClass):
             return first_column.dense_rank()
 
     def rank(self, tokens: List[Token], rank_function: str):
-        orders, partitions, first_column = self.get_rank_orders_and_partitions(tokens)
+        orders, partitions, first_column = self._get_rank_orders_and_partitions(tokens)
         return Expression(
             self.apply_rank_function(first_column, rank_function).over(
                 ibis.window(order_by=orders, group_by=partitions)

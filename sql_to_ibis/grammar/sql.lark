@@ -48,7 +48,7 @@ JOIN_TYPE.5: "INNER"i | /FULL\sOUTER/i | /LEFT\sOUTER/i |  /RIGHT\sOUTER/i | "FU
                | "RANK"i "(" ")" rank_form -> rank_expression
                | "DENSE_RANK"i "(" ")" rank_form -> dense_rank_expression
 
-rank_form: "OVER"i "(" ["PARTITION"i "BY"i (partition_by)+] "ORDER"i "BY"i (order ",")* order ")"
+rank_form: "OVER"i "(" ["PARTITION"i "BY"i (partition_by ",")* partition_by] "ORDER"i "BY"i (order ",")* order ")"
 partition_by: expression_math
 
 when_then: "WHEN"i bool_expression "THEN"i expression_math
