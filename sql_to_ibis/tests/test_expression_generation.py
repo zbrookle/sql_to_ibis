@@ -1434,6 +1434,20 @@ def test_column_values_in_subquery():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@assert_state_not_change
+def test_select_column_with_table():
+    my_table = query("select forest_fires.wind from forest_fires")
+    ibis_table = FOREST_FIRES[FOREST_FIRES.wind]
+    assert_ibis_equal_show_diff(my_table, ibis_table)
+
+
+@assert_state_not_change
+def test_select_column_with_alias_prefix():
+    my_table = query("select table1.wind from forest_fires table1")
+    ibis_table = FOREST_FIRES[FOREST_FIRES.wind]
+    assert_ibis_equal_show_diff(my_table, ibis_table)
+
+
 # TODO Not implemented in ibis
 # @assert_state_not_change
 # def test_group_by_having():

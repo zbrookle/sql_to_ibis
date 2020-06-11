@@ -387,7 +387,8 @@ class SQLTransformer(TransformerBaseClass):
         )
 
         internal_transformer = InternalTransformer(
-            tables, self.table_map, self._column_name_map, self._column_to_table_name,
+            tables, self.table_map, self._column_name_map,
+            self._column_to_table_name, self.table_name_map
         )
 
         select_expressions = internal_transformer.transform(

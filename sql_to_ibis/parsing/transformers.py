@@ -88,14 +88,15 @@ class TransformerBaseClass(Transformer):
             return frame_name
         return self.table_map[frame_name]
 
-    def set_column_value(self, column: Column) -> None:
+    def set_column_value(self, column: Column, table_name: str = "") -> None:
         """
         Sets the column value based on what it is in the table
         :param column:
         :return:
         """
         if column.name != "*":
-            table_name = self._column_to_table_name[column.name.lower()]
+            if not table_name:
+                table_name = self._column_to_table_name[column.name.lower()]
             if isinstance(table_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
             table = self.get_table(table_name)
@@ -110,8 +111,12 @@ class TransformerBaseClass(Transformer):
         :return: Tree with column token_or_tree
         """
         name = "".join(name_list_format)
+        table_name = ""
+        if "." in name:
+            table_name, name = name.split(".")
+            table_name = self.table_name_map[table_name.lower()]
         column = Column(name="".join(name))
-        self.set_column_value(column)
+        self.set_column_value(column, table_name)
         return column
 
     @staticmethod
@@ -145,9 +150,10 @@ class InternalTransformer(TransformerBaseClass):
         table_map: Dict[str, Table],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
+        table_name_map: Dict[str, str]
     ):
         super().__init__(
-            {},
+            table_name_map=table_name_map,
             table_map=table_map,
             column_name_map=column_name_map,
             column_to_table_name=column_to_table_name,
