@@ -120,6 +120,9 @@ class SQLTransformer(TransformerBaseClass):
         if table_name not in self.table_name_map:
             raise TableExprDoesNotExist(table_name)
         true_name = self.table_name_map[table_name]
+        if isinstance(alias, Tree) and alias.data == "alias_string":
+            alias_token: Token = alias.children[0]
+            alias = alias_token.value
         return Table(
             value=self.table_map[true_name].get_table_expr(),
             name=true_name,
@@ -591,6 +594,29 @@ class SQLTransformer(TransformerBaseClass):
         )
         return left_columns + right_columns
 
+    def _get_all_columns_rename_duplicates(self, tables: List[Table]):
+        columns = {table: table.get_ibis_columns() for table in tables}
+
+        def set_dict_column_name(table: Table, col_name: str):
+            index = table.column_names.index(col_name)
+            columns[table][index] = columns[table][index].name(
+                f"{table.get_alias_else_name()}.{col_name}"
+            )
+
+        for i, table1 in enumerate(tables):
+            for table2 in tables[i + 1 :]:
+                table1_column_names = set(table1.column_names)
+                table2_column_names = set(table2.column_names)
+                intersect = table1_column_names.intersection(table2_column_names)
+                for column_name in intersect:
+                    for table in [table1, table2]:
+                        set_dict_column_name(table, column_name)
+
+        all_columns = []
+        for table in columns:
+            all_columns += columns[table]
+        return all_columns
+
     def handle_join(self, join: JoinBase, columns: List[Value]) -> TableExpr:
         """
         Return the table expr resulting from the join
@@ -620,7 +646,6 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(join, CrossJoin):
             result = ibis.cross_join(left_ibis_table, right_ibis_table)
 
-        print(all_columns)
         if all_columns:
             return result[all_columns]
         return result
@@ -661,9 +686,12 @@ class SQLTransformer(TransformerBaseClass):
 
         if isinstance(first_table, JoinBase):
             first_table = self.handle_join(join=first_table, columns=query_info.columns)
-        for table_name in tables[1:]:
-            next_frame = self.get_table_value(table_name)
-            first_table = first_table.cross_join(next_frame)
+        for table in tables[1:]:
+            next_table = self.get_table_value(table)
+            first_table = first_table.cross_join(next_table)
+        if len(tables) > 1 and self._columns_have_select_star(query_info.columns):
+            all_columns = self._get_all_columns_rename_duplicates(tables)
+            first_table = first_table[all_columns]
 
         self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)
 

@@ -113,6 +113,7 @@ def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
     )
     assert_frame_equal(ibis_frame, my_frame)
 
+
 def test_select_columns_from_two_tables_with_same_column_name(forest_fires):
     """
     Test selecting tables

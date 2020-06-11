@@ -22,6 +22,11 @@ class Table:
     def get_ibis_columns(self):
         return self._value.get_columns(self.column_names)
 
+    def get_alias_else_name(self):
+        if self.alias:
+            return self.alias
+        return self.name
+
     @property
     def column_names(self):
         return self._value.columns
