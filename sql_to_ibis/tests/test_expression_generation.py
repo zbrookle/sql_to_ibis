@@ -1448,11 +1448,13 @@ def test_select_column_with_alias_prefix():
     ibis_table = FOREST_FIRES[FOREST_FIRES.wind]
     assert_ibis_equal_show_diff(my_table, ibis_table)
 
+
 @assert_state_not_change
 def test_select_ambiguous_column_in_database_context():
     my_table = query("select attribute from digimon_mon_list")
     ibis_table = DIGIMON_MON_LIST[DIGIMON_MON_LIST.Attribute.name("attribute")]
     assert_ibis_equal_show_diff(my_table, ibis_table)
+
 
 # TODO Not implemented in ibis
 # @assert_state_not_change
@@ -1475,7 +1477,7 @@ def test_select_ambiguous_column_in_database_context():
         "select * from digimon_mon_list join "
         "digimon_move_list on "
         "digimon_mon_list.not_here = digimon_move_list.attribute",
-        "select forest_fires.not_here from forest_fires"
+        "select forest_fires.not_here from forest_fires",
     ],
 )
 def test_raise_error_for_choosing_column_not_in_table(sql: str):
@@ -1511,5 +1513,5 @@ if __name__ == "__main__":
     #     DIGIMON_MON_LIST, DIGIMON_MOVE_LIST, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
     # )
     # test_joins(digimon_move_mon_join_columns, "inner", "inner")
-    test_select_star()
+    test_select_column_with_alias_prefix()
     remove_env_tables()

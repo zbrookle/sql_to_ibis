@@ -17,6 +17,7 @@ from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBas
 from sql_to_ibis.query_info import QueryInfo
 from sql_to_ibis.sql_objects import (
     Aggregate,
+    AliasRegistry,
     AmbiguousColumn,
     Column,
     CrossJoin,
@@ -90,6 +91,7 @@ class SQLTransformer(TransformerBaseClass):
             column_to_table_name,
             _temp_dataframes_dict={},
         )
+        self._alias_registry = AliasRegistry()
 
     def add_column_to_column_to_dataframe_name_map(self, column, table):
         """
@@ -124,11 +126,14 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(alias, Tree) and alias.data == "alias_string":
             alias_token: Token = alias.children[0]
             alias = alias_token.value
-        return Table(
+        table = Table(
             value=self.table_map[true_name].get_table_expr(),
             name=true_name,
             alias=alias,
         )
+        if alias:
+            self._alias_registry.add_to_registry(alias, table)
+        return table
 
     def order_by_expression(self, rank_tree):
         """
@@ -386,10 +391,13 @@ class SQLTransformer(TransformerBaseClass):
             and select_expression.data not in ("having_expr", "where_expr")
             or not isinstance(select_expression, Tree)
         )
-        print(tables)
         internal_transformer = InternalTransformer(
-            tables, self.table_map, self._column_name_map,
-            self._column_to_table_name, self.table_name_map
+            tables,
+            self.table_map,
+            self._column_name_map,
+            self._column_to_table_name,
+            self.table_name_map,
+            self._alias_registry,
         )
 
         select_expressions = internal_transformer.transform(

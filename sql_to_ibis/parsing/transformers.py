@@ -9,7 +9,11 @@ from lark import Token, Transformer, Tree
 from pandas import Series
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
-from sql_to_ibis.exceptions.sql_exception import InvalidQueryException, ColumnNotFoundError
+from sql_to_ibis.exceptions.sql_exception import (
+    AmbiguousColumnException,
+    ColumnNotFoundError,
+    InvalidQueryException,
+)
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
     MAX_AGGREGATIONS,
@@ -19,6 +23,7 @@ from sql_to_ibis.parsing.aggregation_aliases import (
 )
 from sql_to_ibis.sql_objects import (
     Aggregate,
+    AliasRegistry,
     AmbiguousColumn,
     Column,
     CrossJoin,
@@ -87,7 +92,8 @@ class TransformerBaseClass(Transformer):
         """
         if isinstance(frame_name, Table):
             return frame_name
-        return self.table_map[frame_name]
+        if frame_name in self.table_map:
+            return self.table_map[frame_name]
 
     def set_column_value(self, column: Column, table_name: str = "") -> None:
         """
@@ -103,9 +109,9 @@ class TransformerBaseClass(Transformer):
                     raise ColumnNotFoundError(column.name, list(self._table_names))
                 table_name = self._column_to_table_name[column.name.lower()]
             if isinstance(table_name, AmbiguousColumn):
-                raise Exception(f"Ambiguous column reference: {column.name}")
+                raise AmbiguousColumnException(column.name, table_name.tables)
             table = self.get_table(table_name)
-            table_column_name_map = self._column_name_map[table_name]
+            table_column_name_map = self._column_name_map[table.name]
             if lower_column_name not in table_column_name_map:
                 raise ColumnNotFoundError(column.name, [table_name])
             column_true_name = table_column_name_map[column.name.lower()]
@@ -122,7 +128,9 @@ class TransformerBaseClass(Transformer):
         table_name = ""
         if "." in name:
             table_name, name = name.split(".")
-            table_name = self.table_name_map[table_name.lower()]
+            table_name_lower = table_name.lower()
+            if table_name_lower in self.table_name_map:
+                table_name = self.table_name_map[table_name_lower]
         column = Column(name="".join(name))
         self.set_column_value(column, table_name)
         return column
@@ -158,7 +166,8 @@ class InternalTransformer(TransformerBaseClass):
         table_map: Dict[str, Table],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
-        table_name_map: Dict[str, str]
+        table_name_map: Dict[str, str],
+        alias_registry: AliasRegistry,
     ):
         super().__init__(
             table_name_map=table_name_map,
@@ -171,10 +180,12 @@ class InternalTransformer(TransformerBaseClass):
         ]
         self.column_to_table_name = column_to_table_name
         self._remove_non_selected_tables_from_transformation()
+        self._alias_registry = alias_registry
 
     def _remove_non_selected_tables_from_transformation(self):
         all_selected_table_names = {
-            table.name if isinstance(table, Table) else table for table in self._table_names
+            table.name if isinstance(table, Table) else table
+            for table in self._table_names
         }
         for column in self.column_to_table_name:
             table = self.column_to_table_name[column]
@@ -701,3 +712,13 @@ class InternalTransformer(TransformerBaseClass):
         return column.value.isin(
             subquery_table.get_table_expr().get_column(subquery_table.column_names[0])
         )
+
+    def get_table(self, table_or_alias_name) -> Table:
+        print(table_or_alias_name)
+        try_get_table = super().get_table(table_or_alias_name)
+        if try_get_table is not None:
+            return try_get_table
+        if try_get_table is None and table_or_alias_name not in self._alias_registry:
+            raise Exception(f"Table or alias '{table_or_alias_name}' not found")
+        print("need table for", table_or_alias_name)
+        return self._alias_registry.get_registry_entry(table_or_alias_name)
