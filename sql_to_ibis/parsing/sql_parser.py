@@ -9,6 +9,7 @@ from ibis.expr.types import TableExpr
 from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
+    ColumnNotFoundError,
     InvalidQueryException,
     TableExprDoesNotExist,
 )
@@ -217,7 +218,7 @@ class SQLTransformer(TransformerBaseClass):
         left_columns = self._column_name_map[left_table.name]
         right_columns = self._column_name_map[right_table.name]
         if column not in left_columns and column not in right_columns:
-            raise Exception("Column not found")
+            raise ColumnNotFoundError(column, [left_table.name, right_table.name])
 
         left_table_name = left_table.name.lower()
         right_table_name = right_table.name.lower()

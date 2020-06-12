@@ -10,6 +10,7 @@ import pytest
 
 from sql_to_ibis import query, register_temp_table, remove_temp_table
 from sql_to_ibis.exceptions.sql_exception import (
+    ColumnNotFoundError,
     InvalidQueryException,
     TableExprDoesNotExist,
 )
@@ -1446,6 +1447,20 @@ def test_column_values_in_subquery():
 #         .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
 #     )
 #     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "select not_here from forest_fires",
+        "select * from digimon_mon_list join "
+        "digimon_move_list on "
+        "digimon_mon_list.not_here = digimon_move_list.attribute",
+    ],
+)
+def test_raise_error_for_choosing_column_not_in_table(sql: str):
+    with pytest.raises(ColumnNotFoundError):
+        query(sql)
 
 
 @pytest.mark.parametrize(

@@ -9,7 +9,10 @@ from lark import Token, Transformer, Tree
 from pandas import Series
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
-from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
+from sql_to_ibis.exceptions.sql_exception import (
+    ColumnNotFoundError,
+    InvalidQueryException,
+)
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
     MAX_AGGREGATIONS,
@@ -95,6 +98,9 @@ class TransformerBaseClass(Transformer):
         :return:
         """
         if column.name != "*":
+            lower_column = column.name.lower()
+            if lower_column not in self._column_to_table_name:
+                raise ColumnNotFoundError(column.name, list(self.table_map))
             table_name = self._column_to_table_name[column.name.lower()]
             if isinstance(table_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
