@@ -386,7 +386,7 @@ class SQLTransformer(TransformerBaseClass):
             and select_expression.data not in ("having_expr", "where_expr")
             or not isinstance(select_expression, Tree)
         )
-
+        print(tables)
         internal_transformer = InternalTransformer(
             tables, self.table_map, self._column_name_map,
             self._column_to_table_name, self.table_name_map

@@ -9,7 +9,7 @@ from lark import Token, Transformer, Tree
 from pandas import Series
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
-from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
+from sql_to_ibis.exceptions.sql_exception import InvalidQueryException, ColumnNotFoundError
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
     MAX_AGGREGATIONS,
@@ -77,6 +77,7 @@ class TransformerBaseClass(Transformer):
         self._column_name_map = column_name_map
         self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
+        self._table_names = {table_name_map[table] for table in table_name_map}
 
     def get_table(self, frame_name) -> Table:
         """
@@ -92,15 +93,22 @@ class TransformerBaseClass(Transformer):
         """
         Sets the column value based on what it is in the table
         :param column:
+        :param table_name: Optional, only used if provided
         :return:
         """
         if column.name != "*":
+            lower_column_name = column.name.lower()
             if not table_name:
+                if lower_column_name not in self._column_to_table_name:
+                    raise ColumnNotFoundError(column.name, list(self._table_names))
                 table_name = self._column_to_table_name[column.name.lower()]
             if isinstance(table_name, AmbiguousColumn):
                 raise Exception(f"Ambiguous column reference: {column.name}")
             table = self.get_table(table_name)
-            column_true_name = self._column_name_map[table_name][column.name.lower()]
+            table_column_name_map = self._column_name_map[table_name]
+            if lower_column_name not in table_column_name_map:
+                raise ColumnNotFoundError(column.name, [table_name])
+            column_true_name = table_column_name_map[column.name.lower()]
             column.value = table.get_table_expr()[column_true_name]
             column.set_table(table)
 
@@ -158,7 +166,7 @@ class InternalTransformer(TransformerBaseClass):
             column_name_map=column_name_map,
             column_to_table_name=column_to_table_name,
         )
-        self.tables = [
+        self._table_names = [
             table.name if isinstance(table, Subquery) else table for table in tables
         ]
         self.column_to_table_name = column_to_table_name
@@ -166,7 +174,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def _remove_non_selected_tables_from_transformation(self):
         all_selected_table_names = {
-            table.name if isinstance(table, Table) else table for table in self.tables
+            table.name if isinstance(table, Table) else table for table in self._table_names
         }
         for column in self.column_to_table_name:
             table = self.column_to_table_name[column]
