@@ -31,6 +31,15 @@ class TableExprDoesNotExist(Exception):
         Exception.__init__(self, f"Table {table_name} has not been defined")
 
 
+class ColumnNotFoundError(Exception):
+    """
+    Raised when a column is not present
+    """
+
+    def __init__(self, column_name: str, tables: List[str]):
+        super().__init__(f"Column {column_name} not found in table(s) {tables}")
+
+
 class AmbiguousColumnException(Exception):
     """
     Raised when a column name is not specific enough
