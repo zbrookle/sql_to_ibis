@@ -32,6 +32,22 @@ class Table:
         return self._value.columns
 
 
+class AliasRegistry:
+    def __init__(self):
+        self._registry = {}
+
+    def add_to_registry(self, alias: str, table: Table):
+        assert alias not in self._registry
+        print(alias, "added to registry")
+        self._registry[alias] = table
+
+    def get_registry_entry(self, item: str):
+        return self._registry[item]
+
+    def __contains__(self, item):
+        return item in self._registry
+
+
 class Subquery(Table):
     """
     Wrapper for subqueries

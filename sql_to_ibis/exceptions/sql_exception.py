@@ -47,6 +47,5 @@ class AmbiguousColumnException(Exception):
 
     def __init__(self, columnn: str, possible_tables: List[str]):
         Exception.__init__(
-            self,
-            f"For column {columnn}, one of {possible_tables} " f"must be specified",
+            self, f"For column {columnn}, one of {possible_tables} must be specified",
         )
