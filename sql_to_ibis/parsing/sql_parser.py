@@ -120,14 +120,14 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         table_name = table_name.lower()
-        if table_name not in self.table_name_map:
+        if table_name not in self._table_name_map:
             raise TableExprDoesNotExist(table_name)
-        true_name = self.table_name_map[table_name]
+        true_name = self._table_name_map[table_name]
         if isinstance(alias, Tree) and alias.data == "alias_string":
             alias_token: Token = alias.children[0]
             alias = alias_token.value
         table = Table(
-            value=self.table_map[true_name].get_table_expr(),
+            value=self._table_map[true_name].get_table_expr(),
             name=true_name,
             alias=alias,
         )
@@ -190,7 +190,7 @@ class SQLTransformer(TransformerBaseClass):
         subquery = Subquery(
             name=alias_name, query_info=query_info, value=subquery_value
         )
-        self.table_map[alias_name] = subquery
+        self._table_map[alias_name] = subquery
         self._column_name_map[alias_name] = {}
         for column in subquery.column_names:
             self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
@@ -393,10 +393,10 @@ class SQLTransformer(TransformerBaseClass):
         )
         internal_transformer = InternalTransformer(
             tables,
-            self.table_map,
+            self._table_map,
             self._column_name_map,
             self._column_to_table_name,
-            self.table_name_map,
+            self._table_name_map,
             self._alias_registry,
         )
 

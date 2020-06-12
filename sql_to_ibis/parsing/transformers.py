@@ -77,63 +77,11 @@ class TransformerBaseClass(Transformer):
         _temp_dataframes_dict=None,
     ):
         Transformer.__init__(self, visit_tokens=False)
-        self.table_name_map = table_name_map
-        self.table_map = table_map
+        self._table_name_map = table_name_map
+        self._table_map = table_map
         self._column_name_map = column_name_map
         self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
-        self._table_names = {table_name_map[table] for table in table_name_map}
-
-    def get_table(self, frame_name) -> Table:
-        """
-        Returns the dataframe with the name given
-        :param frame_name:
-        :return:
-        """
-        if isinstance(frame_name, Table):
-            return frame_name
-        if frame_name in self.table_map:
-            return self.table_map[frame_name]
-
-    def set_column_value(self, column: Column, table_name: str = "") -> None:
-        """
-        Sets the column value based on what it is in the table
-        :param column:
-        :param table_name: Optional, only used if provided
-        :return:
-        """
-        if column.name != "*":
-            lower_column_name = column.name.lower()
-            if not table_name:
-                if lower_column_name not in self._column_to_table_name:
-                    raise ColumnNotFoundError(column.name, list(self._table_names))
-                table_name = self._column_to_table_name[column.name.lower()]
-            if isinstance(table_name, AmbiguousColumn):
-                raise AmbiguousColumnException(column.name, table_name.tables)
-            table = self.get_table(table_name)
-            table_column_name_map = self._column_name_map[table.name]
-            if lower_column_name not in table_column_name_map:
-                raise ColumnNotFoundError(column.name, [table_name])
-            column_true_name = table_column_name_map[column.name.lower()]
-            column.value = table.get_table_expr()[column_true_name]
-            column.set_table(table)
-
-    def column_name(self, name_list_format: List[str]):
-        """
-        Returns a column token_or_tree with the name extracted
-        :param name_list_format: List formatted name
-        :return: Tree with column token_or_tree
-        """
-        name = "".join(name_list_format)
-        table_name = ""
-        if "." in name:
-            table_name, name = name.split(".")
-            table_name_lower = table_name.lower()
-            if table_name_lower in self.table_name_map:
-                table_name = self.table_name_map[table_name_lower]
-        column = Column(name="".join(name))
-        self.set_column_value(column, table_name)
-        return column
 
     @staticmethod
     def apply_ibis_aggregation(
@@ -175,17 +123,40 @@ class InternalTransformer(TransformerBaseClass):
             column_name_map=column_name_map,
             column_to_table_name=column_to_table_name,
         )
-        self._table_names = [
-            table.name if isinstance(table, Subquery) else table for table in tables
-        ]
+        self._table_names_list = [table.name for table in tables]
         self.column_to_table_name = column_to_table_name
         self._remove_non_selected_tables_from_transformation()
         self._alias_registry = alias_registry
 
+    def set_column_value(
+        self, column: Column, table_name: Union[str, AmbiguousColumn] = ""
+    ) -> None:
+        """
+        Sets the column value based on what it is in the table
+        :param column:
+        :param table_name: Optional, only used if provided
+        :return:
+        """
+        if column.name != "*":
+            lower_column_name = column.name.lower()
+            if not table_name:
+                if lower_column_name not in self._column_to_table_name:
+                    raise ColumnNotFoundError(column.name, list(self._table_names_list))
+                table_name = self._column_to_table_name[column.name.lower()]
+            if isinstance(table_name, AmbiguousColumn):
+                raise AmbiguousColumnException(column.name, list(table_name.tables))
+            table = self.get_table(table_name)
+            table_column_name_map = self._column_name_map[table.name]
+            if lower_column_name not in table_column_name_map:
+                raise ColumnNotFoundError(column.name, [table_name])
+            column_true_name = table_column_name_map[column.name.lower()]
+            column.value = table.get_table_expr()[column_true_name]
+            column.set_table(table)
+
     def _remove_non_selected_tables_from_transformation(self):
         all_selected_table_names = {
             table.name if isinstance(table, Table) else table
-            for table in self._table_names
+            for table in self._table_names_list
         }
         for column in self.column_to_table_name:
             table = self.column_to_table_name[column]
@@ -714,11 +685,29 @@ class InternalTransformer(TransformerBaseClass):
         )
 
     def get_table(self, table_or_alias_name) -> Table:
-        print(table_or_alias_name)
-        try_get_table = super().get_table(table_or_alias_name)
+        if isinstance(table_or_alias_name, Table):
+            return table_or_alias_name
+        try_get_table = self._table_map.get(table_or_alias_name)
         if try_get_table is not None:
             return try_get_table
         if try_get_table is None and table_or_alias_name not in self._alias_registry:
             raise Exception(f"Table or alias '{table_or_alias_name}' not found")
         print("need table for", table_or_alias_name)
         return self._alias_registry.get_registry_entry(table_or_alias_name)
+
+    def column_name(self, name_list_format: List[str]):
+        """
+        Returns a column token_or_tree with the name extracted
+        :param name_list_format: List formatted name
+        :return: Tree with column token_or_tree
+        """
+        name = "".join(name_list_format)
+        table_name = ""
+        if "." in name:
+            table_name, name = name.split(".")
+            table_name_lower = table_name.lower()
+            if table_name_lower in self._table_name_map:
+                table_name = self._table_name_map[table_name_lower]
+        column = Column(name="".join(name))
+        self.set_column_value(column, table_name)
+        return column
