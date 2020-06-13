@@ -1322,6 +1322,45 @@ def test_sql_data_types():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        """
+    select * from
+    ((select X, Y, rain from forest_fires) table1
+    join 
+    (select X, Y, rain from forest_fires) table2
+    on table1.x = table2.x)
+    """,
+        """
+    select * from
+    (select X, Y, rain from forest_fires) table1
+    join 
+    (select X, Y, rain from forest_fires) table2
+    on table1.x = table2.x
+    """,
+    ],
+)
+@assert_state_not_change
+def test_joining_two_subqueries_with_overlapping_columns(sql):
+    my_table = query(sql)
+    print(my_table)
+    columns = ["X", "Y", "rain"]
+
+    def get_select_rename_columns(alias: str):
+        my_columns = FOREST_FIRES.get_columns(columns)
+        for i, column in enumerate(my_columns):
+            my_columns[i] = column.name(f"{alias}.{my_columns[i]}")
+        return my_columns
+
+    select1 = get_select_rename_columns("table1")
+    select2 = get_select_rename_columns("table2")
+    subquery1 = FOREST_FIRES[select1]
+    subquery2 = FOREST_FIRES[select2]
+    joined = subquery1.join(subquery2, predicate=subquery1.X == subquery2.X)
+    assert_ibis_equal_show_diff(joined, my_table)
+
+
 @assert_state_not_change
 def test_math_order_of_operations_no_parens():
     """
@@ -1505,13 +1544,3 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
 def test_invalid_queries(sql):
     with pytest.raises(InvalidQueryException):
         query(sql)
-
-
-if __name__ == "__main__":
-    register_env_tables()
-    # digimon_move_mon_join_columns = get_all_join_columns_handle_duplicates(
-    #     DIGIMON_MON_LIST, DIGIMON_MOVE_LIST, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
-    # )
-    # test_joins(digimon_move_mon_join_columns, "inner", "inner")
-    test_select_column_with_alias_prefix()
-    remove_env_tables()
