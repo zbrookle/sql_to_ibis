@@ -12,6 +12,7 @@ from lark.exceptions import VisitError
 from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
 from sql_to_ibis.sql_objects import AmbiguousColumn, Table
+from copy import deepcopy
 
 _ROOT = Path(__file__).parent
 GRAMMAR_PATH = os.path.join(_ROOT, "grammar", "sql.lark")
@@ -126,7 +127,8 @@ class SqlToDataFrame:
                 table_info.ibis_table_name_map.copy(),
                 table_info.ibis_table_map.copy(),
                 table_info.column_name_map.copy(),
-                table_info.column_to_table_name.copy(),
+                deepcopy(table_info.column_to_table_name)  # Need deep copy so that
+                # ambiguous column references are not distorted
             ).transform(tree)
         except UnexpectedToken as err:
             message = (
@@ -147,16 +149,14 @@ class TableInfo:
     ibis_table_name_map: Dict[str, str] = {}
     ibis_table_map: Dict[str, Table] = {}
 
-    def add_column_to_column_to_dataframe_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column, table):
         if self.column_to_table_name.get(column) is None:
             self.column_to_table_name[column] = table
         elif isinstance(self.column_to_table_name[column], AmbiguousColumn):
             self.column_to_table_name[column].add_table(table)
         else:
             original_table = self.column_to_table_name[column]
-            self.column_to_table_name[column] = AmbiguousColumn(
-                {original_table, table}
-            )
+            self.column_to_table_name[column] = AmbiguousColumn({original_table, table})
 
     def register_temporary_table(self, ibis_table, table_name: str):
         if table_name.lower() in self.ibis_table_name_map:
@@ -171,7 +171,7 @@ class TableInfo:
         for column in ibis_table.columns:
             lower_column = column.lower()
             self.column_name_map[table_name][lower_column] = column
-            self.add_column_to_column_to_dataframe_name_map(lower_column, table_name)
+            self.add_column_to_column_to_table_name_map(lower_column, table_name)
 
     def remove_temp_table(self, table_name: str):
         if table_name.lower() not in self.ibis_table_name_map:

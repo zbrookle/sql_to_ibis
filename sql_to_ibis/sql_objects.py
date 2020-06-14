@@ -78,7 +78,8 @@ class AmbiguousColumn:
         self._tables.add(table)
 
     def remove_table(self, table: str):
-        assert len(table) > 1
+        if len(self._tables) <= 1:
+            raise Exception("Ambiguous column table set cannot be empty!")
         self._tables.remove(table)
 
     @property

@@ -93,9 +93,9 @@ class SQLTransformer(TransformerBaseClass):
         )
         self._alias_registry = AliasRegistry()
 
-    def add_column_to_column_to_dataframe_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column, table):
         """
-        Adds a column to the column_to_dataframe_name_map
+        Adds a column to the _column_to_table_name map
         :param column:
         :param table:
         :return:
@@ -203,7 +203,7 @@ class SQLTransformer(TransformerBaseClass):
         self._table_map[alias_name] = subquery
         self._column_name_map[alias_name] = {}
         for column in subquery.column_names:
-            self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
+            self.add_column_to_column_to_table_name_map(column.lower(), alias_name)
             self._column_name_map[alias_name][column.lower()] = column
         return subquery
 
