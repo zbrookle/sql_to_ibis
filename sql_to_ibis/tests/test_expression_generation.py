@@ -47,8 +47,8 @@ def test_add_remove_temp_table():
     real_frame_name = TableInfo.ibis_table_name_map[frame_name]
     remove_temp_table(frame_name)
     tables_present_in_column_to_dataframe = set()
-    for column in TableInfo.column_to_dataframe_name:
-        table = TableInfo.column_to_dataframe_name[column]
+    for column in TableInfo.column_to_table_name:
+        table = TableInfo.column_to_table_name[column]
         if isinstance(table, AmbiguousColumn):
             for table_name in table.tables:
                 tables_present_in_column_to_dataframe.add(table_name)
@@ -82,8 +82,8 @@ def test_add_remove_temp_table():
             column.lower()
         )
         lower_column = column.lower()
-        assert lower_column in TableInfo.column_to_dataframe_name
-        table = TableInfo.column_to_dataframe_name.get(lower_column)
+        assert lower_column in TableInfo.column_to_table_name
+        table = TableInfo.column_to_table_name.get(lower_column)
         if isinstance(table, AmbiguousColumn):
             assert registered_frame_name in table.tables
         else:
@@ -1322,45 +1322,97 @@ def test_sql_data_types():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+# @pytest.mark.parametrize(
+#     "sql",
+#     [
+#         """
+#     select * from
+#     ((select X, Y, rain from forest_fires) table1
+#     join
+#     (select X, Y, rain from forest_fires) table2
+#     on table1.x = table2.x) sub
+#     """,
+#         """
+#     select * from
+#     (select X, Y, rain from forest_fires) table1
+#     join
+#     (select X, Y, rain from forest_fires) table2
+#     on table1.x = table2.x
+#     """,
+#     ],
+# )
+# @assert_state_not_change
+# def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
+#     my_table = query(sql)
+#     columns = ["X", "Y", "rain"]
+#
+#     def get_select_rename_columns(alias: str):
+#         my_columns = FOREST_FIRES.get_columns(columns)
+#         renamed_columns = []
+#         for i, column in enumerate(my_columns):
+#             renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
+#         return my_columns, renamed_columns
+#
+#     select1, renamed1 = get_select_rename_columns("table1")
+#     select2, renamed2 = get_select_rename_columns("table2")
+#     subquery1 = FOREST_FIRES[select1]
+#     subquery2 = FOREST_FIRES[select2]
+#     joined = subquery1.join(
+#         subquery2, predicates=subquery1.X == subquery2.X
+#     ).projection(renamed1 + renamed2)
+#     assert_ibis_equal_show_diff(joined, my_table)
+
+
 @pytest.mark.parametrize(
     "sql",
     [
         """
     select * from
-    ((select X, Y, rain from forest_fires) table1
+    ((select type, attribute, power from digimon_move_list) table1
     join 
-    (select X, Y, rain from forest_fires) table2
-    on table1.x = table2.x) sub
+    (select type, attribute, digimon from 
+    digimon_mon_list) table2
+    on table1.type = table2.type) sub
     """,
         """
     select * from
-    (select X, Y, rain from forest_fires) table1
+    ((select type, attribute, power from digimon_move_list) table1
     join 
-    (select X, Y, rain from forest_fires) table2
-    on table1.x = table2.x
+    (select type, attribute, digimon from digimon_mon_list) table2
+    on table1.type = table2.type) sub
     """,
     ],
 )
 @assert_state_not_change
-def test_joining_two_subqueries_with_overlapping_columns(sql):
+def test_joining_two_subqueries_with_overlapping_columns_different_tables(sql):
     my_table = query(sql)
-    columns = ["X", "Y", "rain"]
-
-    def get_select_rename_columns(alias: str):
-        my_columns = FOREST_FIRES.get_columns(columns)
-        renamed_columns = []
-        for i, column in enumerate(my_columns):
-            renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
-        return my_columns, renamed_columns
-
-    select1, renamed1 = get_select_rename_columns("table1")
-    select2, renamed2 = get_select_rename_columns("table2")
-    subquery1 = FOREST_FIRES[select1]
-    subquery2 = FOREST_FIRES[select2]
-    joined = subquery1.join(
-        subquery2, predicates=subquery1.X == subquery2.X
-    ).projection(renamed1 + renamed2)
-    assert_ibis_equal_show_diff(joined, my_table)
+    subquery1 = DIGIMON_MOVE_LIST[
+        [
+            DIGIMON_MOVE_LIST.Type.name("type"),
+            DIGIMON_MOVE_LIST.Attribute.name("attribute"),
+            DIGIMON_MOVE_LIST.Power.name("power"),
+        ]
+    ]
+    subquery2 = DIGIMON_MON_LIST[
+        [
+            DIGIMON_MON_LIST.Type.name("type"),
+            DIGIMON_MON_LIST.Attribute.name("attribute"),
+            DIGIMON_MON_LIST.Digimon.name("digimon"),
+        ]
+    ]
+    ibis_table = subquery1.join(
+        subquery2, predicates=subquery1.type == subquery2.type
+    ).projection(
+        [
+            subquery1.type.name("table1.type"),
+            subquery1.attribute.name("table1.attribute"),
+            subquery1.power.name("power"),
+            subquery2.type.name("table2.type"),
+            subquery2.attribute.name("table2.attribute"),
+            subquery2.digimon,
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change

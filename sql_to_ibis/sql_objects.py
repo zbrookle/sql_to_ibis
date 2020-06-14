@@ -38,7 +38,6 @@ class AliasRegistry:
 
     def add_to_registry(self, alias: str, table: Table):
         assert alias not in self._registry
-        print(alias, "added to registry")
         self._registry[alias] = table
 
     def get_registry_entry(self, item: str):
@@ -66,13 +65,25 @@ class AmbiguousColumn:
     """
 
     def __init__(self, tables: Set[str]) -> None:
-        self.tables = tables
+        assert tables != set()
+        self._tables = tables
 
     def __repr__(self) -> str:
-        return f"AmbiguousColumn({','.join(self.tables)})"
+        return f"AmbiguousColumn({', '.join(self.tables)})"
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, AmbiguousColumn) and self.tables == other.tables
+
+    def add_table(self, table):
+        self._tables.add(table)
+
+    def remove_table(self, table: str):
+        assert len(table) > 1
+        self._tables.remove(table)
+
+    @property
+    def tables(self):
+        return self._tables
 
 
 class Value:

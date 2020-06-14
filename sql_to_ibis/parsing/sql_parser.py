@@ -105,7 +105,7 @@ class SQLTransformer(TransformerBaseClass):
             return
         table_name = self._column_to_table_name[column]
         if isinstance(table_name, AmbiguousColumn):
-            table_name.tables.add(table)
+            table_name.add_table(table)
         else:
             original_table = table_name
             self._column_to_table_name[column] = AmbiguousColumn(
@@ -194,9 +194,10 @@ class SQLTransformer(TransformerBaseClass):
         """
         assert alias.data == "alias_string"
         alias_name = alias.children[0].value
-        query_info = query_object
         if isinstance(query_object, JoinBase):
             query_info = self._handle_join_subqueries(query_object)
+        else:
+            query_info = query_object
         subquery_value = self.to_ibis_table(query_info)
         subquery = Subquery(name=alias_name, value=subquery_value)
         self._table_map[alias_name] = subquery
