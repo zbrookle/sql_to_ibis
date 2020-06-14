@@ -179,8 +179,10 @@ class SQLTransformer(TransformerBaseClass):
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
         info = QueryInfo(
-            having_expr=None, where_expr=None,
-            internal_transformer=InternalTransformer.empty_transformer(), distinct=False
+            having_expr=None,
+            where_expr=None,
+            internal_transformer=InternalTransformer.empty_transformer(),
+            distinct=False,
         )
         info.add_table(join)
         info.add_column(Column(name="*"))
