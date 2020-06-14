@@ -53,12 +53,11 @@ class Subquery(Table):
     Wrapper for subqueries
     """
 
-    def __init__(self, name: str, query_info, value: TableExpr):
+    def __init__(self, name: str, value: TableExpr):
         super().__init__(value, name, name)
-        self.query_info = query_info
 
     def __repr__(self):
-        return f"Subquery(name={self.name}, query_info={self.query_info})"
+        return f"Subquery(name={self.name}, value={self._value})"
 
 
 class AmbiguousColumn:

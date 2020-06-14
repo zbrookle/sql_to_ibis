@@ -32,6 +32,9 @@ class QueryInfo:
     def add_table(self, table: Table):
         self.tables.append(table)
 
+    def add_column(self, column: Value):
+        self.columns.append(column)
+
     def __repr__(self):
         return (
             f"Query Information\n"

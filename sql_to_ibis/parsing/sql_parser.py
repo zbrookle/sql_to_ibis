@@ -177,19 +177,28 @@ class SQLTransformer(TransformerBaseClass):
                     query_info.limit = token.value
         return query_info
 
-    def subquery(self, query_info: QueryInfo, alias: Tree):
+    def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
+        info = QueryInfo(
+            having_expr=None, where_expr=None, internal_transformer=None, distinct=False
+        )
+        info.add_table(join)
+        info.add_column(Column(name="*"))
+        return info
+
+    def subquery(self, query_object: Union[QueryInfo, JoinBase], alias: Tree):
         """
         Handle subqueries amd return a subquery object
-        :param query_info:
+        :param query_object:
         :param alias:
         :return:
         """
         assert alias.data == "alias_string"
         alias_name = alias.children[0].value
+        query_info = query_object
+        if isinstance(query_object, JoinBase):
+            query_info = self._handle_join_subqueries(query_object)
         subquery_value = self.to_ibis_table(query_info)
-        subquery = Subquery(
-            name=alias_name, query_info=query_info, value=subquery_value
-        )
+        subquery = Subquery(name=alias_name, value=subquery_value)
         self._table_map[alias_name] = subquery
         self._column_name_map[alias_name] = {}
         for column in subquery.column_names:
@@ -327,7 +336,7 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(token, GroupByColumn):
             query_info.group_columns.append(token)
         elif isinstance(token, (Column, Literal, Expression)):
-            query_info.columns.append(token)
+            query_info.add_column(token)
         elif isinstance(token, Aggregate):
             query_info.aggregates[token.final_name] = token
 

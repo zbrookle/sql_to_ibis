@@ -1330,7 +1330,7 @@ def test_sql_data_types():
     ((select X, Y, rain from forest_fires) table1
     join 
     (select X, Y, rain from forest_fires) table2
-    on table1.x = table2.x)
+    on table1.x = table2.x) sub
     """,
         """
     select * from
@@ -1344,20 +1344,22 @@ def test_sql_data_types():
 @assert_state_not_change
 def test_joining_two_subqueries_with_overlapping_columns(sql):
     my_table = query(sql)
-    print(my_table)
     columns = ["X", "Y", "rain"]
 
     def get_select_rename_columns(alias: str):
         my_columns = FOREST_FIRES.get_columns(columns)
+        renamed_columns = []
         for i, column in enumerate(my_columns):
-            my_columns[i] = column.name(f"{alias}.{my_columns[i]}")
-        return my_columns
+            renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
+        return my_columns, renamed_columns
 
-    select1 = get_select_rename_columns("table1")
-    select2 = get_select_rename_columns("table2")
+    select1, renamed1 = get_select_rename_columns("table1")
+    select2, renamed2 = get_select_rename_columns("table2")
     subquery1 = FOREST_FIRES[select1]
     subquery2 = FOREST_FIRES[select2]
-    joined = subquery1.join(subquery2, predicate=subquery1.X == subquery2.X)
+    joined = subquery1.join(
+        subquery2, predicates=subquery1.X == subquery2.X
+    ).projection(renamed1 + renamed2)
     assert_ibis_equal_show_diff(joined, my_table)
 
 
