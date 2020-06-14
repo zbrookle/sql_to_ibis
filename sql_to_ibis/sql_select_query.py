@@ -1,6 +1,7 @@
 """
 Convert sql_to_ibis statement to run on pandas dataframes
 """
+from copy import deepcopy
 import os
 from pathlib import Path
 from typing import Any, Dict
@@ -12,7 +13,6 @@ from lark.exceptions import VisitError
 from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
 from sql_to_ibis.sql_objects import AmbiguousColumn, Table
-from copy import deepcopy
 
 _ROOT = Path(__file__).parent
 GRAMMAR_PATH = os.path.join(_ROOT, "grammar", "sql.lark")

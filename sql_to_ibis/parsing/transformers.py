@@ -711,3 +711,7 @@ class InternalTransformer(TransformerBaseClass):
         column = Column(name="".join(name))
         self.set_column_value(column, table_name)
         return column
+
+    @classmethod
+    def empty_transformer(cls):
+        return cls([], {}, {}, {}, {}, AliasRegistry())

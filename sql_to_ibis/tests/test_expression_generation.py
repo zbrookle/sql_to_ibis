@@ -1369,15 +1369,15 @@ def test_sql_data_types():
         """
     select * from
     ((select type, attribute, power from digimon_move_list) table1
-    join 
-    (select type, attribute, digimon from 
+    join
+    (select type, attribute, digimon from
     digimon_mon_list) table2
     on table1.type = table2.type) sub
     """,
         """
     select * from
     ((select type, attribute, power from digimon_move_list) table1
-    join 
+    join
     (select type, attribute, digimon from digimon_mon_list) table2
     on table1.type = table2.type) sub
     """,

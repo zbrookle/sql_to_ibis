@@ -179,7 +179,8 @@ class SQLTransformer(TransformerBaseClass):
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
         info = QueryInfo(
-            having_expr=None, where_expr=None, internal_transformer=None, distinct=False
+            having_expr=None, where_expr=None,
+            internal_transformer=InternalTransformer.empty_transformer(), distinct=False
         )
         info.add_table(join)
         info.add_column(Column(name="*"))
@@ -710,7 +711,9 @@ class SQLTransformer(TransformerBaseClass):
             next_table = self.get_table_value(table)
             first_table = first_table.cross_join(next_table)
         if len(tables) > 1 and self._columns_have_select_star(query_info.columns):
-            all_columns = self._get_all_columns_rename_duplicates(tables)
+            all_columns = self._get_all_columns_rename_duplicates(
+                [table for table in tables if isinstance(table, Table)]
+            )
             first_table = first_table[all_columns]
 
         self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)

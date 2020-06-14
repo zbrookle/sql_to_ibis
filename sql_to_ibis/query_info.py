@@ -1,7 +1,7 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
-from sql_to_ibis.sql_objects import Aggregate, GroupByColumn, Table, Value
+from sql_to_ibis.sql_objects import Aggregate, GroupByColumn, Table, Value, JoinBase
 
 
 class QueryInfo:
@@ -17,7 +17,7 @@ class QueryInfo:
         distinct: bool = False,
     ):
         self.columns: List[Value] = []
-        self.tables: List[Table] = []
+        self.tables: List[Union[Table, JoinBase]] = []
         self.all_names: List[str] = []
         self.name_order: Dict[str, int] = {}
         self.aggregates: Dict[str, Aggregate] = {}
@@ -29,7 +29,7 @@ class QueryInfo:
         self.order_by: List[Tuple[str, bool]] = []
         self.limit: Optional[int] = None
 
-    def add_table(self, table: Table):
+    def add_table(self, table: Union[Table, JoinBase]):
         self.tables.append(table)
 
     def add_column(self, column: Value):
@@ -45,4 +45,6 @@ class QueryInfo:
             f"Name order: {self.name_order}\n"
             f"Aggregates: {self.aggregates}\n"
             f"Group columns: {self.group_columns}\n"
+            f"Order by: {self.order_by}\n"
+            f"Limit: {self.limit}"
         )
