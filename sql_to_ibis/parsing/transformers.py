@@ -124,7 +124,9 @@ class InternalTransformer(TransformerBaseClass):
             column_to_table_name=column_to_table_name,
         )
         self._table_names_list = [table.name for table in tables]
-        self.column_to_table_name = column_to_table_name
+        self._column_to_table_name = column_to_table_name.copy()  # This must be
+        # copied because when abmiguity is resolved in the following method,
+        # whe don't want that resolution to carry over to other subqueries
         self._remove_non_selected_tables_from_transformation()
         self._alias_registry = alias_registry
 
@@ -158,8 +160,8 @@ class InternalTransformer(TransformerBaseClass):
             table.name if isinstance(table, Table) else table
             for table in self._table_names_list
         }
-        for column in self.column_to_table_name:
-            table = self.column_to_table_name[column]
+        for column in self._column_to_table_name:
+            table = self._column_to_table_name[column]
             if isinstance(table, AmbiguousColumn):
                 present_tables = [
                     ambig_table
@@ -167,9 +169,9 @@ class InternalTransformer(TransformerBaseClass):
                     if ambig_table in all_selected_table_names
                 ]
                 if len(present_tables) == 1:
-                    self.column_to_table_name[column] = present_tables[0]
-                else:
-                    self.column_to_table_name[column] = AmbiguousColumn(
+                    self._column_to_table_name[column] = present_tables[0]
+                elif len(present_tables) > 1:
+                    self._column_to_table_name[column] = AmbiguousColumn(
                         set(present_tables)
                     )
 
@@ -581,7 +583,6 @@ class InternalTransformer(TransformerBaseClass):
             elif token.type == "partition":
                 column: Column = token.value
                 partition_list.append(column.get_value())
-        print(partition_list)
         return order_list, partition_list, rank_column
 
     def apply_rank_function(self, first_column: ColumnExpr, rank_function: str):
@@ -692,7 +693,6 @@ class InternalTransformer(TransformerBaseClass):
             return try_get_table
         if try_get_table is None and table_or_alias_name not in self._alias_registry:
             raise Exception(f"Table or alias '{table_or_alias_name}' not found")
-        print("need table for", table_or_alias_name)
         return self._alias_registry.get_registry_entry(table_or_alias_name)
 
     def column_name(self, name_list_format: List[str]):
@@ -711,3 +711,7 @@ class InternalTransformer(TransformerBaseClass):
         column = Column(name="".join(name))
         self.set_column_value(column, table_name)
         return column
+
+    @classmethod
+    def empty_transformer(cls):
+        return cls([], {}, {}, {}, {}, AliasRegistry())

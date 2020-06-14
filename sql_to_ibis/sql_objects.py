@@ -38,7 +38,6 @@ class AliasRegistry:
 
     def add_to_registry(self, alias: str, table: Table):
         assert alias not in self._registry
-        print(alias, "added to registry")
         self._registry[alias] = table
 
     def get_registry_entry(self, item: str):
@@ -53,12 +52,11 @@ class Subquery(Table):
     Wrapper for subqueries
     """
 
-    def __init__(self, name: str, query_info, value: TableExpr):
+    def __init__(self, name: str, value: TableExpr):
         super().__init__(value, name, name)
-        self.query_info = query_info
 
     def __repr__(self):
-        return f"Subquery(name={self.name}, query_info={self.query_info})"
+        return f"Subquery(name={self.name}, value={self._value})"
 
 
 class AmbiguousColumn:
@@ -67,13 +65,26 @@ class AmbiguousColumn:
     """
 
     def __init__(self, tables: Set[str]) -> None:
-        self.tables = tables
+        assert tables != set()
+        self._tables = tables
 
     def __repr__(self) -> str:
-        return f"AmbiguousColumn({','.join(self.tables)})"
+        return f"AmbiguousColumn({', '.join(self.tables)})"
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, AmbiguousColumn) and self.tables == other.tables
+
+    def add_table(self, table):
+        self._tables.add(table)
+
+    def remove_table(self, table: str):
+        if len(self._tables) <= 1:
+            raise Exception("Ambiguous column table set cannot be empty!")
+        self._tables.remove(table)
+
+    @property
+    def tables(self):
+        return self._tables
 
 
 class Value:

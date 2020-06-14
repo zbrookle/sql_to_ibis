@@ -142,3 +142,58 @@ def test_select_star_from_multiple_tables(
         digimon_move_mon_join_columns
     ].execute()
     assert_frame_equal(ibis_frame, my_frame)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        """
+    select * from
+    ((select type, attribute, power from digimon_move_list) table1
+    join
+    (select type, attribute, digimon from
+    digimon_mon_list) table2
+    on table1.type = table2.type) sub
+    """,
+        """
+    select * from
+    ((select type, attribute, power from digimon_move_list) table1
+    join
+    (select type, attribute, digimon from digimon_mon_list) table2
+    on table1.type = table2.type) sub
+    """,
+    ],
+)
+def test_joining_two_subqueries_with_overlapping_columns_different_tables(
+    sql, digimon_move_list, digimon_mon_list
+):
+    my_table = query(sql).execute()
+    subquery1 = digimon_move_list[
+        [
+            digimon_move_list.Type.name("type"),
+            digimon_move_list.Attribute.name("attribute"),
+            digimon_move_list.Power.name("power"),
+        ]
+    ]
+    subquery2 = digimon_mon_list[
+        [
+            digimon_mon_list.Type.name("type"),
+            digimon_mon_list.Attribute.name("attribute"),
+            digimon_mon_list.Digimon.name("digimon"),
+        ]
+    ]
+    ibis_table = (
+        subquery1.join(subquery2, predicates=subquery1.type == subquery2.type)
+        .projection(
+            [
+                subquery1.type.name("table1.type"),
+                subquery1.attribute.name("table1.attribute"),
+                subquery1.power.name("power"),
+                subquery2.type.name("table2.type"),
+                subquery2.attribute.name("table2.attribute"),
+                subquery2.digimon,
+            ]
+        )
+        .execute()
+    )
+    assert_frame_equal(ibis_table, my_table)

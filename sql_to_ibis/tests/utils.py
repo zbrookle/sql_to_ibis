@@ -102,7 +102,7 @@ def display_dict_difference(before_dict: dict, after_dict: dict, name: str):
                 f"but there was nothing there before\n"
             )
 
-    raise Exception(dict_diff_report)
+    raise AssertionError(dict_diff_report)
 
 
 def assert_state_not_change(func: Callable):
@@ -111,7 +111,7 @@ def assert_state_not_change(func: Callable):
         table_state = {}
         for key in TableInfo.ibis_table_map:
             table_state[key] = TableInfo.ibis_table_map[key]
-        column_to_dataframe_name = deepcopy(TableInfo.column_to_dataframe_name)
+        column_to_table_name = deepcopy(TableInfo.column_to_table_name)
         column_name_map = deepcopy(TableInfo.column_name_map)
         dataframe_name_map = deepcopy(TableInfo.ibis_table_name_map)
 
@@ -119,11 +119,11 @@ def assert_state_not_change(func: Callable):
 
         for key in TableInfo.ibis_table_map:
             assert table_state[key] == TableInfo.ibis_table_map[key]
-        if column_to_dataframe_name != TableInfo.column_to_dataframe_name:
+        if column_to_table_name != TableInfo.column_to_table_name:
             display_dict_difference(
-                column_to_dataframe_name,
-                TableInfo.column_to_dataframe_name,
-                "column_to_dataframe_name",
+                column_to_table_name,
+                TableInfo.column_to_table_name,
+                "column_to_table_name",
             )
         if column_name_map != TableInfo.column_name_map:
             display_dict_difference(

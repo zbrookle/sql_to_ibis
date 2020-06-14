@@ -1,6 +1,7 @@
 """
 Convert sql_to_ibis statement to run on pandas dataframes
 """
+from copy import deepcopy
 import os
 from pathlib import Path
 from typing import Any, Dict
@@ -126,7 +127,8 @@ class SqlToDataFrame:
                 table_info.ibis_table_name_map.copy(),
                 table_info.ibis_table_map.copy(),
                 table_info.column_name_map.copy(),
-                table_info.column_to_dataframe_name.copy(),
+                deepcopy(table_info.column_to_table_name)  # Need deep copy so that
+                # ambiguous column references are not distorted
             ).transform(tree)
         except UnexpectedToken as err:
             message = (
@@ -142,21 +144,19 @@ class SqlToDataFrame:
 
 
 class TableInfo:
-    column_to_dataframe_name: Dict[str, Any] = {}
+    column_to_table_name: Dict[str, Any] = {}
     column_name_map: Dict[str, Dict[str, str]] = {}
     ibis_table_name_map: Dict[str, str] = {}
     ibis_table_map: Dict[str, Table] = {}
 
-    def add_column_to_column_to_dataframe_name_map(self, column, table):
-        if self.column_to_dataframe_name.get(column) is None:
-            self.column_to_dataframe_name[column] = table
-        elif isinstance(self.column_to_dataframe_name[column], AmbiguousColumn):
-            self.column_to_dataframe_name[column].tables.add(table)
+    def add_column_to_column_to_table_name_map(self, column, table):
+        if self.column_to_table_name.get(column) is None:
+            self.column_to_table_name[column] = table
+        elif isinstance(self.column_to_table_name[column], AmbiguousColumn):
+            self.column_to_table_name[column].add_table(table)
         else:
-            original_table = self.column_to_dataframe_name[column]
-            self.column_to_dataframe_name[column] = AmbiguousColumn(
-                {original_table, table}
-            )
+            original_table = self.column_to_table_name[column]
+            self.column_to_table_name[column] = AmbiguousColumn({original_table, table})
 
     def register_temporary_table(self, ibis_table, table_name: str):
         if table_name.lower() in self.ibis_table_name_map:
@@ -171,7 +171,7 @@ class TableInfo:
         for column in ibis_table.columns:
             lower_column = column.lower()
             self.column_name_map[table_name][lower_column] = column
-            self.add_column_to_column_to_dataframe_name_map(lower_column, table_name)
+            self.add_column_to_column_to_table_name_map(lower_column, table_name)
 
     def remove_temp_table(self, table_name: str):
         if table_name.lower() not in self.ibis_table_name_map:
@@ -181,14 +181,14 @@ class TableInfo:
         columns = self.ibis_table_map[real_table_name].get_table_expr().columns
         for column in columns:
             lower_column = column.lower()
-            value = self.column_to_dataframe_name[lower_column]
+            value = self.column_to_table_name[lower_column]
             if isinstance(value, AmbiguousColumn):
-                value.tables.remove(real_table_name)
+                value.remove_table(real_table_name)
                 if len(value.tables) == 1:
                     last_remaining_table = list(value.tables)[0]
-                    self.column_to_dataframe_name[lower_column] = last_remaining_table
+                    self.column_to_table_name[lower_column] = last_remaining_table
             else:
-                del self.column_to_dataframe_name[lower_column]
+                del self.column_to_table_name[lower_column]
 
         del self.ibis_table_name_map[table_name.lower()]
         del self.ibis_table_map[real_table_name]

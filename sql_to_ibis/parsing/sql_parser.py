@@ -93,9 +93,9 @@ class SQLTransformer(TransformerBaseClass):
         )
         self._alias_registry = AliasRegistry()
 
-    def add_column_to_column_to_dataframe_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column, table):
         """
-        Adds a column to the column_to_dataframe_name_map
+        Adds a column to the _column_to_table_name map
         :param column:
         :param table:
         :return:
@@ -105,7 +105,7 @@ class SQLTransformer(TransformerBaseClass):
             return
         table_name = self._column_to_table_name[column]
         if isinstance(table_name, AmbiguousColumn):
-            table_name.tables.add(table)
+            table_name.add_table(table)
         else:
             original_table = table_name
             self._column_to_table_name[column] = AmbiguousColumn(
@@ -177,23 +177,36 @@ class SQLTransformer(TransformerBaseClass):
                     query_info.limit = token.value
         return query_info
 
-    def subquery(self, query_info: QueryInfo, alias: Tree):
+    def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
+        info = QueryInfo(
+            having_expr=None,
+            where_expr=None,
+            internal_transformer=InternalTransformer.empty_transformer(),
+            distinct=False,
+        )
+        info.add_table(join)
+        info.add_column(Column(name="*"))
+        return info
+
+    def subquery(self, query_object: Union[QueryInfo, JoinBase], alias: Tree):
         """
         Handle subqueries amd return a subquery object
-        :param query_info:
+        :param query_object:
         :param alias:
         :return:
         """
         assert alias.data == "alias_string"
         alias_name = alias.children[0].value
+        if isinstance(query_object, JoinBase):
+            query_info = self._handle_join_subqueries(query_object)
+        else:
+            query_info = query_object
         subquery_value = self.to_ibis_table(query_info)
-        subquery = Subquery(
-            name=alias_name, query_info=query_info, value=subquery_value
-        )
+        subquery = Subquery(name=alias_name, value=subquery_value)
         self._table_map[alias_name] = subquery
         self._column_name_map[alias_name] = {}
         for column in subquery.column_names:
-            self.add_column_to_column_to_dataframe_name_map(column.lower(), alias_name)
+            self.add_column_to_column_to_table_name_map(column.lower(), alias_name)
             self._column_name_map[alias_name][column.lower()] = column
         return subquery
 
@@ -327,7 +340,7 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(token, GroupByColumn):
             query_info.group_columns.append(token)
         elif isinstance(token, (Column, Literal, Expression)):
-            query_info.columns.append(token)
+            query_info.add_column(token)
         elif isinstance(token, Aggregate):
             query_info.aggregates[token.final_name] = token
 
@@ -700,7 +713,9 @@ class SQLTransformer(TransformerBaseClass):
             next_table = self.get_table_value(table)
             first_table = first_table.cross_join(next_table)
         if len(tables) > 1 and self._columns_have_select_star(query_info.columns):
-            all_columns = self._get_all_columns_rename_duplicates(tables)
+            all_columns = self._get_all_columns_rename_duplicates(
+                [table for table in tables if isinstance(table, Table)]
+            )
             first_table = first_table[all_columns]
 
         self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)

@@ -31,7 +31,7 @@ from_item: NAME [ [ "AS"i ] alias ] -> table
             | subquery
             | with_query_name [ [ "AS"i ] alias ]
 
-subquery: ( "(" query_expr ")" ) [ [ "AS"i ] alias ]
+subquery: ( "(" (query_expr | join | cross_join) ")" ) [ [ "AS"i ] alias ]
 
 cross_join: from_item "CROSS"i "JOIN"i from_item
 join: from_item [ JOIN_TYPE ] "JOIN"i from_item [ "ON"i bool_expression ] -> join_expression
