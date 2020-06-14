@@ -167,7 +167,7 @@ def test_select_star_from_multiple_tables(
 def test_joining_two_subqueries_with_overlapping_columns_different_tables(
     sql, digimon_move_list, digimon_mon_list
 ):
-    my_table = query(sql)
+    my_table = query(sql).execute()
     subquery1 = digimon_move_list[
         [
             digimon_move_list.Type.name("type"),
@@ -193,5 +193,5 @@ def test_joining_two_subqueries_with_overlapping_columns_different_tables(
             subquery2.attribute.name("table2.attribute"),
             subquery2.digimon,
         ]
-    )
+    ).execute()
     assert_frame_equal(ibis_table, my_table)
