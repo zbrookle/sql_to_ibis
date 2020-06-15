@@ -55,7 +55,7 @@ SELECT
 FROM
     my_table
 WHERE
-    column3 = 'yes'  
+    column3 = 'yes'
     AND column2 = 'no'
 GROUP BY
     column4
@@ -74,7 +74,7 @@ Example
 SELECT
     *
 FROM
-    table1  
+    table1
 UNION
 SELECT
     *
