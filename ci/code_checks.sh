@@ -24,18 +24,6 @@
 RET=0
 CHECK=$1
 
-function invgrep {
-    # grep with inverse exist status and formatting for azure-pipelines
-    #
-    # This function works exactly as grep, but with opposite exit status:
-    # - 0 (success) when no patterns are found
-    # - 1 (fail) when the patterns are found
-    #
-    # This is useful for the CI, as we want to fail if one of the patterns
-    # that we want to avoid is found by grep.
-    grep -n "$@" | sed "s/^/$INVGREP_PREPEND/" | sed "s/$/$INVGREP_APPEND/" ; EXIT_STATUS=${PIPESTATUS[0]}
-    return $((! $EXIT_STATUS))
-}
 
 if [[ "$GITHUB_ACTIONS" == "true" ]]; then
     FLAKE8_FORMAT="##[error]%(path)s:%(row)s:%(col)s:%(code)s:%(text)s"
@@ -81,81 +69,8 @@ fi
 ### PATTERNS ###
 if [[ -z "$CHECK" || "$CHECK" == "patterns" ]]; then
 
-    # Check for imports from collections.abc instead of `from collections import abc`
-    MSG='Check for non-standard imports' ; echo $MSG
-    invgrep -R --include="*.py*" -E "from collections.abc import" sql_to_ibis
-    invgrep -R --include="*.py*" -E "from numpy import nan" sql_to_ibis
+  python ci/pattern_checker.py
 
-    # Checks for function_object suite
-    # Check for imports from pandas.util.testing instead of `import pandas.util.testing as tm`
-    invgrep -R --include="*.py*" -E "from pandas.util.testing import" sql_to_ibis/tests
-    invgrep -R --include="*.py*" -E "from pandas.util import testing as tm" sql_to_ibis/tests
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for use of exec' ; echo $MSG
-    invgrep -R --include="*.py*" -E "[^a-zA-Z0-9_]exec\(" --exclude performance_tests.py sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for pytest warns' ; echo $MSG
-    invgrep -r -E --include '*.py' 'pytest\.warns' sql_to_ibis/tests/
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for pytest raises without context' ; echo $MSG
-    invgrep -r -E --include '*.py' "[[:space:]] pytest.raises" sql_to_ibis/tests/
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for python2-style file encodings' ; echo $MSG
-    invgrep -R --include="*.py" --include="*.pyx" -E "# -\*- coding: utf-8 -\*-" sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for python2-style super usage' ; echo $MSG
-    invgrep -R --include="*.py" -E "super\(\w*, (self|cls)\)" sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    # Check for the following code in testing: `np.testing` and `np.array_equal`
-    MSG='Check for invalid testing' ; echo $MSG
-    invgrep -r -E --include '*.py' --exclude testing.py '(numpy|np)(\.testing|\.array_equal)' sql_to_ibis/tests/
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for deprecated messages without sphinx directive' ; echo $MSG
-    invgrep -R --include="*.py" --include="*.pyx" -E "(DEPRECATED|DEPRECATE|Deprecated)(:|,|\.)" sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for python2 new-style classes and for empty parentheses' ; echo $MSG
-    invgrep -R --include="*.py" --include="*.pyx" -E "class\s\S*\((object)?\):" sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for incorrect sphinx directives' ; echo $MSG
-    invgrep -R --include="*.py" --include="*.pyx" --include="*.rst" -E "\.\. (autosummary|contents|currentmodule|deprecated|function|image|important|include|ipython|literalinclude|math|module|note|raw|seealso|toctree|versionadded|versionchanged|warning):[^:]" ./sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    # Check for the following code in testing: `unittest.mock`, `mock.Mock()` or `mock.patch`
-    MSG='Check that unittest.mock is not used (pytest builtin monkeypatch fixture should be used instead)' ; echo $MSG
-    invgrep -r -E --include '*.py' '(unittest(\.| import )mock|mock\.Mock\(\)|mock\.patch)' sql_to_ibis/tests/
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for extra blank lines after the class definition' ; echo $MSG
-    invgrep -R --include="*.py" -E 'class.*:\n\n( )+"""' .
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for use of comment-based annotation syntax' ; echo $MSG
-    invgrep -R --include="*.py" '# type: (?!ignore)' sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for use of foo.__class__ instead of type(foo)' ; echo $MSG
-    invgrep -R --include="*.py" '\.__class__' sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check for use of xrange instead of range' ; echo $MSG
-    invgrep -R --include="*.py" 'xrange' sql_to_ibis
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    MSG='Check that no file in the repo contains trailing whitespaces' ; echo $MSG
-    INVGREP_APPEND=" <- trailing whitespaces found"
-    invgrep -RI --exclude=\*.{svg,c,cpp,html,js} --exclude-dir=env "\s$" *
-    RET=$(($RET + $?)) ; echo $MSG "DONE"
-
-    unset INVGREP_APPEND
 fi
 
 ### TYPING ###
