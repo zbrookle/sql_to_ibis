@@ -6,6 +6,7 @@ DIRECTORY = Path(__file__).parents[1]
 
 PYTHON_EXT = ".py"
 
+
 pattern_checks = [
     ("Check for non-standard imports", r".*from collections.abc " r"import.*"),
     ("Check for use of exec", r".*exec\(.*"),
@@ -33,13 +34,18 @@ pattern_checks = [
     ("Check for use of 'foo.__class__' instead of type(foo)", r".*\.__class__.*"),
     ("Check for use of xrange instead of range", ".*xrange.*"),
     ("Check that no file in the repo contains trailing whitespaces", r"^.*[ \t]+$"),
+    ("Check for rogue print statements", r".*print\(.*\).*"),
 ]
 
 PATH = __file__
 
 
 def get_files_with_extension(extension: str):
-    return glob(str(DIRECTORY / "**" / f"*{extension}"), recursive=True)
+    return [
+        file
+        for file in glob(str(DIRECTORY / "**" / f"*{extension}"), recursive=True)
+        if "_version" not in file and "versioneer" not in file
+    ]
 
 
 def get_file_lines(file_path: str):
