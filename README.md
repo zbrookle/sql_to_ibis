@@ -47,16 +47,16 @@ SELECT [{ ALL | DISTINCT }]
 [ HAVING <bool_expression> ]
 ```
 
-Example: 
+Example:
 ```SQL
 SELECT
     column4,
-    Sum(column1)  
+    Sum(column1)
 FROM
-    my_table  
+    my_table
 WHERE
-    column3 = 'yes'     
-    AND column2 = 'no'  
+    column3 = 'yes'  
+    AND column2 = 'no'
 GROUP BY
     column4
 ```
@@ -72,12 +72,12 @@ GROUP BY
 Example
 ```SQL
 SELECT
-    *  
+    *
 FROM
     table1  
 UNION
 SELECT
-    *  
+    *
 FROM
     table2
 ```
@@ -92,20 +92,20 @@ Example:
 
 ```SQL
 SELECT
-   * 
+   *
 FROM
-   table1 
+   table1
    CROSS JOIN
       table2
 ```
 
 ```SQL
 SELECT
-    *  
+    *
 FROM
-    table1     
+    table1
 JOIN
-    table2        
+    table2
         ON table1.column1 = table2.column1
 ```
 
@@ -121,11 +121,11 @@ Example:
 
 ```SQL
 SELECT
-   * 
+   *
 FROM
-   table1 
+   table1
 ORDER BY
-   column1 
+   column1
 LIMIT 5
 ```
 
