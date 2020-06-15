@@ -12,10 +12,31 @@
 pip install sql_to_ibis
 ```
 
-## SQL Syntax
-The sql syntax for sql_to_ibis is as follows:
+## Usage
 
-Select statement:
+### Registering and removing temp tables
+
+To use an ibis table in sql_to_ibis you must register it. Note that for joins or
+ queries that involve more than one table you must use the same ibis client when
+  creating both ibis tables. Once the table is registered you can query it using SQL
+   with the *query* function. In the example below, we create and query a pandas
+    DataFrame
+
+```python
+from ibis.pandas.api import from_dataframe, PandasClient
+from pandas import read_csv
+from sql_to_ibis import register_temp_table, query
+
+df = read_csv("some_file.csv")
+ibis_table = from_dataframe(df, name="my_table", client=PandasClient({}))
+register_temp_table(ibis_table, "my_table")
+query("select column1, column2 as my_col2 from my_table")
+```
+
+## SQL Syntax
+The sql syntax for sql_to_ibis is as follows (Note that all syntax is case insensitive):
+
+#### Select statement:
 
 ```SQL
 SELECT [{ ALL | DISTINCT }]
@@ -26,7 +47,21 @@ SELECT [{ ALL | DISTINCT }]
 [ HAVING <bool_expression> ]
 ```
 
-Set operations:
+Example: 
+```SQL
+SELECT
+    column4,
+    Sum(column1)  
+FROM
+    my_table  
+WHERE
+    column3 = 'yes'     
+    AND column2 = 'no'  
+GROUP BY
+    column4
+```
+
+#### Set operations:
 
 ```SQL
 <select_statement1>
@@ -34,13 +69,47 @@ Set operations:
 <select_statment2>
 ```
 
-Joins:
+Example
+```SQL
+SELECT
+    *  
+FROM
+    table1  
+UNION
+SELECT
+    *  
+FROM
+    table2
+```
+
+#### Joins:
 
 ```SQL
 INNER, CROSS, FULL OUTER, LEFT OUTER, RIGHT OUTER, FULL, LEFT, RIGHT
 ```
 
-Order by and limit:
+Example:
+
+```SQL
+SELECT
+   * 
+FROM
+   table1 
+   CROSS JOIN
+      table2
+```
+
+```SQL
+SELECT
+    *  
+FROM
+    table1     
+JOIN
+    table2        
+        ON table1.column1 = table2.column1
+```
+
+#### Order by and limit:
 
 ```SQL
 <set>
@@ -48,7 +117,19 @@ Order by and limit:
 [LIMIT <number>]
 ```
 
-Supported expressions and functions:
+Example:
+
+```SQL
+SELECT
+   * 
+FROM
+   table1 
+ORDER BY
+   column1 
+LIMIT 5
+```
+
+#### Supported expressions and functions:
 ```SQL
 +, -, *, /
 ```
