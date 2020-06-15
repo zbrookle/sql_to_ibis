@@ -1,6 +1,5 @@
-from pathlib import Path
 from glob import glob
-from typing import List
+from pathlib import Path
 import re
 
 DIRECTORY = Path(__file__).parents[1]
