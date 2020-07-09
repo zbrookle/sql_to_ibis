@@ -45,7 +45,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Typing :: Typed",
-        "Operating System :: OS Independent"
+        "Operating System :: OS Independent",
     ],
     long_description_content_type="text/markdown",
     include_package_data=True,
