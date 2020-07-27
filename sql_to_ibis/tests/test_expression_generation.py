@@ -29,7 +29,7 @@ from sql_to_ibis.tests.utils import (
     register_env_tables,
     remove_env_tables,
 )
-
+from ibis.common.exceptions import IbisTypeError
 
 @pytest.fixture(autouse=True, scope="module")
 def module_setup_teardown():
@@ -534,7 +534,7 @@ def test_having_multiple_conditions():
     :return:
     """
     my_table = query(
-        "select min(temp) from forest_fires having min(temp) > 2 and " "max(dc) < 200"
+        "select min(temp) from forest_fires having min(temp) > 2 and max(dc) < 200"
     )
     having_condition = (FOREST_FIRES.temp.min() > 2) & (FOREST_FIRES.DC.max() < 200)
     ibis_table = FOREST_FIRES.aggregate(
@@ -1261,6 +1261,7 @@ def test_multiple_aliases_same_column():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@pytest.mark.xfail(reason="Will be fixed in next ibis release", raises=IbisTypeError)
 @assert_state_not_change
 def test_sql_data_types():
     """
