@@ -29,6 +29,7 @@ from sql_to_ibis.tests.utils import (
     register_env_tables,
     remove_env_tables,
 )
+from sql_to_ibis.tests.markers import ibis_not_implemented
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -1321,46 +1322,46 @@ def test_sql_data_types():
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
+@pytest.mark.xfail(reason="This needs to be solved", raises=AssertionError)
+@pytest.mark.parametrize(
+    "sql",
+    [
+        """
+    select * from
+    ((select X, Y, rain from forest_fires) table1
+    join
+    (select X, Y, rain from forest_fires) table2
+    on table1.x = table2.x) sub
+    """,
+        """
+    select * from
+    (select X, Y, rain from forest_fires) table1
+    join
+    (select X, Y, rain from forest_fires) table2
+    on table1.x = table2.x
+    """,
+    ],
+)
+@assert_state_not_change
+def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
+    my_table = query(sql)
+    columns = ["X", "Y", "rain"]
 
-# @pytest.mark.parametrize(
-#     "sql",
-#     [
-#         """
-#     select * from
-#     ((select X, Y, rain from forest_fires) table1
-#     join
-#     (select X, Y, rain from forest_fires) table2
-#     on table1.x = table2.x) sub
-#     """,
-#         """
-#     select * from
-#     (select X, Y, rain from forest_fires) table1
-#     join
-#     (select X, Y, rain from forest_fires) table2
-#     on table1.x = table2.x
-#     """,
-#     ],
-# )
-# @assert_state_not_change
-# def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
-#     my_table = query(sql)
-#     columns = ["X", "Y", "rain"]
-#
-#     def get_select_rename_columns(alias: str):
-#         my_columns = FOREST_FIRES.get_columns(columns)
-#         renamed_columns = []
-#         for i, column in enumerate(my_columns):
-#             renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
-#         return my_columns, renamed_columns
-#
-#     select1, renamed1 = get_select_rename_columns("table1")
-#     select2, renamed2 = get_select_rename_columns("table2")
-#     subquery1 = FOREST_FIRES[select1]
-#     subquery2 = FOREST_FIRES[select2]
-#     joined = subquery1.join(
-#         subquery2, predicates=subquery1.X == subquery2.X
-#     ).projection(renamed1 + renamed2)
-#     assert_ibis_equal_show_diff(joined, my_table)
+    def get_select_rename_columns(alias: str):
+        my_columns = FOREST_FIRES.get_columns(columns)
+        renamed_columns = []
+        for i, column in enumerate(my_columns):
+            renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
+        return my_columns, renamed_columns
+
+    select1, renamed1 = get_select_rename_columns("table1")
+    select2, renamed2 = get_select_rename_columns("table2")
+    subquery1 = FOREST_FIRES[select1]
+    subquery2 = FOREST_FIRES[select2]
+    joined = subquery1.join(
+        subquery2, predicates=subquery1.X == subquery2.X
+    ).projection(renamed1 + renamed2)
+    assert_ibis_equal_show_diff(joined, my_table)
 
 
 @pytest.mark.parametrize(
@@ -1549,18 +1550,18 @@ def test_select_ambiguous_column_in_database_context():
     assert_ibis_equal_show_diff(my_table, ibis_table)
 
 
-# TODO Not implemented in ibis
-# @assert_state_not_change
-# def test_group_by_having():
-#     my_table = query(
-#         "select type from digimon_move_list group by type having avg(power) > 50"
-#     )
-#     ibis_table = (
-#         DIGIMON_MOVE_LIST.group_by("Type")
-#         .aggregate(DIGIMON_MOVE_LIST.Type.first())
-#         .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@ibis_not_implemented
+@assert_state_not_change
+def test_group_by_having():
+    my_table = query(
+        "select type from digimon_move_list group by type having avg(power) > 50"
+    )
+    ibis_table = (
+        DIGIMON_MOVE_LIST.group_by("Type")
+        .aggregate(DIGIMON_MOVE_LIST.Type.first())
+        .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @pytest.mark.parametrize(
