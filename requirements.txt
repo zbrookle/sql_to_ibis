@@ -1,2 +1,2 @@
-ibis-framework
+ibis-framework==1.3.0
 lark-parser==0.8.5
