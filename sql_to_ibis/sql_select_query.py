@@ -1,5 +1,5 @@
 """
-Convert sql_to_ibis statement to run on pandas dataframes
+Convert sql query to an ibis expression
 """
 from copy import deepcopy
 import os
@@ -22,19 +22,22 @@ with open(file=GRAMMAR_PATH) as sql_grammar_file:
 
 def register_temp_table(table: TableExpr, table_name: str):
     """
-    Registers related metadata from a :class: ~`pandas.DataFrame` for use with SQL
+    Registers related metadata from a :class: ~`ibis.expr.types.TableExpr` for use with
+    SQL
 
     Parameters
     ----------
-    table : :class: ~`pandas.DataFrame`
-        :class: ~`pandas.DataFrame` object to register
+    table : :class: ~`ibis.expr.types.TableExpr`
+        :class: ~`ibis.expr.types.TableExpr` object to register
     table_name : str
-        String that will be used to represent the :class: ~`pandas.DataFrame` in SQL
+        String that will be used to represent the :class: ~`ibis.expr.types.TableExpr`
+        in SQL
 
     See Also
     --------
     remove_temp_table : Removes all registered metadata related to a table name
-    query : Query a registered :class: ~`pandas.DataFrame` using an SQL interface
+    query : Query a registered :class: ~`ibis.expr.types.TableExpr` using an SQL
+    interface
 
     Examples
     --------
@@ -61,9 +64,10 @@ def remove_temp_table(table_name: str):
 
     See Also
     --------
-    register_temp_table : Registers related metadata from a :class: ~`pandas.DataFrame`
-                          for use with SQL
-    query : Query a registered :class: ~`pandas.DataFrame` using an SQL interface
+    register_temp_table : Registers related metadata from a
+                          :class: ~`ibis.expr.types.TableExpr` for use with SQL
+    query : Query a registered :class: ~`ibis.expr.types.TableExpr` using an SQL
+    interface
 
     Examples
     --------
@@ -75,10 +79,10 @@ def remove_temp_table(table_name: str):
 
 def query(sql: str) -> TableExpr:
     """
-    Query a registered :class: ~`pandas.DataFrame` using an SQL interface
+    Query a registered :class: ~`ibis.expr.types.TableExpr` using an SQL interface
 
-    Query a registered :class: ~`pandas.DataFrame` using the following interface based
-    on the following general syntax:
+    Query a registered :class: ~`ibis.expr.types.TableExpr` using the following
+    interface based on the following general syntax:
     SELECT
     col_name | expr [, col_name | expr] ...
     [FROM table_reference [, table_reference | join_expr]]
@@ -96,26 +100,26 @@ def query(sql: str) -> TableExpr:
     Parameters
     ----------
     sql : str
-        SQL string querying the :class: ~`pandas.DataFrame`
+        SQL string querying the :class: ~`ibis.expr.types.TableExpr`
 
     Returns
     -------
-    :class: ~`pandas.DataFrame`
-        The :class: ~`pandas.DataFrame` resulting from the SQL query provided
+    :class: ~`ibis.DataFrame`
+        The :class: ~`ibis.expr.types.TableExpr` resulting from the SQL query provided
 
 
     """
-    return SqlToDataFrame(sql).data_frame
+    return SqlToTable(sql).ibis_expr
 
 
-class SqlToDataFrame:
+class SqlToTable:
     parser = Lark(_GRAMMAR_TEXT, parser="lalr")
 
     def __init__(self, sql: str):
         self.sql = sql
 
         self.ast = self.parse_sql()
-        self.data_frame = self.ast
+        self.ibis_expr = self.ast
 
     def parse_sql(self):
         try:

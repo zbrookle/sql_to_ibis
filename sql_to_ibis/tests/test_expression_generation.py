@@ -17,6 +17,7 @@ from sql_to_ibis.exceptions.sql_exception import (
 )
 from sql_to_ibis.sql_objects import AmbiguousColumn
 from sql_to_ibis.sql_select_query import TableInfo
+from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (
     AVOCADO,
     DIGIMON_MON_LIST,
@@ -545,6 +546,25 @@ def test_having_multiple_conditions():
 
 
 @assert_state_not_change
+def test_having_multiple_conditions_with_or():
+    """
+    Test having clause
+    :return:
+    """
+    my_table = query(
+        "select min(temp) from forest_fires having min(temp) > 2 and "
+        "max(dc) < 200 or max(dc) > 1000"
+    )
+    having_condition = (FOREST_FIRES.temp.min() > 2) & (FOREST_FIRES.DC.max() < 200) | (
+        (FOREST_FIRES.DC.max() > 1000)
+    )
+    ibis_table = FOREST_FIRES.aggregate(
+        metrics=FOREST_FIRES.temp.min().name("_col0"), having=having_condition,
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_having_one_condition():
     """
     Test having clause
@@ -721,52 +741,52 @@ def test_union_all():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-# TODO No ibis intersect method!
-# @assert_state_not_change
-# def test_intersect_distinct():
-#     """
-#     Test union distinct in queries
-#     :return:
-#     """
-#     my_table = query(
-#         """
-#             select * from forest_fires order by wind desc limit 5
-#              intersect distinct
-#             select * from forest_fires order by wind desc limit 3
-#             """
-#     )
-#     ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
-#     ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
-#     ibis_table = ibis_table1.union(ibis_table2, distinct=True)
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@ibis_not_implemented
+@assert_state_not_change
+def test_intersect_distinct():
+    """
+    Test union distinct in queries
+    :return:
+    """
+    my_table = query(
+        """
+            select * from forest_fires order by wind desc limit 5
+             intersect distinct
+            select * from forest_fires order by wind desc limit 3
+            """
+    )
+    ibis_table1 = FOREST_FIRES.sort_by(("wind", False)).head(5)
+    ibis_table2 = FOREST_FIRES.sort_by(("wind", True)).head(5)
+    ibis_table = ibis_table1.union(ibis_table2, distinct=True)
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-# TODO No ibis except method!
-# @assert_state_not_change
-# def test_except_distinct():
-#     """
-#     Test except distinct in queries
-#     :return:
-#     """
-#     my_table = query(
-#         """
-#                 select * from forest_fires order by wind desc limit 5
-#                  except distinct
-#                 select * from forest_fires order by wind desc limit 3
-#                 """
-#     )
-#     ibis_table1 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-#     )
-#     ibis_table2 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-#     )
-#     ibis_table = (
-#         ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
-#         .drop_duplicates()
-#         .reset_index(drop=True)
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@ibis_not_implemented
+@assert_state_not_change
+def test_except_distinct():
+    """
+    Test except distinct in queries
+    :return:
+    """
+    my_table = query(
+        """
+                select * from forest_fires order by wind desc limit 5
+                 except distinct
+                select * from forest_fires order by wind desc limit 3
+                """
+    )
+    ibis_table1 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
+    )
+    ibis_table2 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
+    )
+    ibis_table = (
+        ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @pytest.mark.parametrize(
@@ -783,30 +803,30 @@ def test_not_implemented_errors(set_op: str):
         )
 
 
-# # TODO No ibis except method!
-# @assert_state_not_change
-# def test_except_all():
-#     """
-#     Test except distinct in queries
-#     :return:
-#     """
-#     my_table = query(
-#         """
-#                 select * from forest_fires order by wind desc limit 5
-#                  except all
-#                 select * from forest_fires order by wind desc limit 3
-#                 """
-#     )
-#     ibis_table1 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-#     )
-#     ibis_table2 = (
-#         FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-#     )
-#     ibis_table = ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)].reset_index(
-#         drop=True
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@ibis_not_implemented
+@assert_state_not_change
+def test_except_all():
+    """
+    Test except distinct in queries
+    :return:
+    """
+    my_table = query(
+        """
+                select * from forest_fires order by wind desc limit 5
+                 except all
+                select * from forest_fires order by wind desc limit 3
+                """
+    )
+    ibis_table1 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(5)
+    )
+    ibis_table2 = (
+        FOREST_FIRES.copy().sort_values(by=["wind"], ascending=[False]).head(3)
+    )
+    ibis_table = ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)].reset_index(
+        drop=True
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
@@ -1324,45 +1344,46 @@ def test_sql_data_types():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-# @pytest.mark.parametrize(
-#     "sql",
-#     [
-#         """
-#     select * from
-#     ((select X, Y, rain from forest_fires) table1
-#     join
-#     (select X, Y, rain from forest_fires) table2
-#     on table1.x = table2.x) sub
-#     """,
-#         """
-#     select * from
-#     (select X, Y, rain from forest_fires) table1
-#     join
-#     (select X, Y, rain from forest_fires) table2
-#     on table1.x = table2.x
-#     """,
-#     ],
-# )
-# @assert_state_not_change
-# def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
-#     my_table = query(sql)
-#     columns = ["X", "Y", "rain"]
-#
-#     def get_select_rename_columns(alias: str):
-#         my_columns = FOREST_FIRES.get_columns(columns)
-#         renamed_columns = []
-#         for i, column in enumerate(my_columns):
-#             renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
-#         return my_columns, renamed_columns
-#
-#     select1, renamed1 = get_select_rename_columns("table1")
-#     select2, renamed2 = get_select_rename_columns("table2")
-#     subquery1 = FOREST_FIRES[select1]
-#     subquery2 = FOREST_FIRES[select2]
-#     joined = subquery1.join(
-#         subquery2, predicates=subquery1.X == subquery2.X
-#     ).projection(renamed1 + renamed2)
-#     assert_ibis_equal_show_diff(joined, my_table)
+@pytest.mark.xfail(reason="This needs to be solved", raises=AssertionError)
+@pytest.mark.parametrize(
+    "sql",
+    [
+        """
+    select * from
+    ((select X, Y, rain from forest_fires) table1
+    join
+    (select X, Y, rain from forest_fires) table2
+    on table1.x = table2.x) sub
+    """,
+        """
+    select * from
+    (select X, Y, rain from forest_fires) table1
+    join
+    (select X, Y, rain from forest_fires) table2
+    on table1.x = table2.x
+    """,
+    ],
+)
+@assert_state_not_change
+def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
+    my_table = query(sql)
+    columns = ["X", "Y", "rain"]
+
+    def get_select_rename_columns(alias: str):
+        my_columns = FOREST_FIRES.get_columns(columns)
+        renamed_columns = []
+        for i, column in enumerate(my_columns):
+            renamed_columns.append(column.name(f"{alias}.{columns[i]}"))
+        return my_columns, renamed_columns
+
+    select1, renamed1 = get_select_rename_columns("table1")
+    select2, renamed2 = get_select_rename_columns("table2")
+    subquery1 = FOREST_FIRES[select1]
+    subquery2 = FOREST_FIRES[select2]
+    joined = subquery1.join(
+        subquery2, predicates=subquery1.X == subquery2.X
+    ).projection(renamed1 + renamed2)
+    assert_ibis_equal_show_diff(joined, my_table)
 
 
 @pytest.mark.parametrize(
@@ -1551,18 +1572,18 @@ def test_select_ambiguous_column_in_database_context():
     assert_ibis_equal_show_diff(my_table, ibis_table)
 
 
-# TODO Not implemented in ibis
-# @assert_state_not_change
-# def test_group_by_having():
-#     my_table = query(
-#         "select type from digimon_move_list group by type having avg(power) > 50"
-#     )
-#     ibis_table = (
-#         DIGIMON_MOVE_LIST.group_by("Type")
-#         .aggregate(DIGIMON_MOVE_LIST.Type.first())
-#         .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@ibis_not_implemented
+@assert_state_not_change
+def test_group_by_having():
+    my_table = query(
+        "select type from digimon_move_list group by type having avg(power) > 50"
+    )
+    ibis_table = (
+        DIGIMON_MOVE_LIST.group_by("Type")
+        .aggregate(DIGIMON_MOVE_LIST.Type.first())
+        .having(DIGIMON_MOVE_LIST.Power.mean() > 50)
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @pytest.mark.parametrize(
