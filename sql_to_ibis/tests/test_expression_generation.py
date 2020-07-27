@@ -16,6 +16,7 @@ from sql_to_ibis.exceptions.sql_exception import (
 )
 from sql_to_ibis.sql_objects import AmbiguousColumn
 from sql_to_ibis.sql_select_query import TableInfo
+from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (
     AVOCADO,
     DIGIMON_MON_LIST,
@@ -29,7 +30,6 @@ from sql_to_ibis.tests.utils import (
     register_env_tables,
     remove_env_tables,
 )
-from sql_to_ibis.tests.markers import ibis_not_implemented
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -538,6 +538,25 @@ def test_having_multiple_conditions():
         "select min(temp) from forest_fires having min(temp) > 2 and " "max(dc) < 200"
     )
     having_condition = (FOREST_FIRES.temp.min() > 2) & (FOREST_FIRES.DC.max() < 200)
+    ibis_table = FOREST_FIRES.aggregate(
+        metrics=FOREST_FIRES.temp.min().name("_col0"), having=having_condition,
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_having_multiple_conditions_with_or():
+    """
+    Test having clause
+    :return:
+    """
+    my_table = query(
+        "select min(temp) from forest_fires having min(temp) > 2 and "
+        "max(dc) < 200 or max(dc) > 1000"
+    )
+    having_condition = (FOREST_FIRES.temp.min() > 2) & (FOREST_FIRES.DC.max() < 200) | (
+        (FOREST_FIRES.DC.max() > 1000)
+    )
     ibis_table = FOREST_FIRES.aggregate(
         metrics=FOREST_FIRES.temp.min().name("_col0"), having=having_condition,
     )
@@ -1321,6 +1340,7 @@ def test_sql_data_types():
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
 
 @pytest.mark.xfail(reason="This needs to be solved", raises=AssertionError)
 @pytest.mark.parametrize(

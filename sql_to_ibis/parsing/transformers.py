@@ -451,7 +451,7 @@ class InternalTransformer(TransformerBaseClass):
         :param truth_series_pair:
         :return:
         """
-        return truth_series_pair[0] | truth_series_pair[1]
+        return Value(truth_series_pair[0] | truth_series_pair[1])
 
     def comparison_type(self, comparison):
         """
