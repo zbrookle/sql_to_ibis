@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 from freezegun import freeze_time
 import ibis
+from ibis.common.exceptions import IbisTypeError
 from ibis.expr.api import TableExpr
 import pytest
 
@@ -535,7 +536,7 @@ def test_having_multiple_conditions():
     :return:
     """
     my_table = query(
-        "select min(temp) from forest_fires having min(temp) > 2 and " "max(dc) < 200"
+        "select min(temp) from forest_fires having min(temp) > 2 and max(dc) < 200"
     )
     having_condition = (FOREST_FIRES.temp.min() > 2) & (FOREST_FIRES.DC.max() < 200)
     ibis_table = FOREST_FIRES.aggregate(
@@ -1281,6 +1282,7 @@ def test_multiple_aliases_same_column():
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@pytest.mark.xfail(reason="Will be fixed in next ibis release", raises=IbisTypeError)
 @assert_state_not_change
 def test_sql_data_types():
     """
@@ -1330,7 +1332,7 @@ def test_sql_data_types():
             id_column.cast("float32").name("avocado_id_float32"),
             id_column.cast("float64").name("avocado_id_float64"),
             id_column.cast("bool").name("avocado_id_bool"),
-            id_column.cast("string").name("avocado_id_category"),
+            id_column.cast("category").name("avocado_id_category"),
             date_column.cast("date").name("date"),
             date_column.cast("timestamp").name("datetime"),
             date_column.cast("timestamp").name("timestamp"),
