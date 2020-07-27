@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 from freezegun import freeze_time
 import ibis
+from ibis.common.exceptions import IbisTypeError
 from ibis.expr.api import TableExpr
 import pytest
 
@@ -29,7 +30,7 @@ from sql_to_ibis.tests.utils import (
     register_env_tables,
     remove_env_tables,
 )
-from ibis.common.exceptions import IbisTypeError
+
 
 @pytest.fixture(autouse=True, scope="module")
 def module_setup_teardown():
