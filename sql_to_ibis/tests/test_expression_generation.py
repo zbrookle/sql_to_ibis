@@ -1310,7 +1310,7 @@ def test_sql_data_types():
             id_column.cast("float32").name("avocado_id_float32"),
             id_column.cast("float64").name("avocado_id_float64"),
             id_column.cast("bool").name("avocado_id_bool"),
-            id_column.cast("string").name("avocado_id_category"),
+            id_column.cast("category").name("avocado_id_category"),
             date_column.cast("date").name("date"),
             date_column.cast("timestamp").name("datetime"),
             date_column.cast("timestamp").name("timestamp"),

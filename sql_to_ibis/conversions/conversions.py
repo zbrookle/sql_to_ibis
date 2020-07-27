@@ -7,7 +7,6 @@ GIVEN_TYPE_TO_IBIS = {
     "smallint": "int16",
     "int": "int32",
     "bigint": "int64",
-    "category": "string",
 }
 
 TYPE_TO_SQL_TYPE = {
