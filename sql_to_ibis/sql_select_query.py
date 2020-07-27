@@ -64,8 +64,8 @@ def remove_temp_table(table_name: str):
 
     See Also
     --------
-    register_temp_table : Registers related metadata from a :class: ~`ibis.expr.types.TableExpr`
-                          for use with SQL
+    register_temp_table : Registers related metadata from a
+                          :class: ~`ibis.expr.types.TableExpr` for use with SQL
     query : Query a registered :class: ~`ibis.expr.types.TableExpr` using an SQL
     interface
 
@@ -81,8 +81,8 @@ def query(sql: str) -> TableExpr:
     """
     Query a registered :class: ~`ibis.expr.types.TableExpr` using an SQL interface
 
-    Query a registered :class: ~`ibis.expr.types.TableExpr` using the following interface
-    based on the following general syntax:
+    Query a registered :class: ~`ibis.expr.types.TableExpr` using the following
+    interface based on the following general syntax:
     SELECT
     col_name | expr [, col_name | expr] ...
     [FROM table_reference [, table_reference | join_expr]]
