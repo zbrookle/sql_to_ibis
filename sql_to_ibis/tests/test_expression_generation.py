@@ -379,6 +379,19 @@ def test_min():
 
 
 @assert_state_not_change
+def test_count():
+    """
+    Test the min
+    :return:
+    """
+    my_table = query("select count(temp) from forest_fires")
+    ibis_table = FOREST_FIRES.aggregate(
+        [FOREST_FIRES.get_column("temp").count().name("_col0")]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_multiple_aggs():
     """
     Test multiple aggregations
@@ -1621,3 +1634,20 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
 def test_invalid_queries(sql):
     with pytest.raises(InvalidQueryException):
         query(sql)
+
+
+@assert_state_not_change
+def test_count_star():
+    my_table = query("select count(*) from forest_fires")
+    ibis_table = FOREST_FIRES.aggregate([FOREST_FIRES.count().name("_col3")])
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_count_star_cross_join():
+    my_table = query(
+        "select count(*) from digimon_move_list cross join " "digimon_mon_list"
+    )
+    cross_join_table = DIGIMON_MOVE_LIST.cross_join(DIGIMON_MON_LIST)
+    ibis_table = cross_join_table.aggregate([cross_join_table.count().name("_col0")])
+    assert_ibis_equal_show_diff(ibis_table, my_table)

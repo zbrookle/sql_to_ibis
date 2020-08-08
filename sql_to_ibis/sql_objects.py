@@ -2,10 +2,11 @@
 Module containing all sql objects
 """
 import re
-from typing import Any, Optional, Set
+from typing import Any, Optional, Set, Union
 
 import ibis
 from ibis.expr.api import ColumnExpr, TableExpr, ValueExpr
+from ibis.expr.operations import TableColumn
 from pandas import Series
 
 
@@ -45,6 +46,9 @@ class AliasRegistry:
 
     def __contains__(self, item):
         return item in self._registry
+
+    def __repr__(self):
+        return f"Registry:\n{self._registry}"
 
 
 class Subquery(Table):
@@ -332,26 +336,6 @@ class Expression(DerivedColumn):
         return self.alias
 
 
-class Aggregate(DerivedColumn):
-    """
-    Store information about aggregations
-    """
-
-    _function_map = {
-        "average": "mean",
-        "avg": "mean",
-        "mean": "mean",
-        "maximum": "max",
-        "max": "max",
-        "minimum": "min",
-        "min": "min",
-        "sum": "sum",
-    }
-
-    def __init__(self, value, alias="", typename=""):
-        DerivedColumn.__init__(self, value, alias, typename)
-
-
 class Column(Value):
     """
     Store information about columns
@@ -399,6 +383,20 @@ class Column(Value):
 
     def set_table(self, table: Table):
         self._table = table
+
+
+class CountStar(Column):
+    def __init__(self):
+        super().__init__("*", alias="*")
+
+
+class Aggregate(DerivedColumn):
+    """
+    Store information about aggregations
+    """
+
+    def __init__(self, value: Union[TableColumn, CountStar], alias="", typename=""):
+        DerivedColumn.__init__(self, value, alias, typename)
 
 
 class GroupByColumn(Column):

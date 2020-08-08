@@ -6,3 +6,4 @@ NUMERIC_AGGREGATIONS: Set[str] = AVG_AGGREGATIONS.copy()
 NUMERIC_AGGREGATIONS.update(SUM_AGGREGATIONS)
 MIN_AGGREGATIONS: Set[str] = {"min", "minimum"}
 MAX_AGGREGATIONS: Set[str] = {"max", "maximum"}
+COUNT_AGGREGATIONS = {"count"}
