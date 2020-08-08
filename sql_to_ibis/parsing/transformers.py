@@ -16,6 +16,7 @@ from sql_to_ibis.exceptions.sql_exception import (
 )
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
+    COUNT_AGGREGATIONS,
     MAX_AGGREGATIONS,
     MIN_AGGREGATIONS,
     NUMERIC_AGGREGATIONS,
@@ -97,6 +98,8 @@ class TransformerBaseClass(Transformer):
             return ibis_column.max()
         if aggregation in MIN_AGGREGATIONS:
             return ibis_column.min()
+        if aggregation in COUNT_AGGREGATIONS:
+            return ibis_column.count()
         raise Exception(
             f"Aggregation {aggregation} not implemented for column of "
             f"type {ibis_column.type()}"
@@ -189,6 +192,12 @@ class InternalTransformer(TransformerBaseClass):
             alias=column.alias,
             typename=column.typename,
         )
+
+    # def count_star(self, _):
+    #     """
+    #     :return: Count star
+    #     """
+    #     return Aggregate()
 
     def mul(self, args: Tuple[int, int]):
         """

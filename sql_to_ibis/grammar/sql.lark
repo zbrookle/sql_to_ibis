@@ -90,7 +90,7 @@ TYPENAME:  "object"i
          | "date"i
          | "category"i
          | "string"i
-AGGREGATION.8: "sum"i | "avg"i | "min"i | "max"i
+AGGREGATION.8: "sum"i | "avg"i | "min"i | "max"i | "count"i
 alias: NAME -> alias_string
 _window_name: NAME
 limit_count: integer -> limit_count
