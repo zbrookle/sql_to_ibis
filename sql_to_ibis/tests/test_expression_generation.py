@@ -1649,5 +1649,5 @@ def test_count_star_cross_join():
         "select count(*) from digimon_move_list cross join " "digimon_mon_list"
     )
     cross_join_table = DIGIMON_MOVE_LIST.cross_join(DIGIMON_MON_LIST)
-    ibis_table = cross_join_table.aggregate([cross_join_table.count().name("_col3")])
+    ibis_table = cross_join_table.aggregate([cross_join_table.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)

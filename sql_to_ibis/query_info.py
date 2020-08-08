@@ -1,17 +1,18 @@
 from typing import Dict, List, Optional, Tuple, Union
 
+from lark import Token, Tree
+
 from sql_to_ibis.parsing.transformers import InternalTransformer
 from sql_to_ibis.sql_objects import (
     Aggregate,
+    Column,
+    Expression,
     GroupByColumn,
     JoinBase,
+    Literal,
     Table,
     Value,
-    Column,
-    Literal,
-    Expression,
 )
-from lark import Token, Tree
 
 
 class QueryInfo:
@@ -87,18 +88,27 @@ class QueryInfo:
         elif isinstance(token, Aggregate):
             self.aggregates[token.final_name] = token
 
-    def perform_transformation(self):
-        select_expressions = self.internal_transformer.transform(
+    def __get_internal_transformer_select_expression(self):
+        return self.internal_transformer.transform(
             Tree("select", self.select_expressions_no_boolean_clauses)
         ).children
 
+    def __extract_distinct_property(self, select_expressions):
         if select_expressions and isinstance(select_expressions[0], Token):
             if str(select_expressions[0]) == "distinct":
                 self.distinct = True
-            select_expressions = select_expressions[1:]
+            return select_expressions[1:]
+        return select_expressions
 
+    def __handle_tokens_and_trees_in_select_expressions(self, select_expressions):
         for token_pos, token in enumerate(select_expressions):
             self.__handle_token_or_tree(token, token_pos)
+
+    def perform_transformation(self):
+        select_expressions = self.__get_internal_transformer_select_expression()
+        print(select_expressions)
+        select_expressions = self.__extract_distinct_property(select_expressions)
+        self.__handle_tokens_and_trees_in_select_expressions(select_expressions)
 
     def __repr__(self):
         return (

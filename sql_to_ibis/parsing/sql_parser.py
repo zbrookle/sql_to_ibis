@@ -13,7 +13,11 @@ from sql_to_ibis.exceptions.sql_exception import (
     InvalidQueryException,
     TableExprDoesNotExist,
 )
-from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
+from sql_to_ibis.parsing.transformers import (
+    InternalTransformer,
+    InternalTransformerWithStarVal,
+    TransformerBaseClass,
+)
 from sql_to_ibis.query_info import QueryInfo
 from sql_to_ibis.sql_objects import (
     Aggregate,
@@ -30,6 +34,7 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Table,
     Value,
+    CountStar,
 )
 
 GET_TABLE_REGEX = re.compile(
@@ -392,10 +397,19 @@ class SQLTransformer(TransformerBaseClass):
     def format_column_needs_agg_or_group_msg(column):
         return f"For column '{column}' you must either group or provide an aggregation"
 
-    def _get_aggregate_ibis_columns(self, aggregates: Dict[str, Aggregate]):
+    def _handle_count_star(self, aggregate: Aggregate, relation: TableExpr):
+        if isinstance(aggregate.value, CountStar):
+            aggregate.value = relation.count()
+        return aggregate
+
+    def _get_aggregate_ibis_columns(
+        self, aggregates: Dict[str, Aggregate], relation: TableExpr
+    ):
         aggregate_ibis_columns = []
-        for aggregate_column in aggregates:
-            column = aggregates[aggregate_column].value.name(aggregate_column)
+        for aggregate_column_name in aggregates:
+            aggregate_column = aggregates[aggregate_column_name]
+            self._handle_count_star(aggregate_column, relation)
+            column = aggregate_column.value.name(aggregate_column_name)
             aggregate_ibis_columns.append(column)
         return aggregate_ibis_columns
 
@@ -434,7 +448,7 @@ class SQLTransformer(TransformerBaseClass):
         selected_column_names = {
             column.get_name().lower() for column in selected_columns
         }
-        aggregate_ibis_columns = self._get_aggregate_ibis_columns(aggregates)
+        aggregate_ibis_columns = self._get_aggregate_ibis_columns(aggregates, table)
         having = self._handle_having_expressions(
             having_expr,
             internal_transformer,
@@ -619,13 +633,12 @@ class SQLTransformer(TransformerBaseClass):
             return result[all_columns]
         return result
 
-    def _set_casing_for_groupby_names(
-        self, groupby_columns: List[GroupByColumn], selected_columns: List[Value]
-    ):
+    def _set_casing_for_groupby_names(self, query_info: QueryInfo):
         lower_case_to_true_column_name = {
-            column.get_name().lower(): column.get_name() for column in selected_columns
+            column.get_name().lower(): column.get_name()
+            for column in query_info.columns
         }
-        for groupby_column in groupby_columns:
+        for groupby_column in query_info.group_columns:
             lower_case_group_name = groupby_column.get_name().lower()
             if lower_case_group_name in lower_case_to_true_column_name:
                 selection_statement_name = lower_case_to_true_column_name[
@@ -643,17 +656,27 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(table, JoinBase):
             return table
 
-    def _to_ibis_table(self, query_info: QueryInfo):
-        """
-        Returns the dataframe resulting from the SQL query
-        :return:
-        """
+    @staticmethod
+    def _reevaluate_transformation(query_info: QueryInfo, relations: List[TableExpr]):
+        DerivedColumn.reset_expression_count()
+        internal_transformer = InternalTransformerWithStarVal.from_internal_transformer(
+            internal_transformer=query_info.internal_transformer,
+            available_relations=relations,
+        )
+        query_info = QueryInfo(
+            internal_transformer,
+            query_info.select_expressions_no_boolean_clauses,
+            query_info.having_expr,
+            query_info.where_expr,
+        )
         query_info.perform_transformation()
+        return query_info
+
+    def _get_relation(self, query_info: QueryInfo):
         tables = query_info.tables
-        if not query_info.tables:
+        if not tables:
             raise Exception("No table specified")
         first_table = self.get_table_value(tables[0])
-
         if isinstance(first_table, JoinBase):
             first_table = self.handle_join(join=first_table, columns=query_info.columns)
         for table in tables[1:]:
@@ -664,10 +687,19 @@ class SQLTransformer(TransformerBaseClass):
                 [table for table in tables if isinstance(table, Table)]
             )
             first_table = first_table[all_columns]
+        return first_table
 
-        print(first_table)
+    def _to_ibis_table(self, query_info: QueryInfo):
+        """
+        Returns the dataframe resulting from the SQL query
+        :return:
+        """
+        query_info.perform_transformation()
 
-        self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)
+        relation = self._get_relation(query_info)
+        print(relation)
+
+        self._set_casing_for_groupby_names(query_info)
 
         selected_group_columns = []
         group_column_names = {
@@ -693,7 +725,7 @@ class SQLTransformer(TransformerBaseClass):
                 for column in query_info.columns
                 if column.get_name() in remaining_columns
             ]
-        new_table = self.handle_selection(first_table, query_info.columns)
+        new_table = self.handle_selection(relation, query_info.columns)
         new_table = self.handle_filtering(
             new_table, query_info.where_expr, query_info.internal_transformer
         )

@@ -46,6 +46,14 @@ class AmbiguousColumnException(Exception):
     """
 
     def __init__(self, column: str, possible_tables: List[str]):
-        Exception.__init__(
-            self, f"For column '{column}', one of {possible_tables} must be specified",
+        super().__init__(
+            f"For column '{column}', one of {possible_tables} must be specified",
+        )
+
+
+class UnsupportedColumnOperation(Exception):
+    def __init__(self, column_type: type, operation: str):
+        super().__init__(
+            f"Operation {operation} is not supported for "
+            f"columns of type {column_type}"
         )
