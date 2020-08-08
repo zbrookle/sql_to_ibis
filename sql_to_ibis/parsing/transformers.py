@@ -28,6 +28,7 @@ from sql_to_ibis.sql_objects import (
     AliasRegistry,
     AmbiguousColumn,
     Column,
+    CountStar,
     CrossJoin,
     Date,
     Expression,
@@ -39,7 +40,6 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Table,
     Value,
-    CountStar,
 )
 
 

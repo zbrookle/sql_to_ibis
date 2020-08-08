@@ -24,17 +24,15 @@ from sql_to_ibis.sql_objects import (
     AliasRegistry,
     AmbiguousColumn,
     Column,
+    CountStar,
     CrossJoin,
     DerivedColumn,
-    Expression,
     GroupByColumn,
     Join,
     JoinBase,
-    Literal,
     Subquery,
     Table,
     Value,
-    CountStar,
 )
 
 GET_TABLE_REGEX = re.compile(
