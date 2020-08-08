@@ -178,12 +178,7 @@ class SQLTransformer(TransformerBaseClass):
         return query_info
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
-        info = QueryInfo(
-            having_expr=None,
-            where_expr=None,
-            internal_transformer=InternalTransformer.empty_transformer(),
-            distinct=False,
-        )
+        info = QueryInfo(InternalTransformer.empty_transformer(),)
         info.add_table(join)
         info.add_column(Column(name="*"))
         return info
@@ -323,46 +318,6 @@ class SQLTransformer(TransformerBaseClass):
                 return True
         return False
 
-    @staticmethod
-    def handle_non_token_non_tree(query_info: QueryInfo, token, token_pos):
-        """
-        Handles non token_or_tree non tree items and extracts necessary query
-        information from it
-
-        :param query_info: Dictionary of all info about the query
-        :param token: Item being handled
-        :param token_pos: Ordinal position of the item
-        :return:
-        """
-        query_info.all_names.append(token.final_name)
-        query_info.name_order[token.final_name] = token_pos
-
-        if isinstance(token, GroupByColumn):
-            query_info.group_columns.append(token)
-        elif isinstance(token, (Column, Literal, Expression)):
-            query_info.add_column(token)
-        elif isinstance(token, Aggregate):
-            query_info.aggregates[token.final_name] = token
-
-    def handle_token_or_tree(self, query_info: QueryInfo, token_or_tree, item_pos):
-        """
-        Handles token and extracts necessary query information from it
-        :param query_info: Dictionary of all info about the query
-        :param token_or_tree: Item being handled
-        :param item_pos: Ordinal position of the token
-        :return:
-        """
-        if isinstance(token_or_tree, Token):
-            if token_or_tree.type == "from_expression":
-                query_info.add_table(token_or_tree.value)
-            elif token_or_tree.type == "where_expr":
-                query_info.where_expr = token_or_tree.value
-        elif isinstance(token_or_tree, Tree):
-            if token_or_tree.data == "having_expr":
-                query_info.having_expr = token_or_tree
-        else:
-            self.handle_non_token_non_tree(query_info, token_or_tree, item_pos)
-
     def select(self, *select_expressions: Tuple[Tree]) -> QueryInfo:
         """
         Forms the final sequence of methods that will be executed
@@ -397,15 +352,6 @@ class SQLTransformer(TransformerBaseClass):
                 elif select_expression.data == "where_expr":
                     where_expr = select_expression
 
-        print(tables)
-
-        select_expressions_no_boolean_clauses = tuple(
-            select_expression
-            for select_expression in select_expressions
-            if isinstance(select_expression, Tree)
-            and select_expression.data not in ("having_expr", "where_expr")
-            or not isinstance(select_expression, Tree)
-        )
         internal_transformer = InternalTransformer(
             tables,
             self._table_map,
@@ -415,22 +361,20 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry,
         )
 
-        select_expressions = internal_transformer.transform(
-            Tree("select", select_expressions_no_boolean_clauses)
-        ).children
+        select_expressions_no_boolean_clauses = tuple(
+            select_expression
+            for select_expression in select_expressions
+            if isinstance(select_expression, Tree)
+            and select_expression.data not in ("having_expr", "where_expr")
+            or not isinstance(select_expression, Tree)
+        )
 
-        distinct = False
-        if isinstance(select_expressions[0], Token):
-            if str(select_expressions[0]) == "distinct":
-                distinct = True
-            select_expressions = select_expressions[1:]
-
-        query_info = QueryInfo(having_expr, where_expr, internal_transformer, distinct)
-
-        for token_pos, token in enumerate(select_expressions):
-            self.handle_token_or_tree(query_info, token, token_pos)
-
-        return query_info
+        return QueryInfo(
+            internal_transformer,
+            select_expressions_no_boolean_clauses,
+            having_expr=having_expr,
+            where_expr=where_expr,
+        )
 
     def cross_join(self, table1: Table, table2: Table):
         """
@@ -704,6 +648,7 @@ class SQLTransformer(TransformerBaseClass):
         Returns the dataframe resulting from the SQL query
         :return:
         """
+        query_info.perform_transformation()
         tables = query_info.tables
         if not query_info.tables:
             raise Exception("No table specified")

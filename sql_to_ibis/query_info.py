@@ -1,7 +1,17 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
-from sql_to_ibis.sql_objects import Aggregate, GroupByColumn, JoinBase, Table, Value
+from sql_to_ibis.sql_objects import (
+    Aggregate,
+    GroupByColumn,
+    JoinBase,
+    Table,
+    Value,
+    Column,
+    Literal,
+    Expression,
+)
+from lark import Token, Tree
 
 
 class QueryInfo:
@@ -11,10 +21,10 @@ class QueryInfo:
 
     def __init__(
         self,
-        having_expr,
-        where_expr,
         internal_transformer: InternalTransformer,
-        distinct: bool = False,
+        select_expressions_no_boolean_clauses: Optional[tuple] = None,
+        having_expr=None,
+        where_expr=None,
     ):
         self.columns: List[Value] = []
         self.tables: List[Union[Table, JoinBase]] = []
@@ -23,17 +33,72 @@ class QueryInfo:
         self.aggregates: Dict[str, Aggregate] = {}
         self.group_columns: List[GroupByColumn] = []
         self.where_expr = where_expr
-        self.distinct = distinct
         self.having_expr = having_expr
         self.internal_transformer: InternalTransformer = internal_transformer
         self.order_by: List[Tuple[str, bool]] = []
         self.limit: Optional[int] = None
+        self.distinct = False
+        self.select_expressions_no_boolean_clauses = (
+            select_expressions_no_boolean_clauses
+            if select_expressions_no_boolean_clauses is not None
+            else ()
+        )
 
     def add_table(self, table: Union[Table, JoinBase]):
         self.tables.append(table)
 
     def add_column(self, column: Value):
         self.columns.append(column)
+
+    def __handle_token_or_tree(self, token_or_tree, item_pos):
+        """
+        Handles token and extracts necessary query information from it
+        :param token_or_tree: Item being handled
+        :param item_pos: Ordinal position of the token
+        :return:
+        """
+        if isinstance(token_or_tree, Token):
+            if token_or_tree.type == "from_expression":
+                self.add_table(token_or_tree.value)
+            elif token_or_tree.type == "where_expr":
+                self.where_expr = token_or_tree.value
+        elif isinstance(token_or_tree, Tree):
+            if token_or_tree.data == "having_expr":
+                self.having_expr = token_or_tree
+        else:
+            self.__handle_non_token_non_tree(token_or_tree, item_pos)
+
+    def __handle_non_token_non_tree(self, token, token_pos):
+        """
+        Handles non token_or_tree non tree items and extracts necessary query
+        information from it
+
+        :param token: Item being handled
+        :param token_pos: Ordinal position of the item
+        :return:
+        """
+        self.all_names.append(token.final_name)
+        self.name_order[token.final_name] = token_pos
+
+        if isinstance(token, GroupByColumn):
+            self.group_columns.append(token)
+        elif isinstance(token, (Column, Literal, Expression)):
+            self.add_column(token)
+        elif isinstance(token, Aggregate):
+            self.aggregates[token.final_name] = token
+
+    def perform_transformation(self):
+        select_expressions = self.internal_transformer.transform(
+            Tree("select", self.select_expressions_no_boolean_clauses)
+        ).children
+
+        if select_expressions and isinstance(select_expressions[0], Token):
+            if str(select_expressions[0]) == "distinct":
+                self.distinct = True
+            select_expressions = select_expressions[1:]
+
+        for token_pos, token in enumerate(select_expressions):
+            self.__handle_token_or_tree(token, token_pos)
 
     def __repr__(self):
         return (

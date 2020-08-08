@@ -32,6 +32,7 @@ from sql_to_ibis.tests.utils import (
     remove_env_tables,
 )
 
+
 @pytest.fixture(autouse=True, scope="module")
 def module_setup_teardown():
     register_env_tables()
@@ -1635,15 +1636,18 @@ def test_invalid_queries(sql):
         query(sql)
 
 
+@assert_state_not_change
 def test_count_star():
     my_table = query("select count(*) from forest_fires")
     ibis_table = FOREST_FIRES.aggregate([FOREST_FIRES.count().name("_col3")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@assert_state_not_change
 def test_count_star_cross_join():
-    my_table = query("select count(*) from digimon_move_list cross join "
-                     "digimon_mon_list")
+    my_table = query(
+        "select count(*) from digimon_move_list cross join " "digimon_mon_list"
+    )
     cross_join_table = DIGIMON_MOVE_LIST.cross_join(DIGIMON_MON_LIST)
     ibis_table = cross_join_table.aggregate([cross_join_table.count().name("_col3")])
     assert_ibis_equal_show_diff(ibis_table, my_table)

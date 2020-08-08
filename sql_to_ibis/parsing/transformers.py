@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Union
 import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.operations import TableColumn
-from ibis.expr.types import ColumnExpr
+from ibis.expr.types import ColumnExpr, TableExpr
 from lark import Token, Transformer, Tree
 from pandas import Series
 
@@ -85,9 +85,7 @@ class TransformerBaseClass(Transformer):
         self._temp_dataframes_dict = _temp_dataframes_dict
 
     @staticmethod
-    def apply_ibis_aggregation(
-        column: Column, aggregation: str
-    ) -> TableColumn:
+    def apply_ibis_aggregation(column: Column, aggregation: str) -> TableColumn:
         ibis_column = column.value
         if aggregation in NUMERIC_AGGREGATIONS:
             assert isinstance(ibis_column, NumericColumn)
@@ -131,10 +129,15 @@ class InternalTransformer(TransformerBaseClass):
         )
         self._table_names_list = [table.name for table in tables]
         self._column_to_table_name = column_to_table_name.copy()  # This must be
-        # copied because when abmiguity is resolved in the following method,
-        # whe don't want that resolution to carry over to other subqueries
+        # copied because when ambiguity is resolved in the following method,
+        # we don't want that resolution to carry over to other subqueries
         self._remove_non_selected_tables_from_transformation()
         self._alias_registry = alias_registry
+        self._available_relations = None
+
+    def with_available_relations(self, relations: List[TableExpr]):
+        self._available_relations = relations
+        return self
 
     def set_column_value(
         self, column: Column, table_name: Union[str, AmbiguousColumn] = ""
@@ -149,9 +152,9 @@ class InternalTransformer(TransformerBaseClass):
             column.set_table(self.get_table(table_name))
             return
         if column.name == "*" and not table_name:
-            # if len(self._table_names_list) > 1:
+            # if len(self._available_relations) > 1:
             #     raise AmbiguousColumnException(column.name, self._table_names_list)
-            column.set_table(self.get_table(self._table_names_list[0]))
+            # column.set_table(self.get_table(self._available_relations[0]))
             return
         lower_column_name = column.name.lower()
         if not table_name:
