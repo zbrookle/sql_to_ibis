@@ -86,8 +86,9 @@ class TransformerBaseClass(Transformer):
 
     @staticmethod
     def apply_ibis_aggregation(
-        ibis_column: TableColumn, aggregation: str
+        column: Column, aggregation: str
     ) -> TableColumn:
+        ibis_column = column.value
         if aggregation in NUMERIC_AGGREGATIONS:
             assert isinstance(ibis_column, NumericColumn)
             if aggregation in AVG_AGGREGATIONS:
@@ -98,6 +99,8 @@ class TransformerBaseClass(Transformer):
             return ibis_column.max()
         if aggregation in MIN_AGGREGATIONS:
             return ibis_column.min()
+        if aggregation in COUNT_AGGREGATIONS and column.name == "*":
+            return column.get_table().get_table_expr().count()
         if aggregation in COUNT_AGGREGATIONS:
             return ibis_column.count()
         raise Exception(
@@ -142,21 +145,28 @@ class InternalTransformer(TransformerBaseClass):
         :param table_name: Optional, only used if provided
         :return:
         """
-        if column.name != "*":
-            lower_column_name = column.name.lower()
-            if not table_name:
-                if lower_column_name not in self._column_to_table_name:
-                    raise ColumnNotFoundError(column.name, list(self._table_names_list))
-                table_name = self._column_to_table_name[column.name.lower()]
-            if isinstance(table_name, AmbiguousColumn):
-                raise AmbiguousColumnException(column.name, list(table_name.tables))
-            table = self.get_table(table_name)
-            table_column_name_map = self._column_name_map[table.name]
-            if lower_column_name not in table_column_name_map:
-                raise ColumnNotFoundError(column.name, [table_name])
-            column_true_name = table_column_name_map[column.name.lower()]
-            column.value = table.get_table_expr()[column_true_name]
-            column.set_table(table)
+        if column.name == "*" and table_name:
+            column.set_table(self.get_table(table_name))
+            return
+        if column.name == "*" and not table_name:
+            # if len(self._table_names_list) > 1:
+            #     raise AmbiguousColumnException(column.name, self._table_names_list)
+            column.set_table(self.get_table(self._table_names_list[0]))
+            return
+        lower_column_name = column.name.lower()
+        if not table_name:
+            if lower_column_name not in self._column_to_table_name:
+                raise ColumnNotFoundError(column.name, self._table_names_list)
+            table_name = self._column_to_table_name[column.name.lower()]
+        if isinstance(table_name, AmbiguousColumn):
+            raise AmbiguousColumnException(column.name, list(table_name.tables))
+        table = self.get_table(table_name)
+        table_column_name_map = self._column_name_map[table.name]
+        if lower_column_name not in table_column_name_map:
+            raise ColumnNotFoundError(column.name, [table_name])
+        column_true_name = table_column_name_map[column.name.lower()]
+        column.value = table.get_table_expr()[column_true_name]
+        column.set_table(table)
 
     def _remove_non_selected_tables_from_transformation(self):
         all_selected_table_names = {
@@ -188,16 +198,10 @@ class InternalTransformer(TransformerBaseClass):
         aggregation: Token = agg_and_column[0]
         column: Column = agg_and_column[1]
         return Aggregate(
-            self.apply_ibis_aggregation(column.value, aggregation.value.lower()),
+            self.apply_ibis_aggregation(column, aggregation.value.lower()),
             alias=column.alias,
             typename=column.typename,
         )
-
-    # def count_star(self, _):
-    #     """
-    #     :return: Count star
-    #     """
-    #     return Aggregate()
 
     def mul(self, args: Tuple[int, int]):
         """

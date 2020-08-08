@@ -201,7 +201,7 @@ class SQLTransformer(TransformerBaseClass):
             query_info = self._handle_join_subqueries(query_object)
         else:
             query_info = query_object
-        subquery_value = self.to_ibis_table(query_info)
+        subquery_value = self._to_ibis_table(query_info)
         subquery = Subquery(name=alias_name, value=subquery_value)
         self._table_map[alias_name] = subquery
         self._column_name_map[alias_name] = {}
@@ -396,6 +396,8 @@ class SQLTransformer(TransformerBaseClass):
                     having_expr = select_expression
                 elif select_expression.data == "where_expr":
                     where_expr = select_expression
+
+        print(tables)
 
         select_expressions_no_boolean_clauses = tuple(
             select_expression
@@ -697,7 +699,7 @@ class SQLTransformer(TransformerBaseClass):
         if isinstance(table, JoinBase):
             return table
 
-    def to_ibis_table(self, query_info: QueryInfo):
+    def _to_ibis_table(self, query_info: QueryInfo):
         """
         Returns the dataframe resulting from the SQL query
         :return:
@@ -717,6 +719,8 @@ class SQLTransformer(TransformerBaseClass):
                 [table for table in tables if isinstance(table, Table)]
             )
             first_table = first_table[all_columns]
+
+        print(first_table)
 
         self._set_casing_for_groupby_names(query_info.group_columns, query_info.columns)
 
@@ -775,8 +779,7 @@ class SQLTransformer(TransformerBaseClass):
         :param query_info:
         :return:
         """
-        frame = self.to_ibis_table(query_info)
-        return frame
+        return self._to_ibis_table(query_info)
 
     def union_all(
         self, expr1: TableExpr, expr2: TableExpr,

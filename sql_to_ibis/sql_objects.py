@@ -337,17 +337,6 @@ class Aggregate(DerivedColumn):
     Store information about aggregations
     """
 
-    _function_map = {
-        "average": "mean",
-        "avg": "mean",
-        "mean": "mean",
-        "maximum": "max",
-        "max": "max",
-        "minimum": "min",
-        "min": "min",
-        "sum": "sum",
-    }
-
     def __init__(self, value, alias="", typename=""):
         DerivedColumn.__init__(self, value, alias, typename)
 
