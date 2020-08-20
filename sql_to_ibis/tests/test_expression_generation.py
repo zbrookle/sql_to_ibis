@@ -1651,3 +1651,18 @@ def test_count_star_cross_join():
     cross_join_table = DIGIMON_MOVE_LIST.cross_join(DIGIMON_MON_LIST)
     ibis_table = cross_join_table.aggregate([cross_join_table.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_window_function():
+    my_table = query(
+        """SELECT count,
+       duration_seconds,
+       SUM(duration_seconds) OVER
+         (PARTITION BY person) AS running_total,
+       COUNT(duration_seconds) OVER
+         (PARTITION BY person) AS running_count,
+       AVG(duration_seconds) OVER
+         (PARTITION BY person) AS running_avg
+  FROM time_data"""
+    )
