@@ -9,9 +9,10 @@ from tempfile import NamedTemporaryFile
 from typing import Callable, Set
 
 import ibis
-from ibis.expr.api import GroupedTableExpr, TableExpr
+from ibis.expr.types import TableExpr
+from ibis.expr.groupby import GroupedTableExpr
 from ibis.tests.util import assert_equal
-from pandas import DataFrame, read_csv
+from pandas import DataFrame
 import pytest
 
 from sql_to_ibis.sql_select_query import TableInfo

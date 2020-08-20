@@ -6,7 +6,7 @@ from datetime import date, datetime
 from freezegun import freeze_time
 import ibis
 from ibis.common.exceptions import IbisTypeError
-from ibis.expr.api import TableExpr
+from ibis.expr.types import TableExpr
 import pytest
 
 from sql_to_ibis import query, register_temp_table, remove_temp_table
@@ -1661,7 +1661,7 @@ def test_count_star_cross_join(digimon_move_list, digimon_mon_list):
 
 
 @assert_state_not_change
-def test_window_function(time_data):
+def test_window_function_partition(time_data):
     my_table = query(
         """SELECT count,
        duration_seconds,
@@ -1689,3 +1689,72 @@ def test_window_function(time_data):
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_window_function_partition_order_by(time_data):
+    my_table = query(
+        """SELECT count,
+       duration_seconds,
+       SUM(duration_seconds) OVER
+         (PARTITION BY person ORDER by count) AS running_total,
+       COUNT(duration_seconds) OVER
+         (PARTITION BY person ORDER by count) AS running_count,
+       AVG(duration_seconds) OVER
+         (PARTITION BY person ORDER by count) AS running_avg
+  FROM time_data"""
+    )
+    count_column = time_data.get_column("count")
+    ibis_table = time_data.projection(
+        [
+            count_column,
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+            .over(
+                ibis.cumulative_window(group_by=time_data.person, order_by=count_column)
+            )
+            .name("running_total"),
+            time_data.duration_seconds.count()
+            .over(
+                ibis.cumulative_window(group_by=time_data.person, order_by=count_column)
+            )
+            .name("running_count"),
+            time_data.duration_seconds.mean()
+            .over(
+                ibis.cumulative_window(group_by=time_data.person, order_by=count_column)
+            )
+            .name("running_avg"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+# @assert_state_not_change
+# def test_window_function_partition_order_by(time_data):
+#     my_table = query(
+#         """SELECT count,
+#        duration_seconds,
+#        SUM(duration_seconds) OVER
+#          (PARTITION BY person) AS running_total,
+#        COUNT(duration_seconds) OVER
+#          (PARTITION BY person) AS running_count,
+#        AVG(duration_seconds) OVER
+#          (PARTITION BY person) AS running_avg
+#   FROM time_data"""
+#     )
+#     ibis_table = time_data.projection(
+#         [
+#             time_data.get_column("count"),
+#             time_data.duration_seconds,
+#             time_data.duration_seconds.sum()
+#             .over(ibis.cumulative_window(group_by=time_data.person))
+#             .name("running_total"),
+#             time_data.duration_seconds.count()
+#             .over(ibis.cumulative_window(group_by=time_data.person))
+#             .name("running_count"),
+#             time_data.duration_seconds.mean()
+#             .over(ibis.cumulative_window(group_by=time_data.person))
+#             .name("running_avg"),
+#         ]
+#     )
+#     assert_ibis_equal_show_diff(ibis_table, my_table)

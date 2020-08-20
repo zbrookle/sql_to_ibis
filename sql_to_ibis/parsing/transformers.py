@@ -1,13 +1,11 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Tuple, Union, get_type_hints
+from typing import Dict, List, Optional, Tuple, Union
 
 import ibis
 from ibis.expr.api import NumericColumn
-from ibis.expr.operations import TableColumn
-from ibis.expr.types import ColumnExpr, NumericScalar, TableExpr, AnyScalar
+from ibis.expr.types import AnyColumn, NumericScalar, TableExpr, AnyScalar, BooleanValue
 from ibis.expr.window import Window
 from lark import Token, Transformer, Tree
-from pandas import Series
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
 from sql_to_ibis.exceptions.sql_exception import (
@@ -355,20 +353,18 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Literal(datetime(*(datetime_list[0] + datetime_list[1])))
 
-    def datetime_now(self, *extra_args):
+    def datetime_now(self, _):
         """
         Return current date and time
-        :param extra_args: Arguments that lark parser must pass in
         :return:
         """
         date_value = Literal(datetime.now())
         date_value.set_alias("now()")
         return date_value
 
-    def date_today(self, *extra_args):
+    def date_today(self, _):
         """
         Return current date
-        :param extra_args: Arguments that lark parser must pass in
         :return:
         """
         date_value = Literal(date.today())
@@ -472,10 +468,9 @@ class InternalTransformer(TransformerBaseClass):
         :param truth_series_pair:
         :return:
         """
-        truth_series_pair_values: List[Series] = []
+        truth_series_pair_values: List[BooleanValue] = []
         for i, value in enumerate(truth_series_pair):
             truth_series_pair_values.append(value.get_value())
-
         return Value(truth_series_pair_values[0] & truth_series_pair_values[1],)
 
     def bool_parentheses(self, bool_expression_in_list: list):
@@ -574,7 +569,7 @@ class InternalTransformer(TransformerBaseClass):
     def order_asc(self, column_list: List[Column]):
         """
         Return sql_object in asc order
-        :param column:
+        :param column_list:
         :return:
         """
         return Token("order", (column_list[0], True))
@@ -610,7 +605,7 @@ class InternalTransformer(TransformerBaseClass):
         for token in expressions:
             if token.type == "order":
                 token_tuple: Tuple[Column, bool] = token.value
-                ibis_value: ColumnExpr = token_tuple[0].get_value()
+                ibis_value: AnyColumn = token_tuple[0].get_value()
                 if rank_column is None:
                     rank_column = ibis_value
                 if not token_tuple[1]:
@@ -621,7 +616,12 @@ class InternalTransformer(TransformerBaseClass):
                 partition_list.append(column.get_value())
         return order_list, partition_list, rank_column
 
-    def apply_rank_function(self, first_column: ColumnExpr, rank_function: str):
+    def apply_rank_function(self, first_column: AnyColumn, rank_function: str):
+        """
+        :param first_column:
+        :param rank_function:
+        :return:
+        """
         assert rank_function in {"rank", "dense_rank"}
         if rank_function == "rank":
             return first_column.rank()
@@ -629,6 +629,11 @@ class InternalTransformer(TransformerBaseClass):
             return first_column.dense_rank()
 
     def rank(self, tokens: List[Token], rank_function: str):
+        """
+        :param tokens:
+        :param rank_function:
+        :return:
+        """
         orders, partitions, first_column = self._get_rank_orders_and_partitions(tokens)
         return Expression(
             self.apply_rank_function(first_column, rank_function).over(
@@ -800,7 +805,9 @@ class InternalTransformerWithStarVal(InternalTransformer):
             available_relations,
         )
 
-    def apply_ibis_aggregation(self, column: Column, aggregation: str) -> TableColumn:
+    def apply_ibis_aggregation(
+        self, column: Column, aggregation: str
+    ) -> Union[CountStar, AnyScalar]:
         if aggregation in COUNT_AGGREGATIONS and column.name == "*":
             return column.get_table().get_table_expr().count()
         return super().apply_ibis_aggregation(column, aggregation)

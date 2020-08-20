@@ -176,14 +176,14 @@ def test_window_function(time_data):
             time_data.get_column("count"),
             time_data.duration_seconds,
             time_data.duration_seconds.sum()
-                .over(ibis.cumulative_window(group_by=time_data.person))
-                .name("running_total"),
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_total"),
             time_data.duration_seconds.count()
-                .over(ibis.cumulative_window(group_by=time_data.person))
-                .name("running_count"),
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_count"),
             time_data.duration_seconds.mean()
-                .over(ibis.cumulative_window(group_by=time_data.person))
-                .name("running_avg"),
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_avg"),
         ]
     ).execute()
     assert_frame_equal(ibis_table, my_table)

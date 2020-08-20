@@ -5,7 +5,7 @@ import re
 from typing import Any, Optional, Set, Union
 
 import ibis
-from ibis.expr.api import ColumnExpr, TableExpr, ValueExpr
+from ibis.expr.types import AnyColumn, TableExpr, ValueExpr
 from ibis.expr.operations import TableColumn
 from pandas import Series
 
@@ -342,7 +342,7 @@ class Column(Value):
     """
 
     def __init__(
-        self, name: str, alias="", typename="", value: Optional[ColumnExpr] = None
+        self, name: str, alias="", typename="", value: Optional[AnyColumn] = None
     ):
         Value.__init__(self, value, alias, typename)
         self.name = name
@@ -406,7 +406,7 @@ class GroupByColumn(Column):
         groupby_name: str,
         alias="",
         typename="",
-        value: Optional[ColumnExpr] = None,
+        value: Optional[AnyColumn] = None,
     ):
         super().__init__(name, alias, typename, value)
         self.group_by_name = groupby_name
