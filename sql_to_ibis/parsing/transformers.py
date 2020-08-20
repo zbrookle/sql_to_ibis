@@ -1,10 +1,11 @@
 from datetime import date, datetime
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, get_type_hints
 
 import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.operations import TableColumn
-from ibis.expr.types import ColumnExpr, TableExpr
+from ibis.expr.types import ColumnExpr, IntegerScalar, TableExpr
+from ibis.expr.window import Window
 from lark import Token, Transformer, Tree
 from pandas import Series
 
@@ -171,11 +172,13 @@ class InternalTransformer(TransformerBaseClass):
         return new_tree
 
     def apply_ibis_aggregation(
-        self, column: Column, aggregation: str
-    ) -> Union[CountStar, TableColumn]:
-        aggregation = aggregation.replace("(", "") # Needed for ensuring ( directly
+        self, column: Union[Column, Window], aggregation: str
+    ) -> Union[CountStar, IntegerScalar]:
+        aggregation = aggregation.replace("(", "")  # Needed for ensuring ( directly
         # follows all aggregate functions
-        ibis_column = column.value
+        ibis_column = column
+        if isinstance(ibis_column, Column):
+            ibis_column = column.value
         if column.name == "*":
             return CountStar()
         if aggregation in NUMERIC_AGGREGATIONS:
@@ -193,13 +196,34 @@ class InternalTransformer(TransformerBaseClass):
             return ibis_column.count()
         raise UnsupportedColumnOperation(type(ibis_column), aggregation)
 
-    def sql_aggregation(self, agg_and_column: list):
-        aggregation: Token = agg_and_column[0]
-        column: Column = agg_and_column[1]
+    def sql_aggregation(self, agg_parts: list):
+        aggregation: Token = agg_parts[0]
+        column: Column = agg_parts[1]
+        window: Optional[List[Token]] = agg_parts[2] if len(agg_parts) > 2 else None
+        ibis_aggregation = self.apply_ibis_aggregation(
+            column, aggregation.value.lower()
+        )
+        if isinstance(ibis_aggregation, IntegerScalar) and window is not None:
+            window_partition_column: Column = agg_parts[2][0].value
+            ibis_aggregation = self.apply_ibis_window_function(
+                ibis_aggregation, window_partition_column
+            )
+            return Column(
+                column.name,
+                alias=column.alias,
+                typename=column.typename,
+                value=ibis_aggregation,
+            )
         return Aggregate(
-            self.apply_ibis_aggregation(column, aggregation.value.lower()),
-            alias=column.alias,
-            typename=column.typename,
+            ibis_aggregation, alias=column.alias, typename=column.typename,
+        )
+
+    @staticmethod
+    def apply_ibis_window_function(
+        ibis_aggregation: IntegerScalar, window_partition_column: Column
+    ) -> Window:
+        return ibis_aggregation.over(
+            ibis.cumulative_window(group_by=window_partition_column.get_value())
         )
 
     def mul(self, args: Tuple[int, int]):
@@ -539,9 +563,9 @@ class InternalTransformer(TransformerBaseClass):
 
         return Expression(value=case_expression)
 
-    def rank_form(self, form):
+    def window_form(self, form):
         """
-        Returns the rank form
+        Returns the window form
         :param form:
         :return:
         """
