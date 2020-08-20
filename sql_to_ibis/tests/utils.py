@@ -30,26 +30,6 @@ def pandas_to_ibis(frame: DataFrame, name: str):
     return test
 
 
-# Import the data for testing
-FOREST_FIRES: TableExpr = pandas_to_ibis(
-    read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES"
-)
-DIGIMON_MON_LIST = read_csv(DATA_PATH / "DigiDB_digimonlist.csv")
-DIGIMON_MOVE_LIST = read_csv(DATA_PATH / "DigiDB_movelist.csv")
-DIGIMON_SUPPORT_LIST: TableExpr = pandas_to_ibis(
-    read_csv(DATA_PATH / "DigiDB_supportlist.csv"), "DIGIMON_SUPPORT_LIST"
-)
-AVOCADO: TableExpr = pandas_to_ibis(read_csv(DATA_PATH / "avocado.csv"), "AVOCADO")
-TIME_DATA: TableExpr = pandas_to_ibis(
-    read_csv(DATA_PATH / "time_data.csv"), "TIME_DATA"
-)
-
-# Name change is for name interference
-DIGIMON_MON_LIST["mon_attribute"] = DIGIMON_MON_LIST["Attribute"]
-DIGIMON_MOVE_LIST["move_attribute"] = DIGIMON_MOVE_LIST["Attribute"]
-DIGIMON_MON_LIST = pandas_to_ibis(DIGIMON_MON_LIST, "DIGIMON_MON_LIST")
-DIGIMON_MOVE_LIST = pandas_to_ibis(DIGIMON_MOVE_LIST, "DIGIMON_MOVE_LIST")
-
 join_params = pytest.mark.parametrize(
     ("sql_join", "ibis_join"),
     [
