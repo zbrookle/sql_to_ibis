@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union, get_type_hints
 import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.operations import TableColumn
-from ibis.expr.types import ColumnExpr, IntegerScalar, TableExpr
+from ibis.expr.types import ColumnExpr, NumericScalar, TableExpr, AnyScalar
 from ibis.expr.window import Window
 from lark import Token, Transformer, Tree
 from pandas import Series
@@ -173,7 +173,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def apply_ibis_aggregation(
         self, column: Union[Column, Window], aggregation: str
-    ) -> Union[CountStar, IntegerScalar]:
+    ) -> Union[CountStar, AnyScalar]:
         aggregation = aggregation.replace("(", "")  # Needed for ensuring ( directly
         # follows all aggregate functions
         ibis_column = column
@@ -203,24 +203,27 @@ class InternalTransformer(TransformerBaseClass):
         ibis_aggregation = self.apply_ibis_aggregation(
             column, aggregation.value.lower()
         )
-        if isinstance(ibis_aggregation, IntegerScalar) and window is not None:
+        if isinstance(ibis_aggregation, NumericScalar) and window is not None:
             window_partition_column: Column = agg_parts[2][0].value
-            ibis_aggregation = self.apply_ibis_window_function(
+            window_column = self.apply_ibis_window_function(
                 ibis_aggregation, window_partition_column
             )
             return Column(
                 column.name,
                 alias=column.alias,
                 typename=column.typename,
-                value=ibis_aggregation,
+                value=window_column,
             )
+        print("yes")
+        print(ibis_aggregation)
+        print(type(ibis_aggregation))
         return Aggregate(
             ibis_aggregation, alias=column.alias, typename=column.typename,
         )
 
     @staticmethod
     def apply_ibis_window_function(
-        ibis_aggregation: IntegerScalar, window_partition_column: Column
+        ibis_aggregation: NumericScalar, window_partition_column: Column
     ) -> Window:
         return ibis_aggregation.over(
             ibis.cumulative_window(group_by=window_partition_column.get_value())

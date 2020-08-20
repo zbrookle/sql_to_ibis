@@ -283,7 +283,9 @@ def test_join_wo_specifying_table(
 
 
 @assert_state_not_change
-def test_cross_joins(digimon_move_mon_join_columns, digimon_move_list, digimon_mon_list):
+def test_cross_joins(
+    digimon_move_mon_join_columns, digimon_move_list, digimon_mon_list
+):
     """
     Test right, left, inner, and outer joins
     :return:
@@ -463,7 +465,7 @@ def test_agg_w_groupby_select_group_by_column_different_casing(forest_fires):
 
 
 @assert_state_not_change
-def test_group_by_casing_with_selection():
+def test_group_by_casing_with_selection(digimon_move_list, digimon_mon_list):
     my_table = query(
         "select max(power) as power, type from digimon_move_list group by type"
     )
@@ -474,7 +476,9 @@ def test_group_by_casing_with_selection():
 
 
 @assert_state_not_change
-def test_agg_group_by_different_casing_in_ibis_schema_group_by():
+def test_agg_group_by_different_casing_in_ibis_schema_group_by(
+    digimon_move_list, digimon_mon_list
+):
     my_table = query("select max(power) as power from digimon_move_list group by type")
     ibis_table = (
         digimon_move_list.group_by(digimon_move_list.Type.name("type"))
@@ -626,7 +630,9 @@ def test_operations_between_columns_and_numbers(forest_fires):
 
 
 @assert_state_not_change
-def test_select_star_from_multiple_tables(digimon_move_mon_join_columns):
+def test_select_star_from_multiple_tables(
+    digimon_move_mon_join_columns, digimon_move_list, digimon_mon_list
+):
     """
     Test selecting from two different tables
     :return:
@@ -671,7 +677,7 @@ def test_select_columns_from_three_with_same_column_name(forest_fires):
 
 
 @assert_state_not_change
-def test_maintain_case_in_query():
+def test_maintain_case_in_query(forest_fires):
     """
     Test nested subqueries
     :return:
@@ -682,7 +688,7 @@ def test_maintain_case_in_query():
 
 
 @assert_state_not_change
-def test_nested_subquery():
+def test_nested_subquery(forest_fires):
     """
     Test nested subqueries
     :return:
@@ -697,7 +703,7 @@ def test_nested_subquery():
 
 
 @assert_state_not_change
-def test_union():
+def test_union(forest_fires):
     """
     Test union in queries
     :return:
@@ -716,7 +722,7 @@ def test_union():
 
 
 @assert_state_not_change
-def test_union_distinct():
+def test_union_distinct(forest_fires):
     """
     Test union distinct in queries
     :return:
@@ -735,7 +741,7 @@ def test_union_distinct():
 
 
 @assert_state_not_change
-def test_union_all():
+def test_union_all(forest_fires):
     """
     Test union distinct in queries
     :return:
@@ -842,7 +848,7 @@ def test_except_all():
 
 
 @assert_state_not_change
-def test_between_operator():
+def test_between_operator(forest_fires):
     """
     Test using between operator
     :return:
@@ -858,7 +864,7 @@ def test_between_operator():
 
 
 @assert_state_not_change
-def test_in_operator():
+def test_in_operator(forest_fires):
     """
     Test using in operator in a sql query
     :return:
@@ -875,7 +881,7 @@ def test_in_operator():
 
 
 @assert_state_not_change
-def test_in_operator_expression_numerical():
+def test_in_operator_expression_numerical(forest_fires):
     """
     Test using in operator in a sql query
     :return:
@@ -890,7 +896,7 @@ def test_in_operator_expression_numerical():
 
 
 @assert_state_not_change
-def test_not_in_operator():
+def test_not_in_operator(forest_fires):
     """
     Test using in operator in a sql query
     :return:
@@ -907,7 +913,7 @@ def test_not_in_operator():
 
 
 @assert_state_not_change
-def test_case_statement_w_name():
+def test_case_statement_w_name(forest_fires):
     """
     Test using case statements
     :return:
@@ -933,7 +939,7 @@ def test_case_statement_w_name():
 
 
 @assert_state_not_change
-def test_case_statement_w_no_name():
+def test_case_statement_w_no_name(forest_fires):
     """
     Test using case statements
     :return:
@@ -956,7 +962,7 @@ def test_case_statement_w_no_name():
 
 
 @assert_state_not_change
-def test_case_statement_w_other_columns_as_result():
+def test_case_statement_w_other_columns_as_result(forest_fires):
     """
     Test using case statements
     :return:
@@ -980,7 +986,7 @@ def test_case_statement_w_other_columns_as_result():
 
 # TODO Ibis is showing window as object in string representation
 @assert_state_not_change
-def test_rank_statement_one_column():
+def test_rank_statement_one_column(forest_fires):
     """
     Test rank statement
     :return:
@@ -1003,7 +1009,7 @@ def test_rank_statement_one_column():
 
 
 @assert_state_not_change
-def test_rank_statement_many_columns():
+def test_rank_statement_many_columns(forest_fires):
     """
     Test rank statement
     :return:
@@ -1037,7 +1043,7 @@ def test_rank_statement_many_columns():
 
 
 @assert_state_not_change
-def test_dense_rank_statement_many_columns():
+def test_dense_rank_statement_many_columns(forest_fires):
     """
     Test dense_rank statement
     :return:
@@ -1072,7 +1078,7 @@ def test_dense_rank_statement_many_columns():
 
 
 @assert_state_not_change
-def test_rank_over_partition_by():
+def test_rank_over_partition_by(forest_fires):
     """
     Test rank partition by statement
     :return:
@@ -1109,7 +1115,7 @@ def test_rank_over_partition_by():
 
 
 @assert_state_not_change
-def test_partition_by_multiple_columns():
+def test_partition_by_multiple_columns(forest_fires):
     """
     Test rank partition by statement
     :return:
@@ -1142,7 +1148,7 @@ def test_partition_by_multiple_columns():
 
 
 @assert_state_not_change
-def test_dense_rank_over_partition_by():
+def test_dense_rank_over_partition_by(forest_fires):
     """
     Test rank partition by statement
     :return:
@@ -1179,7 +1185,7 @@ def test_dense_rank_over_partition_by():
 
 
 @assert_state_not_change
-def test_set_string_value_as_column_value():
+def test_set_string_value_as_column_value(forest_fires):
     """
     Select a string like 'Yes' as a column value
     :return:
@@ -1193,7 +1199,7 @@ def test_set_string_value_as_column_value():
 
 
 @assert_state_not_change
-def test_datetime_cast():
+def test_datetime_cast(forest_fires):
     """
     Select casting a string as a date
     :return:
@@ -1209,7 +1215,7 @@ def test_datetime_cast():
 
 
 @assert_state_not_change
-def test_date_cast():
+def test_date_cast(forest_fires):
     """
     Select casting a string as a date
     :return:
@@ -1225,7 +1231,7 @@ def test_date_cast():
 
 
 @assert_state_not_change
-def test_timestamps():
+def test_timestamps(forest_fires):
     """
     Select now() as date
     :return:
@@ -1247,7 +1253,7 @@ def test_timestamps():
 
 
 @assert_state_not_change
-def test_case_statement_with_same_conditions():
+def test_case_statement_with_same_conditions(forest_fires):
     """
     Test using case statements
     :return:
@@ -1271,7 +1277,7 @@ def test_case_statement_with_same_conditions():
 
 # TODO In ibis can't name same column different things in projection
 @assert_state_not_change
-def test_multiple_aliases_same_column():
+def test_multiple_aliases_same_column(forest_fires):
     """
     Test multiple aliases on the same column
     :return:
@@ -1296,7 +1302,7 @@ def test_multiple_aliases_same_column():
 
 @pytest.mark.xfail(reason="Will be fixed in next ibis release", raises=IbisTypeError)
 @assert_state_not_change
-def test_sql_data_types():
+def test_sql_data_types(avocado):
     """
     Tests sql data types
     :return:
@@ -1327,10 +1333,10 @@ def test_sql_data_types():
         """
     )
 
-    date_column = AVOCADO.Date
-    id_column = AVOCADO.avocado_id
-    region_column = AVOCADO.region
-    ibis_table = AVOCADO.projection(
+    date_column = avocado.Date
+    id_column = avocado.avocado_id
+    region_column = avocado.region
+    ibis_table = avocado.projection(
         [
             id_column.cast("string").name("avocado_id_object"),
             id_column.cast("int16").name("avocado_id_int16"),
@@ -1377,7 +1383,7 @@ def test_sql_data_types():
     ],
 )
 @assert_state_not_change
-def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
+def test_joining_two_subqueries_with_overlapping_columns_same_table(sql, forest_fires):
     my_table = query(sql)
     columns = ["X", "Y", "rain"]
 
@@ -1419,7 +1425,9 @@ def test_joining_two_subqueries_with_overlapping_columns_same_table(sql):
     ],
 )
 @assert_state_not_change
-def test_joining_two_subqueries_with_overlapping_columns_different_tables(sql):
+def test_joining_two_subqueries_with_overlapping_columns_different_tables(
+    sql, digimon_mon_list, digimon_move_list
+):
     my_table = query(sql)
     subquery1 = digimon_move_list[
         [
@@ -1451,7 +1459,7 @@ def test_joining_two_subqueries_with_overlapping_columns_different_tables(sql):
 
 
 @assert_state_not_change
-def test_math_order_of_operations_no_parens():
+def test_math_order_of_operations_no_parens(avocado):
     """
     Test math parentheses
     :return:
@@ -1459,10 +1467,10 @@ def test_math_order_of_operations_no_parens():
 
     my_table = query("select 20 * avocado_id + 3 / 20 as my_math from avocado")
 
-    ibis_table = AVOCADO.projection(
+    ibis_table = avocado.projection(
         [
             (
-                ibis.literal(20) * AVOCADO.avocado_id
+                ibis.literal(20) * avocado.avocado_id
                 + ibis.literal(3) / ibis.literal(20)
             ).name("my_math")
         ]
@@ -1471,7 +1479,7 @@ def test_math_order_of_operations_no_parens():
 
 
 @assert_state_not_change
-def test_math_order_of_operations_with_parens():
+def test_math_order_of_operations_with_parens(avocado):
     """
     Test math parentheses
     :return:
@@ -1480,8 +1488,8 @@ def test_math_order_of_operations_with_parens():
     my_table = query(
         "select 20 * (avocado_id + 3) / (20 + avocado_id) as my_math from avocado"
     )
-    avocado_id = AVOCADO.avocado_id
-    ibis_table = AVOCADO.projection(
+    avocado_id = avocado.avocado_id
+    ibis_table = avocado.projection(
         [
             (
                 ibis.literal(20)
@@ -1494,7 +1502,7 @@ def test_math_order_of_operations_with_parens():
 
 
 @assert_state_not_change
-def test_boolean_order_of_operations_with_parens():
+def test_boolean_order_of_operations_with_parens(forest_fires):
     """
     Test boolean order of operations with parentheses
     :return:
@@ -1514,7 +1522,7 @@ def test_boolean_order_of_operations_with_parens():
 
 
 @assert_state_not_change
-def test_capitalized_agg_functions():
+def test_capitalized_agg_functions(digimon_move_list):
     my_table = query("select MAX(type), AVG(power), MiN(power) from DIGImON_move_LiST")
     ibis_table = digimon_move_list.aggregate(
         [
@@ -1527,7 +1535,7 @@ def test_capitalized_agg_functions():
 
 
 @assert_state_not_change
-def test_aggregates_in_subquery():
+def test_aggregates_in_subquery(digimon_move_list):
     my_table = query("select * from (select max(power) from digimon_move_list) test")
     ibis_table = digimon_move_list.aggregate(
         digimon_move_list.Power.max().name("_col0")
@@ -1536,7 +1544,7 @@ def test_aggregates_in_subquery():
 
 
 @assert_state_not_change
-def test_column_values_in_subquery():
+def test_column_values_in_subquery(digimon_move_list):
     my_table = query(
         """
     select move, type, power from
@@ -1564,21 +1572,21 @@ def test_column_values_in_subquery():
 
 
 @assert_state_not_change
-def test_select_column_with_table():
+def test_select_column_with_table(forest_fires):
     my_table = query("select forest_fires.wind from forest_fires")
     ibis_table = forest_fires[forest_fires.wind]
     assert_ibis_equal_show_diff(my_table, ibis_table)
 
 
 @assert_state_not_change
-def test_select_column_with_alias_prefix():
+def test_select_column_with_alias_prefix(forest_fires):
     my_table = query("select table1.wind from forest_fires table1")
     ibis_table = forest_fires[forest_fires.wind]
     assert_ibis_equal_show_diff(my_table, ibis_table)
 
 
 @assert_state_not_change
-def test_select_ambiguous_column_in_database_context():
+def test_select_ambiguous_column_in_database_context(digimon_mon_list):
     my_table = query("select attribute from digimon_mon_list")
     ibis_table = digimon_mon_list[digimon_mon_list.Attribute.name("attribute")]
     assert_ibis_equal_show_diff(my_table, ibis_table)
@@ -1586,7 +1594,7 @@ def test_select_ambiguous_column_in_database_context():
 
 @ibis_not_implemented
 @assert_state_not_change
-def test_group_by_having():
+def test_group_by_having(digimon_move_list):
     my_table = query(
         "select type from digimon_move_list group by type having avg(power) > 50"
     )
@@ -1636,14 +1644,14 @@ def test_invalid_queries(sql):
 
 
 @assert_state_not_change
-def test_count_star():
+def test_count_star(forest_fires):
     my_table = query("select count(*) from forest_fires")
     ibis_table = forest_fires.aggregate([forest_fires.count().name("_col3")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
-def test_count_star_cross_join():
+def test_count_star_cross_join(digimon_move_list, digimon_mon_list):
     my_table = query(
         "select count(*) from digimon_move_list cross join " "digimon_mon_list"
     )
@@ -1653,7 +1661,7 @@ def test_count_star_cross_join():
 
 
 @assert_state_not_change
-def test_window_function():
+def test_window_function(time_data):
     my_table = query(
         """SELECT count,
        duration_seconds,
@@ -1665,5 +1673,19 @@ def test_window_function():
          (PARTITION BY person) AS running_avg
   FROM time_data"""
     )
-    print(my_table)
-    raise Exception
+    ibis_table = time_data.projection(
+        [
+            time_data.get_column("count"),
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_total"),
+            time_data.duration_seconds.count()
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_count"),
+            time_data.duration_seconds.mean()
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_avg"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)

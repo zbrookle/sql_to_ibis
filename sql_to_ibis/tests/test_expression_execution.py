@@ -1,4 +1,5 @@
 from ibis.expr.api import TableExpr
+import ibis
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -158,7 +159,7 @@ def test_joining_two_subqueries_with_overlapping_columns_different_tables(
     assert_frame_equal(ibis_table, my_table)
 
 
-def test_window_function():
+def test_window_function(time_data):
     my_table = query(
         """SELECT count,
        duration_seconds,
@@ -170,5 +171,19 @@ def test_window_function():
          (PARTITION BY person) AS running_avg
   FROM time_data"""
     ).execute()
-    print(my_table)
-    raise Exception
+    ibis_table = time_data.projection(
+        [
+            time_data.get_column("count"),
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+                .over(ibis.cumulative_window(group_by=time_data.person))
+                .name("running_total"),
+            time_data.duration_seconds.count()
+                .over(ibis.cumulative_window(group_by=time_data.person))
+                .name("running_count"),
+            time_data.duration_seconds.mean()
+                .over(ibis.cumulative_window(group_by=time_data.person))
+                .name("running_avg"),
+        ]
+    ).execute()
+    assert_frame_equal(ibis_table, my_table)

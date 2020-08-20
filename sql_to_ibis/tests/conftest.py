@@ -33,6 +33,13 @@ def forest_fires(pandas_client):
 
 
 @pytest.fixture(scope="session")
+def avocado(pandas_client):
+    return ibis.pandas.from_dataframe(
+        read_csv(DATA_PATH / "avocado.csv"), "AVOCADO", pandas_client
+    )
+
+
+@pytest.fixture(scope="session")
 def time_data(pandas_client):
     return ibis.pandas.from_dataframe(
         read_csv(DATA_PATH / "time_data.csv"), "TIME_DATA", pandas_client
@@ -40,11 +47,18 @@ def time_data(pandas_client):
 
 
 @pytest.fixture(autouse=True, scope="session")
-def register_temp_tables(digimon_mon_list, digimon_move_list, forest_fires, time_data):
-    register_temp_table(digimon_mon_list, "DIGIMON_MON_LIST")
-    register_temp_table(digimon_move_list, "DIGIMON_MOVE_LIST")
-    register_temp_table(forest_fires, "FOREST_FIRES")
-    register_temp_table(time_data, "TIME_DATA")
+def register_temp_tables(
+    digimon_mon_list, digimon_move_list, forest_fires, time_data, avocado
+):
+    tables = {
+        "DIGIMON_MON_LIST": digimon_mon_list,
+        "DIGIMON_MOVE_LIST": digimon_move_list,
+        "FOREST_FIRES": forest_fires,
+        "TIME_DATA": time_data,
+        "AVOCADO": avocado,
+    }
+    for table_name in tables:
+        register_temp_table(tables[table_name], table_name)
     yield
-    for table in ["DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST", "FOREST_FIRES", "TIME_DATA"]:
-        remove_temp_table(table)
+    for table_name in tables:
+        remove_temp_table(table_name)
