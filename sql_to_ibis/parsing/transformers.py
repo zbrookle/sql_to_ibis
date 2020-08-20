@@ -583,30 +583,6 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Token("partition", column_list[0])
 
-    def _get_rank_orders_and_partitions(self, tokens: List[List[Token]]):
-        """
-        Returns the evaluated rank expressions
-        :param tokens: Tokens making up the rank sql_object
-        :return:
-        """
-        expressions = tokens[0]
-        order_list = []
-        partition_list = []
-        rank_column = None
-        for token in expressions:
-            if token.type == "order":
-                token_tuple: Tuple[Column, bool] = token.value
-                ibis_value: AnyColumn = token_tuple[0].get_value()
-                if rank_column is None:
-                    rank_column = ibis_value
-                if not token_tuple[1]:
-                    ibis_value = ibis.desc(ibis_value)
-                order_list.append(ibis_value)
-            elif token.type == "partition":
-                column: Column = token.value
-                partition_list.append(column.get_value())
-        return order_list, partition_list, rank_column
-
     def apply_rank_function(self, first_column: AnyColumn, rank_function: str):
         """
         :param first_column:
@@ -619,16 +595,32 @@ class InternalTransformer(TransformerBaseClass):
         if rank_function == "dense_rank":
             return first_column.dense_rank()
 
-    def rank(self, tokens: List[Token], rank_function: str):
+    def _get_first_column_from_tokens(
+        self, tokens_and_tuples: List[Token]
+    ):
+        first_value = tokens_and_tuples[0].value
+        column = first_value
+        if isinstance(first_value, tuple):
+            column = first_value[0]
+        return column.get_value()
+
+    def rank(
+        self,
+        tokens_and_tuples: List[List[Union[Token, Tuple[Token, bool]]]],
+        rank_function: str,
+    ):
         """
-        :param tokens:
+        :param tokens_and_tuples:
         :param rank_function:
         :return:
         """
-        orders, partitions, first_column = self._get_rank_orders_and_partitions(tokens)
+        tokens_and_tuples = tokens_and_tuples[0]
+        first_column = self._get_first_column_from_tokens(tokens_and_tuples)
+        print(first_column)
+        window = Window(tokens_and_tuples, first_column)
         return Expression(
             self.apply_rank_function(first_column, rank_function).over(
-                ibis.window(order_by=orders, group_by=partitions)
+                ibis.window(order_by=window.order_by, group_by=window.partition)
             )
         )
 

@@ -1097,7 +1097,7 @@ def test_rank_over_partition_by(forest_fires):
             forest_fires.rain,
             forest_fires.month,
             forest_fires.day,
-            forest_fires.wind.rank()
+            forest_fires.day.rank()
             .over(
                 ibis.window(
                     order_by=[
@@ -1134,7 +1134,7 @@ def test_partition_by_multiple_columns(forest_fires):
             forest_fires.rain,
             forest_fires.month,
             forest_fires.day,
-            forest_fires.wind.rank()
+            forest_fires.day.rank()
             .over(
                 ibis.window(
                     order_by=[forest_fires.wind],
@@ -1167,7 +1167,7 @@ def test_dense_rank_over_partition_by(forest_fires):
             forest_fires.rain,
             forest_fires.month,
             forest_fires.day,
-            forest_fires.wind.dense_rank()
+            forest_fires.day.dense_rank()
             .over(
                 ibis.window(
                     order_by=[
