@@ -14,7 +14,6 @@ from ibis.tests.util import assert_equal
 from pandas import DataFrame, read_csv
 import pytest
 
-from sql_to_ibis import register_temp_table, remove_temp_table
 from sql_to_ibis.sql_select_query import TableInfo
 
 DATA_PATH = Path(__file__).parent.parent / "data"
@@ -64,28 +63,6 @@ join_params = pytest.mark.parametrize(
         ("right", "right"),
     ],
 )
-
-
-def register_env_tables():
-    """
-    Returns all globals but in lower case
-    :return:
-    """
-    for variable_name in globals():
-        variable = globals()[variable_name]
-        if isinstance(variable, TableExpr):
-            register_temp_table(table=variable, table_name=variable_name)
-
-
-def remove_env_tables():
-    """
-    Remove all env tables
-    :return:
-    """
-    for variable_name in globals():
-        variable = globals()[variable_name]
-        if isinstance(variable, DataFrame):
-            remove_temp_table(table_name=variable_name)
 
 
 def display_dict_difference(before_dict: dict, after_dict: dict, name: str):
