@@ -214,9 +214,6 @@ class InternalTransformer(TransformerBaseClass):
                 typename=column.typename,
                 value=window_column,
             )
-        print("yes")
-        print(ibis_aggregation)
-        print(type(ibis_aggregation))
         return Aggregate(
             ibis_aggregation, alias=column.alias, typename=column.typename,
         )
@@ -793,8 +790,6 @@ class InternalTransformerWithStarVal(InternalTransformer):
         internal_transformer: InternalTransformer,
         available_relations: List[TableExpr],
     ):
-        print(internal_transformer._alias_registry)
-
         return cls(
             internal_transformer._tables,
             internal_transformer._table_map,

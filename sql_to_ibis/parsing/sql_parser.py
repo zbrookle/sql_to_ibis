@@ -695,7 +695,6 @@ class SQLTransformer(TransformerBaseClass):
         query_info.perform_transformation()
 
         relation = self._get_relation(query_info)
-        print(relation)
 
         self._set_casing_for_groupby_names(query_info)
 
