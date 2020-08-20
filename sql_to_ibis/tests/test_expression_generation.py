@@ -761,7 +761,7 @@ def test_union_all(forest_fires):
 
 @ibis_not_implemented
 @assert_state_not_change
-def test_intersect_distinct():
+def test_intersect_distinct(forest_fires):
     """
     Test union distinct in queries
     :return:
@@ -781,7 +781,7 @@ def test_intersect_distinct():
 
 @ibis_not_implemented
 @assert_state_not_change
-def test_except_distinct():
+def test_except_distinct(forest_fires):
     """
     Test except distinct in queries
     :return:
@@ -823,7 +823,7 @@ def test_not_implemented_errors(set_op: str):
 
 @ibis_not_implemented
 @assert_state_not_change
-def test_except_all():
+def test_except_all(forest_fires):
     """
     Test except distinct in queries
     :return:
@@ -1697,7 +1697,7 @@ def test_window_function_partition_order_by(time_data):
         """SELECT count,
        duration_seconds,
        SUM(duration_seconds) OVER
-         (PARTITION BY person ORDER by count) AS running_total,
+         (PARTITION BY person, team ORDER by start_time, end_time) AS running_total,
        COUNT(duration_seconds) OVER
          (PARTITION BY person ORDER by count) AS running_count,
        AVG(duration_seconds) OVER
@@ -1711,7 +1711,10 @@ def test_window_function_partition_order_by(time_data):
             time_data.duration_seconds,
             time_data.duration_seconds.sum()
             .over(
-                ibis.cumulative_window(group_by=time_data.person, order_by=count_column)
+                ibis.cumulative_window(
+                    group_by=[time_data.person, time_data.team],
+                    order_by=[time_data.start_time, time_data.end_time],
+                )
             )
             .name("running_total"),
             time_data.duration_seconds.count()
@@ -1729,32 +1732,32 @@ def test_window_function_partition_order_by(time_data):
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-# @assert_state_not_change
-# def test_window_function_partition_order_by(time_data):
-#     my_table = query(
-#         """SELECT count,
-#        duration_seconds,
-#        SUM(duration_seconds) OVER
-#          (PARTITION BY person) AS running_total,
-#        COUNT(duration_seconds) OVER
-#          (PARTITION BY person) AS running_count,
-#        AVG(duration_seconds) OVER
-#          (PARTITION BY person) AS running_avg
-#   FROM time_data"""
-#     )
-#     ibis_table = time_data.projection(
-#         [
-#             time_data.get_column("count"),
-#             time_data.duration_seconds,
-#             time_data.duration_seconds.sum()
-#             .over(ibis.cumulative_window(group_by=time_data.person))
-#             .name("running_total"),
-#             time_data.duration_seconds.count()
-#             .over(ibis.cumulative_window(group_by=time_data.person))
-#             .name("running_count"),
-#             time_data.duration_seconds.mean()
-#             .over(ibis.cumulative_window(group_by=time_data.person))
-#             .name("running_avg"),
-#         ]
-#     )
-#     assert_ibis_equal_show_diff(ibis_table, my_table)
+@assert_state_not_change
+def test_window_function_order_by(time_data):
+    my_table = query(
+        """SELECT count,
+       duration_seconds,
+       SUM(duration_seconds) OVER
+         (ORDER BY start_time) AS running_total,
+       COUNT(duration_seconds) OVER
+         (ORDER BY start_time) AS running_count,
+       AVG(duration_seconds) OVER
+         (ORDER BY start_time) AS running_avg
+  FROM time_data"""
+    )
+    ibis_table = time_data.projection(
+        [
+            time_data.get_column("count"),
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+            .over(ibis.cumulative_window(order_by=time_data.start_time))
+            .name("running_total"),
+            time_data.duration_seconds.count()
+            .over(ibis.cumulative_window(order_by=time_data.start_time))
+            .name("running_count"),
+            time_data.duration_seconds.mean()
+            .over(ibis.cumulative_window(order_by=time_data.start_time))
+            .name("running_avg"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)

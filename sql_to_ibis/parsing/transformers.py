@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.types import AnyColumn, NumericScalar, TableExpr, AnyScalar, BooleanValue
-from ibis.expr.window import Window
+from ibis.expr.window import Window as IbisWindow
 from lark import Token, Transformer, Tree
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
@@ -39,6 +39,7 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Table,
     Value,
+    Window,
 )
 
 
@@ -170,7 +171,7 @@ class InternalTransformer(TransformerBaseClass):
         return new_tree
 
     def apply_ibis_aggregation(
-        self, column: Union[Column, Window], aggregation: str
+        self, column: Union[Column, IbisWindow], aggregation: str
     ) -> Union[CountStar, AnyScalar]:
         aggregation = aggregation.replace("(", "")  # Needed for ensuring ( directly
         # follows all aggregate functions
@@ -197,31 +198,23 @@ class InternalTransformer(TransformerBaseClass):
     def sql_aggregation(self, agg_parts: list):
         aggregation: Token = agg_parts[0]
         column: Column = agg_parts[1]
-        window: Optional[List[Token]] = agg_parts[2] if len(agg_parts) > 2 else None
+        window_parts: Optional[List[Token]] = agg_parts[2] if len(
+            agg_parts
+        ) > 2 else None
         ibis_aggregation = self.apply_ibis_aggregation(
             column, aggregation.value.lower()
         )
-        if isinstance(ibis_aggregation, NumericScalar) and window is not None:
-            window_partition_column: Column = agg_parts[2][0].value
-            window_column = self.apply_ibis_window_function(
-                ibis_aggregation, window_partition_column
-            )
+        if isinstance(ibis_aggregation, NumericScalar) and window_parts is not None:
             return Column(
                 column.name,
                 alias=column.alias,
                 typename=column.typename,
-                value=window_column,
+                value=Window(
+                    window_parts, ibis_aggregation
+                ).apply_ibis_window_function(),
             )
         return Aggregate(
             ibis_aggregation, alias=column.alias, typename=column.typename,
-        )
-
-    @staticmethod
-    def apply_ibis_window_function(
-        ibis_aggregation: NumericScalar, window_partition_column: Column
-    ) -> Window:
-        return ibis_aggregation.over(
-            ibis.cumulative_window(group_by=window_partition_column.get_value())
         )
 
     def mul(self, args: Tuple[int, int]):
@@ -574,23 +567,21 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Token("order", (column_list[0], True))
 
-    def order_desc(self, column):
+    def order_desc(self, column_list: List[Column]):
         """
         Return sql_object in asc order
-        :param column:
+        :param column_list:
         :return:
         """
-        column = column[0]
-        return Token("order", (column, False))
+        return Token("order", (column_list[0], False))
 
-    def partition_by(self, column_list):
+    def partition_by(self, column_list: List[Column]):
         """
         Returns a partition token_or_tree containing the corresponding column
         :param column_list: List containing only one column
         :return:
         """
-        column = column_list[0]
-        return Token("partition", column)
+        return Token("partition", column_list[0])
 
     def _get_rank_orders_and_partitions(self, tokens: List[List[Token]]):
         """

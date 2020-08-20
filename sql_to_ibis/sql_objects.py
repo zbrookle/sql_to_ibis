@@ -2,12 +2,13 @@
 Module containing all sql objects
 """
 import re
-from typing import Any, Optional, Set, Union
+from typing import Any, Optional, Set, Union, List, Dict, Tuple
 
 import ibis
-from ibis.expr.types import AnyColumn, TableExpr, ValueExpr
-from ibis.expr.operations import TableColumn
+from ibis.expr.types import AnyColumn, TableExpr, ValueExpr, NumericScalar, AnyScalar
+from ibis.expr.window import Window as IbisWindow
 from pandas import Series
+from lark import Token
 
 
 class Table:
@@ -384,6 +385,10 @@ class Column(Value):
     def set_table(self, table: Table):
         self._table = table
 
+    def desc(self):
+        self.value = ibis.desc(self.value)
+        return self
+
 
 class CountStar(Column):
     def __init__(self):
@@ -395,7 +400,7 @@ class Aggregate(DerivedColumn):
     Store information about aggregations
     """
 
-    def __init__(self, value: Union[TableColumn, CountStar], alias="", typename=""):
+    def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
         DerivedColumn.__init__(self, value, alias, typename)
 
 
@@ -463,3 +468,59 @@ class CrossJoin(JoinBase):
         self, left_table: Table, right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")
+
+
+class Window:
+    def __init__(self, window_part_list: List[Token], aggregation: NumericScalar):
+        window_parts = self.get_order_and_partition_columns_from_list(window_part_list)
+        self.partition: List[AnyColumn] = window_parts["partition"]
+        self.order_by: List[AnyColumn] = window_parts["order"]
+        self.aggregation = aggregation
+
+    def get_order_and_partition_columns_from_list(self, window_part_list: List[Token]):
+
+        """
+        Will be sorted into two lists of columns, one with key 'order' and and one
+        with key
+        :param window_part_list:
+        :return:
+        """
+        window_parts_dict: Dict[str, List[Union[Column, Tuple[Column, bool]]]] = {
+            "partition": [],
+            "order": [],
+        }
+        for token in window_part_list:
+            window_parts_dict[token.type].append(token.value)
+
+        window_parts_dict["order"] = self.__get_order_values(window_parts_dict["order"])
+
+        return self.__get_ibis_values(window_parts_dict)
+
+    def __get_ibis_values(
+        self, window_parts_dict: Dict[str, List[Column]]
+    ) -> Dict[str, List[AnyColumn]]:
+        return {
+            window_part_type: [
+                column.get_value() for column in window_parts_dict[window_part_type]
+            ]
+            for window_part_type in window_parts_dict
+        }
+
+    def __get_order_values(self, order_tuples: List[Tuple[Column, bool]]):
+        order_values: List[Column] = []
+        for i, order_tuple in enumerate(order_tuples):
+            order_values.append(self.__apply_column_order(order_tuple))
+        return order_values
+
+    @staticmethod
+    def __apply_column_order(column_and_order: Tuple[Column, bool]) -> Column:
+        column = column_and_order[0]
+        order = column_and_order[1]
+        if not order:
+            return column.desc()
+        return column
+
+    def apply_ibis_window_function(self) -> IbisWindow:
+        return self.aggregation.over(
+            ibis.cumulative_window(group_by=self.partition, order_by=self.order_by)
+        )
