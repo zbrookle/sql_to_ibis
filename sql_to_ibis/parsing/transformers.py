@@ -173,6 +173,8 @@ class InternalTransformer(TransformerBaseClass):
     def apply_ibis_aggregation(
         self, column: Column, aggregation: str
     ) -> Union[CountStar, TableColumn]:
+        aggregation = aggregation.replace("(", "") # Needed for ensuring ( directly
+        # follows all aggregate functions
         ibis_column = column.value
         if column.name == "*":
             return CountStar()

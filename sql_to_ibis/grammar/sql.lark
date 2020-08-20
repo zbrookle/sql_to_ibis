@@ -44,7 +44,7 @@ JOIN_TYPE.5: "INNER"i | /FULL\sOUTER/i | /LEFT\sOUTER/i |  /RIGHT\sOUTER/i | "FU
                | "CASE"i (when_then)+ "ELSE"i expression_math "END"i -> case_expression
                | "CAST"i "(" expression_math "AS"i TYPENAME ")" -> as_type
                | "CAST"i "(" literal "AS"i TYPENAME ")" -> literal_cast
-               | AGGREGATION "(" expression_math ")" -> sql_aggregation
+               | AGGREGATION expression_math ")" -> sql_aggregation
                | "RANK"i "(" ")" rank_form -> rank_expression
                | "DENSE_RANK"i "(" ")" rank_form -> dense_rank_expression
 
@@ -90,7 +90,7 @@ TYPENAME:  "object"i
          | "date"i
          | "category"i
          | "string"i
-AGGREGATION.8: "sum"i | "avg"i | "min"i | "max"i | "count"i
+AGGREGATION.8: ("sum("i | "avg("i | "min("i | "max("i | "count("i)
 alias: NAME -> alias_string
 _window_name: NAME
 limit_count: integer -> limit_count

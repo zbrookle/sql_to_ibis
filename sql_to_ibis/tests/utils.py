@@ -41,6 +41,9 @@ DIGIMON_SUPPORT_LIST: TableExpr = pandas_to_ibis(
     read_csv(DATA_PATH / "DigiDB_supportlist.csv"), "DIGIMON_SUPPORT_LIST"
 )
 AVOCADO: TableExpr = pandas_to_ibis(read_csv(DATA_PATH / "avocado.csv"), "AVOCADO")
+TIME_DATA: TableExpr = pandas_to_ibis(
+    read_csv(DATA_PATH / "time_data.csv"), "TIME_DATA"
+)
 
 # Name change is for name interference
 DIGIMON_MON_LIST["mon_attribute"] = DIGIMON_MON_LIST["Attribute"]
