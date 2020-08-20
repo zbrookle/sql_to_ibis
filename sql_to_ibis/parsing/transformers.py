@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import ibis
 from ibis.expr.api import NumericColumn
-from ibis.expr.types import AnyColumn, NumericScalar, TableExpr, AnyScalar, BooleanValue
+from ibis.expr.types import AnyColumn, AnyScalar, BooleanValue, NumericScalar, TableExpr
 from ibis.expr.window import Window as IbisWindow
 from lark import Token, Transformer, Tree
 
@@ -595,9 +595,7 @@ class InternalTransformer(TransformerBaseClass):
         if rank_function == "dense_rank":
             return first_column.dense_rank()
 
-    def _get_first_column_from_tokens(
-        self, tokens_and_tuples: List[Token]
-    ):
+    def _get_first_column_from_tokens(self, tokens_and_tuples: List[Token]):
         first_value = tokens_and_tuples[0].value
         column = first_value
         if isinstance(first_value, tuple):
@@ -606,7 +604,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def rank(
         self,
-        tokens_and_tuples: List[List[Union[Token, Tuple[Token, bool]]]],
+        tokens_and_tuples_list: List[List[Union[Token, Tuple[Token, bool]]]],
         rank_function: str,
     ):
         """
@@ -614,9 +612,8 @@ class InternalTransformer(TransformerBaseClass):
         :param rank_function:
         :return:
         """
-        tokens_and_tuples = tokens_and_tuples[0]
+        tokens_and_tuples = tokens_and_tuples_list[0]
         first_column = self._get_first_column_from_tokens(tokens_and_tuples)
-        print(first_column)
         window = Window(tokens_and_tuples, first_column)
         return Expression(
             self.apply_rank_function(first_column, rank_function).over(

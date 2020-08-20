@@ -2,13 +2,13 @@
 Module containing all sql objects
 """
 import re
-from typing import Any, Optional, Set, Union, List, Dict, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import ibis
-from ibis.expr.types import AnyColumn, TableExpr, ValueExpr, NumericScalar, AnyScalar
+from ibis.expr.types import AnyColumn, AnyScalar, NumericScalar, TableExpr, ValueExpr
 from ibis.expr.window import Window as IbisWindow
-from pandas import Series
 from lark import Token
+from pandas import Series
 
 
 class Table:
@@ -492,9 +492,15 @@ class Window:
         for token in window_part_list:
             window_parts_dict[token.type].append(token.value)
 
-        window_parts_dict["order"] = self.__get_order_values(window_parts_dict["order"])
+        fixed_type_dict: Dict[str, List[Column]] = {
+            "order": self.__get_order_values(window_parts_dict["order"]),
+            "partition": self.__get_partition_vals(window_parts_dict),
+        }
 
-        return self.__get_ibis_values(window_parts_dict)
+        return self.__get_ibis_values(fixed_type_dict)
+
+    def __get_partition_vals(self, window_parts_dict: dict) -> List[Column]:
+        return window_parts_dict["partition"]
 
     def __get_ibis_values(
         self, window_parts_dict: Dict[str, List[Column]]
@@ -506,14 +512,20 @@ class Window:
             for window_part_type in window_parts_dict
         }
 
-    def __get_order_values(self, order_tuples: List[Tuple[Column, bool]]):
+    def __get_order_values(
+        self, order_tuples: List[Union[Column, Tuple[Column, bool]]]
+    ) -> List[Column]:
         order_values: List[Column] = []
         for i, order_tuple in enumerate(order_tuples):
             order_values.append(self.__apply_column_order(order_tuple))
         return order_values
 
     @staticmethod
-    def __apply_column_order(column_and_order: Tuple[Column, bool]) -> Column:
+    def __apply_column_order(
+        column_and_order: Union[Column, Tuple[Column, bool]]
+    ) -> Column:
+        if not isinstance(column_and_order, tuple):
+            raise Exception("Invalid column order format must be (Column, bool)")
         column = column_and_order[0]
         order = column_and_order[1]
         if not order:

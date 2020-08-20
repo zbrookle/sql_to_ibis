@@ -1,5 +1,5 @@
-from ibis.expr.api import TableExpr
 import ibis
+from ibis.expr.api import TableExpr
 from pandas.testing import assert_frame_equal
 import pytest
 
