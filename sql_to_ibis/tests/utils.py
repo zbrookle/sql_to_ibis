@@ -9,12 +9,12 @@ from tempfile import NamedTemporaryFile
 from typing import Callable, Set
 
 import ibis
-from ibis.expr.api import GroupedTableExpr, TableExpr
+from ibis.expr.groupby import GroupedTableExpr
+from ibis.expr.types import TableExpr
 from ibis.tests.util import assert_equal
-from pandas import DataFrame, read_csv
+from pandas import DataFrame
 import pytest
 
-from sql_to_ibis import register_temp_table, remove_temp_table
 from sql_to_ibis.sql_select_query import TableInfo
 
 DATA_PATH = Path(__file__).parent.parent / "data"
@@ -31,23 +31,6 @@ def pandas_to_ibis(frame: DataFrame, name: str):
     return test
 
 
-# Import the data for testing
-FOREST_FIRES: TableExpr = pandas_to_ibis(
-    read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES"
-)
-DIGIMON_MON_LIST = read_csv(DATA_PATH / "DigiDB_digimonlist.csv")
-DIGIMON_MOVE_LIST = read_csv(DATA_PATH / "DigiDB_movelist.csv")
-DIGIMON_SUPPORT_LIST: TableExpr = pandas_to_ibis(
-    read_csv(DATA_PATH / "DigiDB_supportlist.csv"), "DIGIMON_SUPPORT_LIST"
-)
-AVOCADO: TableExpr = pandas_to_ibis(read_csv(DATA_PATH / "avocado.csv"), "AVOCADO")
-
-# Name change is for name interference
-DIGIMON_MON_LIST["mon_attribute"] = DIGIMON_MON_LIST["Attribute"]
-DIGIMON_MOVE_LIST["move_attribute"] = DIGIMON_MOVE_LIST["Attribute"]
-DIGIMON_MON_LIST = pandas_to_ibis(DIGIMON_MON_LIST, "DIGIMON_MON_LIST")
-DIGIMON_MOVE_LIST = pandas_to_ibis(DIGIMON_MOVE_LIST, "DIGIMON_MOVE_LIST")
-
 join_params = pytest.mark.parametrize(
     ("sql_join", "ibis_join"),
     [
@@ -61,28 +44,6 @@ join_params = pytest.mark.parametrize(
         ("right", "right"),
     ],
 )
-
-
-def register_env_tables():
-    """
-    Returns all globals but in lower case
-    :return:
-    """
-    for variable_name in globals():
-        variable = globals()[variable_name]
-        if isinstance(variable, TableExpr):
-            register_temp_table(table=variable, table_name=variable_name)
-
-
-def remove_env_tables():
-    """
-    Remove all env tables
-    :return:
-    """
-    for variable_name in globals():
-        variable = globals()[variable_name]
-        if isinstance(variable, DataFrame):
-            remove_temp_table(table_name=variable_name)
 
 
 def display_dict_difference(before_dict: dict, after_dict: dict, name: str):

@@ -69,7 +69,9 @@ fi
 ### PATTERNS ###
 if [[ -z "$CHECK" || "$CHECK" == "patterns" ]]; then
 
+  MSG='Performing pattern checks' ; echo $MSG
   python ci/pattern_checker.py
+  RET=$(($RET + $?)) ; echo $MSG "DONE"
 
 fi
 
@@ -83,6 +85,5 @@ if [[ -z "$CHECK" || "$CHECK" == "typing" ]]; then
     mypy sql_to_ibis
     RET=$(($RET + $?)) ; echo $MSG "DONE"
 fi
-
 
 exit $RET
