@@ -6,6 +6,8 @@
 [![PyPI status](https://img.shields.io/pypi/status/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 
+**sql_to_ibis** is a Python package that translates SQL syntax into ibis expressions. This provides the capability of using only one SQL dialect to target many different backends
+
 ## Installation
 
 ```bash
