@@ -106,7 +106,6 @@ class QueryInfo:
 
     def perform_transformation(self):
         select_expressions = self.__get_internal_transformer_select_expression()
-        print(select_expressions)
         select_expressions = self.__extract_distinct_property(select_expressions)
         self.__handle_tokens_and_trees_in_select_expressions(select_expressions)
 

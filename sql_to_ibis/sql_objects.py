@@ -2,11 +2,12 @@
 Module containing all sql objects
 """
 import re
-from typing import Any, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import ibis
-from ibis.expr.api import ColumnExpr, TableExpr, ValueExpr
-from ibis.expr.operations import TableColumn
+from ibis.expr.types import AnyColumn, AnyScalar, NumericScalar, TableExpr, ValueExpr
+from ibis.expr.window import Window as IbisWindow
+from lark import Token
 from pandas import Series
 
 
@@ -342,7 +343,7 @@ class Column(Value):
     """
 
     def __init__(
-        self, name: str, alias="", typename="", value: Optional[ColumnExpr] = None
+        self, name: str, alias="", typename="", value: Optional[AnyColumn] = None
     ):
         Value.__init__(self, value, alias, typename)
         self.name = name
@@ -384,6 +385,10 @@ class Column(Value):
     def set_table(self, table: Table):
         self._table = table
 
+    def desc(self):
+        self.value = ibis.desc(self.value)
+        return self
+
 
 class CountStar(Column):
     def __init__(self):
@@ -395,7 +400,7 @@ class Aggregate(DerivedColumn):
     Store information about aggregations
     """
 
-    def __init__(self, value: Union[TableColumn, CountStar], alias="", typename=""):
+    def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
         DerivedColumn.__init__(self, value, alias, typename)
 
 
@@ -406,7 +411,7 @@ class GroupByColumn(Column):
         groupby_name: str,
         alias="",
         typename="",
-        value: Optional[ColumnExpr] = None,
+        value: Optional[AnyColumn] = None,
     ):
         super().__init__(name, alias, typename, value)
         self.group_by_name = groupby_name
@@ -463,3 +468,71 @@ class CrossJoin(JoinBase):
         self, left_table: Table, right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")
+
+
+class Window:
+    def __init__(self, window_part_list: List[Token], aggregation: NumericScalar):
+        window_parts = self.get_order_and_partition_columns_from_list(window_part_list)
+        self.partition: List[AnyColumn] = window_parts["partition"]
+        self.order_by: List[AnyColumn] = window_parts["order"]
+        self.aggregation = aggregation
+
+    def get_order_and_partition_columns_from_list(self, window_part_list: List[Token]):
+
+        """
+        Will be sorted into two lists of columns, one with key 'order' and and one
+        with key
+        :param window_part_list:
+        :return:
+        """
+        window_parts_dict: Dict[str, List[Union[Column, Tuple[Column, bool]]]] = {
+            "partition": [],
+            "order": [],
+        }
+        for token in window_part_list:
+            window_parts_dict[token.type].append(token.value)
+
+        fixed_type_dict: Dict[str, List[Column]] = {
+            "order": self.__get_order_values(window_parts_dict["order"]),
+            "partition": self.__get_partition_vals(window_parts_dict),
+        }
+
+        return self.__get_ibis_values(fixed_type_dict)
+
+    def __get_partition_vals(self, window_parts_dict: dict) -> List[Column]:
+        return window_parts_dict["partition"]
+
+    def __get_ibis_values(
+        self, window_parts_dict: Dict[str, List[Column]]
+    ) -> Dict[str, List[AnyColumn]]:
+        return {
+            window_part_type: [
+                column.get_value() for column in window_parts_dict[window_part_type]
+            ]
+            for window_part_type in window_parts_dict
+        }
+
+    def __get_order_values(
+        self, order_tuples: List[Union[Column, Tuple[Column, bool]]]
+    ) -> List[Column]:
+        order_values: List[Column] = []
+        for i, order_tuple in enumerate(order_tuples):
+            order_values.append(self.__apply_column_order(order_tuple))
+        return order_values
+
+    @staticmethod
+    def __apply_column_order(
+        column_and_order: Union[Column, Tuple[Column, bool]]
+    ) -> Column:
+        if not isinstance(column_and_order, tuple):
+            raise Exception("Invalid column order format must be (Column, bool)")
+        column = column_and_order[0]
+        order = column_and_order[1]
+        if not order:
+            return column.desc()
+        return column
+
+    def apply_ibis_window_function(self) -> IbisWindow:
+        return self.aggregation.over(
+            ibis.cumulative_window(group_by=self.partition, order_by=self.order_by)
+        )

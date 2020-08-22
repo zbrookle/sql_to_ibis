@@ -1,54 +1,14 @@
 import ibis
 from ibis.expr.api import TableExpr
-from pandas import read_csv
 from pandas.testing import assert_frame_equal
 import pytest
 
-from sql_to_ibis import query, register_temp_table, remove_temp_table
+from sql_to_ibis import query
 from sql_to_ibis.tests.utils import (
-    DATA_PATH,
     get_all_join_columns_handle_duplicates,
     get_columns_with_alias,
     join_params,
 )
-
-
-@pytest.fixture(scope="module")
-def pandas_client():
-    return ibis.pandas.PandasClient({})
-
-
-@pytest.fixture(scope="module")
-def digimon_mon_list(pandas_client):
-    return ibis.pandas.from_dataframe(
-        read_csv(DATA_PATH / "DigiDB_digimonlist.csv"),
-        "DIGIMON_MON_LIST",
-        pandas_client,
-    )
-
-
-@pytest.fixture(scope="module")
-def digimon_move_list(pandas_client):
-    return ibis.pandas.from_dataframe(
-        read_csv(DATA_PATH / "DigiDB_movelist.csv"), "DIGIMON_MOVE_LIST", pandas_client
-    )
-
-
-@pytest.fixture(scope="module")
-def forest_fires(pandas_client):
-    return ibis.pandas.from_dataframe(
-        read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES", pandas_client
-    )
-
-
-@pytest.fixture(autouse=True, scope="module")
-def register_temp_tables(digimon_mon_list, digimon_move_list, forest_fires):
-    register_temp_table(digimon_mon_list, "DIGIMON_MON_LIST")
-    register_temp_table(digimon_move_list, "DIGIMON_MOVE_LIST")
-    register_temp_table(forest_fires, "FOREST_FIRES")
-    yield
-    for table in ["DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST", "FOREST_FIRES"]:
-        remove_temp_table(table)
 
 
 @pytest.fixture
@@ -196,4 +156,34 @@ def test_joining_two_subqueries_with_overlapping_columns_different_tables(
         )
         .execute()
     )
+    assert_frame_equal(ibis_table, my_table)
+
+
+def test_window_function(time_data):
+    my_table = query(
+        """SELECT count,
+       duration_seconds,
+       SUM(duration_seconds) OVER
+         (PARTITION BY person) AS running_total,
+       COUNT(duration_seconds) OVER
+         (PARTITION BY person) AS running_count,
+       AVG(duration_seconds) OVER
+         (PARTITION BY person) AS running_avg
+  FROM time_data"""
+    ).execute()
+    ibis_table = time_data.projection(
+        [
+            time_data.get_column("count"),
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_total"),
+            time_data.duration_seconds.count()
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_count"),
+            time_data.duration_seconds.mean()
+            .over(ibis.cumulative_window(group_by=time_data.person))
+            .name("running_avg"),
+        ]
+    ).execute()
     assert_frame_equal(ibis_table, my_table)

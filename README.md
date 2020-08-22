@@ -131,6 +131,14 @@ ORDER BY
 LIMIT 5
 ```
 
+#### Windowed aggregation:
+
+```SQL
+<aggregate>() OVER([PARTITION BY (<expresssion> [, <expression>...)] 
+                   [ORDER_BY (<expresssion> [, <expression>...)]
+                  )
+```
+
 #### Supported expressions and functions:
 ```SQL
 +, -, *, /
