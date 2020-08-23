@@ -1761,3 +1761,19 @@ def test_window_function_order_by(time_data):
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_window_rows():
+    my_table = query(
+        """SELECT count,
+       duration_seconds,
+       SUM(duration_seconds) OVER
+         (ORDER BY start_time ROWS UNBOUNDED PRECEDING) AS running_total
+  FROM time_data"""
+    )
+
+
+@assert_state_not_change
+def test_window_range():
+    raise Exception

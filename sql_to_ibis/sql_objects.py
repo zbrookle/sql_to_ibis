@@ -470,6 +470,23 @@ class CrossJoin(JoinBase):
         super().__init__(left_table, right_table, "cross")
 
 
+class RowRangeClause:
+    _row = "ROW"
+    _range = "RANGE"
+    _clause_types = [_row, _range]
+
+    def __init__(
+        self,
+        clause_type: str,
+        preceding: Optional[Union[int, tuple]],
+        following: Optional[Union[int, tuple]],
+    ):
+        if clause_type not in self._clause_types:
+            raise Exception(f"Type must be one of {self._clause_types}")
+        self.preceding = preceding
+        self.following = following
+
+
 class Window:
     def __init__(self, window_part_list: List[Token], aggregation: NumericScalar):
         window_parts = self.get_order_and_partition_columns_from_list(window_part_list)
@@ -490,6 +507,7 @@ class Window:
             "order": [],
         }
         for token in window_part_list:
+            print(token)
             window_parts_dict[token.type].append(token.value)
 
         fixed_type_dict: Dict[str, List[Column]] = {

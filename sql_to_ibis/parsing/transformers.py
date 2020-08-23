@@ -733,6 +733,16 @@ class InternalTransformer(TransformerBaseClass):
         self.set_column_value(column, table_name)
         return column
 
+    def frame_preceding(self, preceding_specs: List[Token]):
+        extent: Union[int, str] = preceding_specs[0].value
+        return extent, "PRECEDING"
+
+    def frame_extent(self, extent):
+        print(extent)
+
+    def row_range_clause(self, clause):
+        print(clause)
+
     @classmethod
     def empty_transformer(cls):
         return cls([], {}, {}, {}, {}, AliasRegistry())
