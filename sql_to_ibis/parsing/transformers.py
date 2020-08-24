@@ -703,13 +703,13 @@ class InternalTransformer(TransformerBaseClass):
             raise Exception(f"Table or alias '{table_or_alias_name}' not found")
         return self._alias_registry.get_registry_entry(table_or_alias_name)
 
-    def column_name(self, name_list_format: List[str]):
+    def column_name(self, name_list: List[str]):
         """
         Returns a column token_or_tree with the name extracted
-        :param name_list_format: List formatted name
+        :param name_list: List formatted name
         :return: Tree with column token_or_tree
         """
-        name = "".join(name_list_format)
+        name = name_list[0]
         table_name = ""
         if "." in name:
             table_name, name = name.split(".")
