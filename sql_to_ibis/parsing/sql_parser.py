@@ -36,6 +36,7 @@ from sql_to_ibis.sql.sql_value_objects import (
     GroupByColumn,
     Table,
 )
+from sql_to_ibis.sql.sql_clause_objects import WhereExpression
 
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
@@ -507,14 +508,12 @@ class SQLTransformer(TransformerBaseClass):
         :param internal_transformer: Transformer to transform the where clauses
         :return: Filtered TableExpr
         """
-        where_value = None
         if where_expr is not None:
-            where_value_token = internal_transformer.transform(where_expr)
-            print(where_value_token)
-            raise Exception
-            where_value = where_value_token.value
-        if where_value is not None:
-            return ibis_table.filter(where_value)
+            where_expression: WhereExpression = internal_transformer.transform(
+                where_expr)
+            print(type(where_expression.value))
+            print(where_expression.value)
+            return ibis_table.filter(where_expression.value.get_value())
         return ibis_table
 
     def subquery_in(self, column: Tree, subquery: Subquery):

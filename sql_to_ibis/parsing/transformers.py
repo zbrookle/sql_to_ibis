@@ -47,6 +47,7 @@ from sql_to_ibis.sql.sql_clause_objects import (
     ColumnExpression,
     OrderByExpression,
     PartitionByExpression,
+    WhereExpression
 )
 
 
@@ -493,13 +494,13 @@ class InternalTransformer(TransformerBaseClass):
         """
         return comparison[0]
 
-    def where_expr(self, truth_value_dataframe):
+    def where_expr(self, where_value_list: List[Value]):
         """
         Return a where token_or_tree
-        :param truth_value_dataframe:
+        :param where_value_list:
         :return: Token
         """
-        return Token("where_expr", truth_value_dataframe[0])
+        return WhereExpression(where_value_list[0])
 
     def alias_string(self, name: List[str]):
         """
@@ -691,9 +692,9 @@ class InternalTransformer(TransformerBaseClass):
             raise InvalidQueryException(
                 "Can only perform 'in' operation on subquery with one column present"
             )
-        return column.value.isin(
+        return Value(column.value.isin(
             subquery_table.get_table_expr().get_column(subquery_table.column_names[0])
-        )
+        ))
 
     def get_table(self, table_or_alias_name) -> Table:
         if isinstance(table_or_alias_name, Table):
