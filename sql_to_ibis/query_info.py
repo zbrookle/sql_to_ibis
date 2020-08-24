@@ -14,7 +14,13 @@ from sql_to_ibis.sql.sql_value_objects import (
     Literal,
     Table,
     Value,
+Subquery
 )
+
+@dataclass
+class InSubqueryInfo:
+    column_tree: Tree
+    subquery: Subquery
 
 
 @dataclass

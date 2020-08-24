@@ -18,7 +18,7 @@ from sql_to_ibis.parsing.transformers import (
     InternalTransformerWithStarVal,
     TransformerBaseClass,
 )
-from sql_to_ibis.query_info import OrderByInfo, QueryInfo
+from sql_to_ibis.query_info import InSubqueryInfo, OrderByInfo, QueryInfo
 from sql_to_ibis.sql.sql_clause_objects import (
     AliasExpression,
     LimitExpression,
@@ -367,7 +367,7 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry,
         )
 
-        select_expressions_no_boolean_clauses = []
+        select_expressions_no_boolean_clauses: List[Union[str, Tree]] = []
         distinct = False
         for select_expression in select_expressions:
             if isinstance(select_expression, Tree) and select_expression.data not in (
