@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from sql_to_ibis.sql.sql_value_objects import Column, Value
+from sql_to_ibis.sql.sql_value_objects import Column, Value, Table, Subquery, JoinBase
 from dataclasses import dataclass
 
 
@@ -55,3 +55,7 @@ class OrderByExpression(ColumnExpression):
 
 class PartitionByExpression(ColumnExpression):
     pass
+
+@dataclass
+class FromExpression:
+    value: Union[Subquery, JoinBase, Table]

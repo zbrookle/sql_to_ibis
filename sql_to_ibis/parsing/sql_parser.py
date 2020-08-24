@@ -22,10 +22,6 @@ from sql_to_ibis.query_info import QueryInfo
 from sql_to_ibis.sql.sql_objects import (
     AliasRegistry,
     AmbiguousColumn,
-    CrossJoin,
-    Join,
-    JoinBase,
-    Subquery,
 )
 from sql_to_ibis.sql.sql_value_objects import (
     Value,
@@ -34,7 +30,7 @@ from sql_to_ibis.sql.sql_value_objects import (
     CountStar,
     Aggregate,
     GroupByColumn,
-    Table,
+    Table, Subquery, JoinBase, Join, CrossJoin,
 )
 from sql_to_ibis.sql.sql_clause_objects import WhereExpression, LimitExpression
 

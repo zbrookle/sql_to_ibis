@@ -1,17 +1,17 @@
 """
 Module containing all sql objects
 """
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, List, Set
 
 import ibis
-from ibis.expr.types import AnyColumn, NumericScalar, TableExpr
+from ibis.expr.types import AnyColumn, NumericScalar
 from ibis.expr.window import Window as IbisWindow
 from sql_to_ibis.sql.sql_clause_objects import (
     OrderByExpression,
     ColumnExpression,
     PartitionByExpression,
 )
-from sql_to_ibis.sql.sql_value_objects import Column, Table
+from sql_to_ibis.sql.sql_value_objects import Table
 
 
 class AliasRegistry:
@@ -30,18 +30,6 @@ class AliasRegistry:
 
     def __repr__(self):
         return f"Registry:\n{self._registry}"
-
-
-class Subquery(Table):
-    """
-    Wrapper for subqueries
-    """
-
-    def __init__(self, name: str, value: TableExpr):
-        super().__init__(value, name, name)
-
-    def __repr__(self):
-        return f"Subquery(name={self.name}, value={self._value})"
 
 
 class AmbiguousColumn:
@@ -70,46 +58,6 @@ class AmbiguousColumn:
     @property
     def tables(self):
         return self._tables
-
-
-class JoinBase:
-    def __init__(
-        self, left_table: Table, right_table: Table, join_type: str,
-    ):
-        self.left_table: Table = left_table
-        self.right_table: Table = right_table
-        self.join_type: str = join_type
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(left={self.left_table}, right="
-            f"{self.right_table}, type={self.join_type})"
-        )
-
-
-class Join(JoinBase):
-    """
-    Wrapper for join related info
-    """
-
-    def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
-        join_type: str,
-        left_on: str,
-        right_on: str,
-    ):
-        super().__init__(left_table, right_table, join_type)
-        self.left_on = left_on
-        self.right_on = right_on
-
-
-class CrossJoin(JoinBase):
-    def __init__(
-        self, left_table: Table, right_table: Table,
-    ):
-        super().__init__(left_table, right_table, "cross")
 
 
 class Window:

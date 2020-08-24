@@ -25,9 +25,6 @@ from sql_to_ibis.parsing.aggregation_aliases import (
 from sql_to_ibis.sql.sql_objects import (
     AliasRegistry,
     AmbiguousColumn,
-    CrossJoin,
-    JoinBase,
-    Subquery,
     Window,
 )
 from sql_to_ibis.sql.sql_value_objects import (
@@ -41,13 +38,14 @@ from sql_to_ibis.sql.sql_value_objects import (
     CountStar,
     Aggregate,
     GroupByColumn,
-    Table,
+    Table, Subquery, JoinBase, CrossJoin,
 )
 from sql_to_ibis.sql.sql_clause_objects import (
     ColumnExpression,
     OrderByExpression,
     PartitionByExpression,
-    WhereExpression
+    WhereExpression,
+    FromExpression
 )
 
 
@@ -519,7 +517,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expression:
         :return: Token from sql_object
         """
-        return Token("from_expression", expression[0])
+        return FromExpression(expression[0])
 
     def when_then(self, when_then_values):
         """
