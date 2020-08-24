@@ -7,9 +7,9 @@ import ibis
 from ibis.expr.types import AnyColumn, NumericScalar, TableExpr
 from ibis.expr.window import Window as IbisWindow
 from sql_to_ibis.sql.sql_clause_objects import (
-    OrderByClause,
-    ColumnClause,
-    PartitionByClause,
+    OrderByExpression,
+    ColumnExpression,
+    PartitionByExpression,
 )
 from sql_to_ibis.sql.sql_value_objects import Column, Table
 
@@ -114,17 +114,17 @@ class CrossJoin(JoinBase):
 
 class Window:
     def __init__(
-        self, window_part_list: List[ColumnClause], aggregation: NumericScalar
+        self, window_part_list: List[ColumnExpression], aggregation: NumericScalar
     ):
         self.partition: List[AnyColumn] = [
             clause.column_value
             for clause in window_part_list
-            if isinstance(clause, PartitionByClause)
+            if isinstance(clause, PartitionByExpression)
         ]
         self.order_by: List[AnyColumn] = [
             clause.column_value
             for clause in window_part_list
-            if isinstance(clause, OrderByClause)
+            if isinstance(clause, OrderByExpression)
         ]
         self.aggregation = aggregation
 

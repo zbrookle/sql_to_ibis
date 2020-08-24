@@ -44,9 +44,9 @@ from sql_to_ibis.sql.sql_value_objects import (
     Table,
 )
 from sql_to_ibis.sql.sql_clause_objects import (
-    ColumnClause,
-    OrderByClause,
-    PartitionByClause,
+    ColumnExpression,
+    OrderByExpression,
+    PartitionByExpression,
 )
 
 
@@ -566,11 +566,11 @@ class InternalTransformer(TransformerBaseClass):
         """
         return form
 
-    def order_asc(self, column_list: List[Column]) -> OrderByClause:
-        return OrderByClause(column_list[0])
+    def order_asc(self, column_list: List[Column]) -> OrderByExpression:
+        return OrderByExpression(column_list[0])
 
-    def order_desc(self, column_list: List[Column]) -> OrderByClause:
-        return OrderByClause(column_list[0], False)
+    def order_desc(self, column_list: List[Column]) -> OrderByExpression:
+        return OrderByExpression(column_list[0], False)
 
     def partition_by(self, column_list: List[Column]):
         """
@@ -578,7 +578,7 @@ class InternalTransformer(TransformerBaseClass):
         :param column_list: List containing only one column
         :return:
         """
-        return PartitionByClause(column_list[0])
+        return PartitionByExpression(column_list[0])
 
     def apply_rank_function(self, first_column: AnyColumn, rank_function: str):
         """
@@ -594,7 +594,7 @@ class InternalTransformer(TransformerBaseClass):
             return first_column.dense_rank()
 
     def rank(
-        self, column_clause_list_list: List[List[ColumnClause]], rank_function: str,
+        self, column_clause_list_list: List[List[ColumnExpression]], rank_function: str,
     ):
         """
         :param column_clause_list_list:

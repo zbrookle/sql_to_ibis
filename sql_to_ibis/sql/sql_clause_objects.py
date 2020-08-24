@@ -22,7 +22,7 @@ class RowRangeClause:
 
 
 @dataclass
-class ColumnClause:
+class ColumnExpression:
     column: Column
 
     @property
@@ -31,7 +31,7 @@ class ColumnClause:
 
 
 @dataclass
-class OrderByClause(ColumnClause):
+class OrderByExpression(ColumnExpression):
     ascending: bool = True
 
     @property
@@ -40,5 +40,5 @@ class OrderByClause(ColumnClause):
         return column.get_value()
 
 
-class PartitionByClause(ColumnClause):
+class PartitionByExpression(ColumnExpression):
     pass
