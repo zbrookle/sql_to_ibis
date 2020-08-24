@@ -20,6 +20,9 @@ class RowRangeClause:
         self.preceding = preceding
         self.following = following
 
+@dataclass
+class LimitExpression:
+    limit: int
 
 @dataclass
 class ValueExpression:

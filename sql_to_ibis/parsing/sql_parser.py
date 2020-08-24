@@ -36,7 +36,7 @@ from sql_to_ibis.sql.sql_value_objects import (
     GroupByColumn,
     Table,
 )
-from sql_to_ibis.sql.sql_clause_objects import WhereExpression
+from sql_to_ibis.sql.sql_clause_objects import WhereExpression, LimitExpression
 
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
@@ -166,7 +166,7 @@ class SQLTransformer(TransformerBaseClass):
         :param limit_count_value:
         :return:
         """
-        return Token("limit", limit_count_value)
+        return LimitExpression(limit_count_value)
 
     def query_expr(self, query_info: QueryInfo, *args):
         """
@@ -179,8 +179,8 @@ class SQLTransformer(TransformerBaseClass):
             if isinstance(token, Token):
                 if token.type == "order_by":
                     query_info.order_by.append(token.value)
-                elif token.type == "limit":
-                    query_info.limit = token.value
+            if isinstance(token, LimitExpression):
+                query_info.limit = token.limit
         return query_info
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
