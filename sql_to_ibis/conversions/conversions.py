@@ -1,4 +1,4 @@
-from sql_to_ibis.sql_objects import Bool, Date, Number, String
+from sql_to_ibis.sql.sql_value_objects import Number, String, Date, Bool
 
 GIVEN_TYPE_TO_IBIS = {
     "object": "varchar",

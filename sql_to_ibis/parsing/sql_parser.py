@@ -19,20 +19,22 @@ from sql_to_ibis.parsing.transformers import (
     TransformerBaseClass,
 )
 from sql_to_ibis.query_info import QueryInfo
-from sql_to_ibis.sql_objects import (
-    Aggregate,
+from sql_to_ibis.sql.sql_objects import (
     AliasRegistry,
     AmbiguousColumn,
-    Column,
-    CountStar,
     CrossJoin,
-    DerivedColumn,
-    GroupByColumn,
     Join,
     JoinBase,
     Subquery,
-    Table,
+)
+from sql_to_ibis.sql.sql_value_objects import (
     Value,
+    DerivedColumn,
+    Column,
+    CountStar,
+    Aggregate,
+    GroupByColumn,
+    Table,
 )
 
 GET_TABLE_REGEX = re.compile(

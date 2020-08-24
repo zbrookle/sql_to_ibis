@@ -22,24 +22,31 @@ from sql_to_ibis.parsing.aggregation_aliases import (
     NUMERIC_AGGREGATIONS,
     SUM_AGGREGATIONS,
 )
-from sql_to_ibis.sql_objects import (
-    Aggregate,
+from sql_to_ibis.sql.sql_objects import (
     AliasRegistry,
     AmbiguousColumn,
-    Column,
-    CountStar,
     CrossJoin,
-    Date,
-    Expression,
-    GroupByColumn,
     JoinBase,
+    Subquery,
+    Window,
+)
+from sql_to_ibis.sql.sql_value_objects import (
+    Value,
     Literal,
     Number,
     String,
-    Subquery,
+    Date,
+    Expression,
+    Column,
+    CountStar,
+    Aggregate,
+    GroupByColumn,
     Table,
-    Value,
-    Window,
+)
+from sql_to_ibis.sql.sql_clause_objects import (
+    ColumnClause,
+    OrderByClause,
+    PartitionByClause,
 )
 
 
@@ -559,21 +566,11 @@ class InternalTransformer(TransformerBaseClass):
         """
         return form
 
-    def order_asc(self, column_list: List[Column]):
-        """
-        Return sql_object in asc order
-        :param column_list:
-        :return:
-        """
-        return Token("order", (column_list[0], True))
+    def order_asc(self, column_list: List[Column]) -> OrderByClause:
+        return OrderByClause(column_list[0])
 
-    def order_desc(self, column_list: List[Column]):
-        """
-        Return sql_object in asc order
-        :param column_list:
-        :return:
-        """
-        return Token("order", (column_list[0], False))
+    def order_desc(self, column_list: List[Column]) -> OrderByClause:
+        return OrderByClause(column_list[0], False)
 
     def partition_by(self, column_list: List[Column]):
         """
@@ -581,7 +578,7 @@ class InternalTransformer(TransformerBaseClass):
         :param column_list: List containing only one column
         :return:
         """
-        return Token("partition", column_list[0])
+        return PartitionByClause(column_list[0])
 
     def apply_rank_function(self, first_column: AnyColumn, rank_function: str):
         """
@@ -589,32 +586,24 @@ class InternalTransformer(TransformerBaseClass):
         :param rank_function:
         :return:
         """
+        assert isinstance(first_column, AnyColumn)
         assert rank_function in {"rank", "dense_rank"}
         if rank_function == "rank":
             return first_column.rank()
         if rank_function == "dense_rank":
             return first_column.dense_rank()
 
-    def _get_first_column_from_tokens(self, tokens_and_tuples: List[Token]):
-        first_value = tokens_and_tuples[0].value
-        column = first_value
-        if isinstance(first_value, tuple):
-            column = first_value[0]
-        return column.get_value()
-
     def rank(
-        self,
-        tokens_and_tuples_list: List[List[Union[Token, Tuple[Token, bool]]]],
-        rank_function: str,
+        self, column_clause_list_list: List[List[ColumnClause]], rank_function: str,
     ):
         """
-        :param tokens_and_tuples:
+        :param column_clause_list_list:
         :param rank_function:
         :return:
         """
-        tokens_and_tuples = tokens_and_tuples_list[0]
-        first_column = self._get_first_column_from_tokens(tokens_and_tuples)
-        window = Window(tokens_and_tuples, first_column)
+        column_clause_list = column_clause_list_list[0]
+        first_column = column_clause_list[0].column.get_value()
+        window = Window(column_clause_list, first_column)
         return Expression(
             self.apply_rank_function(first_column, rank_function).over(
                 ibis.window(order_by=window.order_by, group_by=window.partition)

@@ -3,15 +3,15 @@ from typing import Dict, List, Optional, Tuple, Union
 from lark import Token, Tree
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
-from sql_to_ibis.sql_objects import (
-    Aggregate,
-    Column,
-    Expression,
-    GroupByColumn,
-    JoinBase,
-    Literal,
-    Table,
+from sql_to_ibis.sql.sql_objects import JoinBase
+from sql_to_ibis.sql.sql_value_objects import (
     Value,
+    Literal,
+    Expression,
+    Column,
+    Aggregate,
+    GroupByColumn,
+    Table,
 )
 
 
