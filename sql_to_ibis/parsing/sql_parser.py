@@ -18,28 +18,25 @@ from sql_to_ibis.parsing.transformers import (
     InternalTransformerWithStarVal,
     TransformerBaseClass,
 )
-from sql_to_ibis.query_info import QueryInfo
-from sql_to_ibis.sql.sql_objects import (
-    AliasRegistry,
-    AmbiguousColumn,
+from sql_to_ibis.query_info import OrderByInfo, QueryInfo
+from sql_to_ibis.sql.sql_clause_objects import (
+    AliasExpression,
+    LimitExpression,
+    WhereExpression,
 )
+from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn
 from sql_to_ibis.sql.sql_value_objects import (
-    Value,
-    DerivedColumn,
+    Aggregate,
     Column,
     CountStar,
-    Aggregate,
-    GroupByColumn,
-    Table,
-    Subquery,
-    JoinBase,
-    Join,
     CrossJoin,
-)
-from sql_to_ibis.sql.sql_clause_objects import (
-    WhereExpression,
-    LimitExpression,
-    AliasExpression,
+    DerivedColumn,
+    GroupByColumn,
+    Join,
+    JoinBase,
+    Subquery,
+    Table,
+    Value,
 )
 
 GET_TABLE_REGEX = re.compile(
@@ -153,7 +150,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         order_type = rank_tree.data
         ascending = order_type == "order_asc"
-        return Token("order_by", (rank_tree.children[0].children, ascending))
+        return OrderByInfo(rank_tree.children[0].children, ascending)
 
     def integer(self, integer_token):
         """
@@ -180,9 +177,8 @@ class SQLTransformer(TransformerBaseClass):
         :return: Query info
         """
         for token in args:
-            if isinstance(token, Token):
-                if token.type == "order_by":
-                    query_info.order_by.append(token.value)
+            if isinstance(token, OrderByInfo):
+                query_info.add_order_by_info(token)
             if isinstance(token, LimitExpression):
                 query_info.limit = token.limit
         return query_info
@@ -193,9 +189,7 @@ class SQLTransformer(TransformerBaseClass):
         info.add_column(Column(name="*"))
         return info
 
-    def subquery(
-        self, query_object: Union[QueryInfo, JoinBase], alias: Tree
-    ):
+    def subquery(self, query_object: Union[QueryInfo, JoinBase], alias: Tree):
         """
         Handle subqueries amd return a subquery object
         :param query_object:

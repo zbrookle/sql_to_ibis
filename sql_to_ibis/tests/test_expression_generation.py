@@ -9,7 +9,6 @@ from ibis.common.exceptions import IbisTypeError
 from ibis.expr.types import TableExpr
 import pytest
 
-import sql_to_ibis.sql.sql_value_objects
 from sql_to_ibis import query, register_temp_table, remove_temp_table
 from sql_to_ibis.exceptions.sql_exception import (
     ColumnNotFoundError,
@@ -17,6 +16,7 @@ from sql_to_ibis.exceptions.sql_exception import (
     TableExprDoesNotExist,
 )
 from sql_to_ibis.sql.sql_objects import AmbiguousColumn
+import sql_to_ibis.sql.sql_value_objects
 from sql_to_ibis.sql_select_query import TableInfo
 from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (

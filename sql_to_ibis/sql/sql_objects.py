@@ -6,9 +6,10 @@ from typing import Any, List, Set
 import ibis
 from ibis.expr.types import AnyColumn, NumericScalar
 from ibis.expr.window import Window as IbisWindow
+
 from sql_to_ibis.sql.sql_clause_objects import (
-    OrderByExpression,
     ColumnExpression,
+    OrderByExpression,
     PartitionByExpression,
 )
 from sql_to_ibis.sql.sql_value_objects import Table

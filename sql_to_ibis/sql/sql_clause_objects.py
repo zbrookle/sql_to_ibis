@@ -1,7 +1,7 @@
-from typing import Union, Optional
-
-from sql_to_ibis.sql.sql_value_objects import Column, Value, Table, Subquery, JoinBase
 from dataclasses import dataclass
+from typing import Optional, Union
+
+from sql_to_ibis.sql.sql_value_objects import Column, JoinBase, Subquery, Table, Value
 
 
 class RowRangeClause:

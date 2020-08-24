@@ -1,19 +1,29 @@
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 from lark import Token, Tree
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
-from sql_to_ibis.sql.sql_value_objects import (
-    Value,
-    Literal,
-    Expression,
-    Column,
-    Aggregate,
-    GroupByColumn,
-    Table,
-    JoinBase,
-)
 from sql_to_ibis.sql.sql_clause_objects import FromExpression
+from sql_to_ibis.sql.sql_value_objects import (
+    Aggregate,
+    Column,
+    Expression,
+    GroupByColumn,
+    JoinBase,
+    Literal,
+    Table,
+    Value,
+)
+
+
+@dataclass
+class OrderByInfo:
+    column_name: str
+    ascending: bool
+
+    def get_tuple(self) -> Tuple[str, bool]:
+        return self.column_name, self.ascending
 
 
 class QueryInfo:
@@ -51,6 +61,9 @@ class QueryInfo:
 
     def add_column(self, column: Value):
         self.columns.append(column)
+
+    def add_order_by_info(self, order_by_info: OrderByInfo):
+        self.order_by.append(order_by_info.get_tuple())
 
     def __handle_token_or_tree(self, token_or_tree, item_pos):
         """

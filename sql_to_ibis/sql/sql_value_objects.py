@@ -2,7 +2,7 @@ import re
 from typing import Optional, Union
 
 import ibis
-from ibis.expr.types import ValueExpr, AnyColumn, AnyScalar, TableExpr
+from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from pandas import Series
 
 
