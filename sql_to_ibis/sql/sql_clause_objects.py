@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from sql_to_ibis.sql.sql_value_objects import Column
+from sql_to_ibis.sql.sql_value_objects import Column, Value
 from dataclasses import dataclass
 
 
@@ -19,6 +19,16 @@ class RowRangeClause:
             raise Exception(f"Type must be one of {self._clause_types}")
         self.preceding = preceding
         self.following = following
+
+
+@dataclass
+class ValueExpression:
+    value: Value
+
+
+@dataclass
+class WhereExpression(ValueExpression):
+    pass
 
 
 @dataclass

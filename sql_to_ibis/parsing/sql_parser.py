@@ -510,6 +510,8 @@ class SQLTransformer(TransformerBaseClass):
         where_value = None
         if where_expr is not None:
             where_value_token = internal_transformer.transform(where_expr)
+            print(where_value_token)
+            raise Exception
             where_value = where_value_token.value
         if where_value is not None:
             return ibis_table.filter(where_value)
