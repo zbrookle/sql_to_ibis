@@ -61,8 +61,6 @@ class QueryInfo:
         if isinstance(token_or_tree, Token):
             if token_or_tree.type == "from_expression":
                 self.add_table(token_or_tree.value)
-            elif token_or_tree.type == "where_expr":
-                self.where_expr = token_or_tree.value
         elif isinstance(token_or_tree, Tree):
             if token_or_tree.data == "having_expr":
                 self.having_expr = token_or_tree
