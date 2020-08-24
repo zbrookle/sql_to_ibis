@@ -513,20 +513,13 @@ class InternalTransformer(TransformerBaseClass):
     def cross_join_expression(self, cross_join_list: List[CrossJoin]):
         return cross_join_list[0]
 
-    def from_expression(self, expression):
+    def from_expression(self, expression: List[Union[Subquery, JoinBase, Table]]):
         """
         Return a from sql_object token_or_tree
         :param expression:
         :return: Token from sql_object
         """
-        expression = expression[0]
-        if isinstance(expression, Tree):
-            expression = expression.children[0]
-        if isinstance(expression, (Subquery, JoinBase, Table)):
-            value = expression
-        else:
-            value = expression.value
-        return Token("from_expression", value)
+        return Token("from_expression", expression[0])
 
     def when_then(self, when_then_values):
         """
