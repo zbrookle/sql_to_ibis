@@ -10,7 +10,8 @@ from sql_to_ibis.sql.sql_value_objects import (
     Column,
     Aggregate,
     GroupByColumn,
-    Table, JoinBase,
+    Table,
+    JoinBase,
 )
 from sql_to_ibis.sql.sql_clause_objects import FromExpression
 

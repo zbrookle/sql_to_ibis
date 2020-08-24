@@ -38,14 +38,18 @@ from sql_to_ibis.sql.sql_value_objects import (
     CountStar,
     Aggregate,
     GroupByColumn,
-    Table, Subquery, JoinBase, CrossJoin,
+    Table,
+    Subquery,
+    JoinBase,
+    CrossJoin,
 )
 from sql_to_ibis.sql.sql_clause_objects import (
     ColumnExpression,
     OrderByExpression,
     PartitionByExpression,
     WhereExpression,
-    FromExpression
+    FromExpression,
+    AliasExpression,
 )
 
 
@@ -204,7 +208,7 @@ class InternalTransformer(TransformerBaseClass):
     def sql_aggregation(self, agg_parts: list):
         aggregation: Token = agg_parts[0]
         column: Column = agg_parts[1]
-        window_parts: Optional[List[Token]] = agg_parts[2] if len(
+        window_parts: Optional[List[ColumnExpression]] = agg_parts[2] if len(
             agg_parts
         ) > 2 else None
         ibis_aggregation = self.apply_ibis_aggregation(
@@ -506,7 +510,7 @@ class InternalTransformer(TransformerBaseClass):
         :param name:
         :return:
         """
-        return Tree("alias", str(name[0]))
+        return AliasExpression(str(name[0]))
 
     def cross_join_expression(self, cross_join_list: List[CrossJoin]):
         return cross_join_list[0]
@@ -618,7 +622,9 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.rank(tokens, "dense_rank")
 
-    def select_expression(self, expression_and_alias):
+    def select_expression(
+        self, expression_and_alias: Tuple[Value, Optional[AliasExpression]]
+    ):
         """
         Returns the appropriate object for the given sql_object
         :param expression_and_alias: An sql_object token_or_tree and
@@ -626,12 +632,12 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         expression = expression_and_alias[0]
-        alias = None
+        alias_expression = None
         if len(expression_and_alias) == 2:
-            alias = expression_and_alias[1]
+            alias_expression = expression_and_alias[1]
 
-        if alias:
-            expression.set_alias(alias.children)
+        if alias_expression:
+            expression.set_alias(alias_expression.alias)
         return expression
 
     def join(self, *args):
@@ -683,9 +689,13 @@ class InternalTransformer(TransformerBaseClass):
             raise InvalidQueryException(
                 "Can only perform 'in' operation on subquery with one column present"
             )
-        return Value(column.value.isin(
-            subquery_table.get_table_expr().get_column(subquery_table.column_names[0])
-        ))
+        return Value(
+            column.value.isin(
+                subquery_table.get_table_expr().get_column(
+                    subquery_table.column_names[0]
+                )
+            )
+        )
 
     def get_table(self, table_or_alias_name) -> Table:
         if isinstance(table_or_alias_name, Table):

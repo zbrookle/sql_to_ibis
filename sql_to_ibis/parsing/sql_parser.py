@@ -30,9 +30,17 @@ from sql_to_ibis.sql.sql_value_objects import (
     CountStar,
     Aggregate,
     GroupByColumn,
-    Table, Subquery, JoinBase, Join, CrossJoin,
+    Table,
+    Subquery,
+    JoinBase,
+    Join,
+    CrossJoin,
 )
-from sql_to_ibis.sql.sql_clause_objects import WhereExpression, LimitExpression
+from sql_to_ibis.sql.sql_clause_objects import (
+    WhereExpression,
+    LimitExpression,
+    AliasExpression,
+)
 
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
@@ -185,7 +193,9 @@ class SQLTransformer(TransformerBaseClass):
         info.add_column(Column(name="*"))
         return info
 
-    def subquery(self, query_object: Union[QueryInfo, JoinBase], alias: Tree):
+    def subquery(
+        self, query_object: Union[QueryInfo, JoinBase], alias: Tree
+    ):
         """
         Handle subqueries amd return a subquery object
         :param query_object:
@@ -193,7 +203,8 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         assert alias.data == "alias_string"
-        alias_name = alias.children[0].value
+        alias_token: Token = alias.children[0]
+        alias_name: str = alias_token.value
         if isinstance(query_object, JoinBase):
             query_info = self._handle_join_subqueries(query_object)
         else:
@@ -506,7 +517,8 @@ class SQLTransformer(TransformerBaseClass):
         """
         if where_expr is not None:
             where_expression: WhereExpression = internal_transformer.transform(
-                where_expr)
+                where_expr
+            )
             print(type(where_expression.value))
             print(where_expression.value)
             return ibis_table.filter(where_expression.value.get_value())

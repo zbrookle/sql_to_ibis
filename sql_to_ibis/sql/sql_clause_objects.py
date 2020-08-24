@@ -20,9 +20,11 @@ class RowRangeClause:
         self.preceding = preceding
         self.following = following
 
+
 @dataclass
 class LimitExpression:
     limit: int
+
 
 @dataclass
 class ValueExpression:
@@ -56,6 +58,12 @@ class OrderByExpression(ColumnExpression):
 class PartitionByExpression(ColumnExpression):
     pass
 
+
 @dataclass
 class FromExpression:
     value: Union[Subquery, JoinBase, Table]
+
+
+@dataclass
+class AliasExpression:
+    alias: str
