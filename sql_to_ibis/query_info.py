@@ -14,8 +14,9 @@ from sql_to_ibis.sql.sql_value_objects import (
     Literal,
     Table,
     Value,
-Subquery
+    Subquery,
 )
+
 
 @dataclass
 class InSubqueryInfo:

@@ -2,7 +2,7 @@
 Module containing all lark internal_transformer classes
 """
 import re
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, List, Set, Tuple, Union, Any
 
 import ibis
 from ibis.expr.types import TableExpr
@@ -18,9 +18,8 @@ from sql_to_ibis.parsing.transformers import (
     InternalTransformerWithStarVal,
     TransformerBaseClass,
 )
-from sql_to_ibis.query_info import InSubqueryInfo, OrderByInfo, QueryInfo
+from sql_to_ibis.query_info import OrderByInfo, QueryInfo
 from sql_to_ibis.sql.sql_clause_objects import (
-    AliasExpression,
     LimitExpression,
     WhereExpression,
 )
@@ -64,6 +63,12 @@ TYPE_TO_PANDAS_TYPE = {
     "timedelta[ns]": "timedelta[ns]",
     "category": "category",
 }
+
+
+class TupleTree(Tree):
+    def __init__(self, data, children: Any, meta=None):
+        super().__init__(data, children, meta)
+
 
 for TYPE in PANDAS_TYPE_PYTHON_TYPE_FUNCTION:
     TYPE_TO_PANDAS_TYPE[TYPE] = TYPE
@@ -359,7 +364,7 @@ class SQLTransformer(TransformerBaseClass):
                     where_expr = select_expression
 
         internal_transformer = InternalTransformer(
-            tables,
+            tables,  # type: ignore
             self._table_map,
             self._column_name_map,
             self._column_to_table_name,
@@ -525,7 +530,7 @@ class SQLTransformer(TransformerBaseClass):
         return ibis_table
 
     def subquery_in(self, column: Tree, subquery: Subquery):
-        return Tree("subquery_in", (column, subquery))
+        return TupleTree("subquery_in", (column, subquery))
 
     def handle_selection(
         self, ibis_table: TableExpr, columns: List[Value]
