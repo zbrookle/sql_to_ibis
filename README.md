@@ -6,6 +6,8 @@
 [![PyPI status](https://img.shields.io/pypi/status/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 
+**sql_to_ibis** is a Python package that translates SQL syntax into ibis expressions. This provides the capability of using only one SQL dialect to target many different backends
+
 ## Installation
 
 ```bash
@@ -17,20 +19,32 @@ pip install sql_to_ibis
 ### Registering and removing temp tables
 
 To use an ibis table in sql_to_ibis you must register it. Note that for joins or
- queries that involve more than one table you must use the same ibis client when
-  creating both ibis tables. Once the table is registered you can query it using SQL
-   with the *query* function. In the example below, we create and query a pandas
-    DataFrame
+queries that involve more than one table you must use the same ibis client when
+creating both ibis tables. Once the table is registered you can query it using SQL
+with the *query* function. In the example below, we create and query a pandas DataFrame
 
 ```python
-from ibis.pandas.api import from_dataframe, PandasClient
-from pandas import read_csv
-from sql_to_ibis import register_temp_table, query
+import ibis.pandas.api
+import pandas
+import sql_to_ibis
 
-df = read_csv("some_file.csv")
-ibis_table = from_dataframe(df, name="my_table", client=PandasClient({}))
-register_temp_table(ibis_table, "my_table")
-query("select column1, column2 as my_col2 from my_table")
+df = pandas.DataFrame({"column1": [1, 2, 3], "column2": ["4", "5", "6"]})
+ibis_table = ibis.pandas.api.from_dataframe(
+    df, name="my_table", client=ibis.pandas.api.PandasClient({})
+)
+sql_to_ibis.register_temp_table(ibis_table, "my_table")
+sql_to_ibis.query(
+    "select column1, cast(column2 as integer) + 1 as my_col2 from my_table"
+).execute()
+```
+This would output a dataframe that looks like:
+
+```
+| column1 | my_col2 |
+|---------|---------|
+| 1       | 5       |
+| 2       | 6       |
+| 3       | 7       |
 ```
 
 ## SQL Syntax
