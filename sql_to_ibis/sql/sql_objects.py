@@ -11,6 +11,7 @@ from sql_to_ibis.sql.sql_clause_objects import (
     ColumnExpression,
     OrderByExpression,
     PartitionByExpression,
+    FrameExpression,
 )
 from sql_to_ibis.sql.sql_value_objects import Table
 
@@ -75,9 +76,20 @@ class Window:
             for clause in window_part_list
             if isinstance(clause, OrderByExpression)
         ]
+        self.frame_expression: FrameExpression = self.__get_frame_expression(
+            window_part_list
+        )
         self.aggregation = aggregation
+
+    def __get_frame_expression(self, window_part_list: list) -> FrameExpression:
+        filtered_expressions = [
+            clause for clause in window_part_list if isinstance(clause, FrameExpression)
+        ]
+        if not filtered_expressions:
+            return FrameExpression()
+        return filtered_expressions[0]
 
     def apply_ibis_window_function(self) -> IbisWindow:
         return self.aggregation.over(
-            ibis.cumulative_window(group_by=self.partition, order_by=self.order_by)
+            ibis.window(group_by=self.partition, order_by=self.order_by)
         )

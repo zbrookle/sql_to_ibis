@@ -529,8 +529,6 @@ class SQLTransformer(TransformerBaseClass):
             where_expression: WhereExpression = internal_transformer.transform(
                 where_expr
             )
-            print(type(where_expression.value))
-            print(where_expression.value)
             return ibis_table.filter(where_expression.value.get_value())
         return ibis_table
 

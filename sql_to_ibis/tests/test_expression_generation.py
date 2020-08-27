@@ -1681,13 +1681,13 @@ def test_window_function_partition(time_data):
             time_data.get_column("count"),
             time_data.duration_seconds,
             time_data.duration_seconds.sum()
-            .over(ibis.cumulative_window(group_by=time_data.person))
+            .over(ibis.range_window(group_by=time_data.person))
             .name("running_total"),
             time_data.duration_seconds.count()
-            .over(ibis.cumulative_window(group_by=time_data.person))
+            .over(ibis.range_window(group_by=time_data.person))
             .name("running_count"),
             time_data.duration_seconds.mean()
-            .over(ibis.cumulative_window(group_by=time_data.person))
+            .over(ibis.range_window(group_by=time_data.person))
             .name("running_avg"),
         ]
     )
@@ -1714,7 +1714,7 @@ def test_window_function_partition_order_by(time_data):
             time_data.duration_seconds,
             time_data.duration_seconds.sum()
             .over(
-                ibis.cumulative_window(
+                ibis.range_window(
                     group_by=[time_data.person, time_data.team],
                     order_by=[time_data.start_time, time_data.end_time],
                 )
@@ -1722,44 +1722,13 @@ def test_window_function_partition_order_by(time_data):
             .name("running_total"),
             time_data.duration_seconds.count()
             .over(
-                ibis.cumulative_window(group_by=time_data.person, order_by=count_column)
+                ibis.range_window(group_by=time_data.person, order_by=count_column)
             )
             .name("running_count"),
             time_data.duration_seconds.mean()
             .over(
-                ibis.cumulative_window(group_by=time_data.person, order_by=count_column)
+                ibis.range_window(group_by=time_data.person, order_by=count_column)
             )
-            .name("running_avg"),
-        ]
-    )
-    assert_ibis_equal_show_diff(ibis_table, my_table)
-
-
-@assert_state_not_change
-def test_window_function_order_by(time_data):
-    my_table = query(
-        """SELECT count,
-       duration_seconds,
-       SUM(duration_seconds) OVER
-         (ORDER BY start_time) AS running_total,
-       COUNT(duration_seconds) OVER
-         (ORDER BY start_time) AS running_count,
-       AVG(duration_seconds) OVER
-         (ORDER BY start_time) AS running_avg
-  FROM time_data"""
-    )
-    ibis_table = time_data.projection(
-        [
-            time_data.get_column("count"),
-            time_data.duration_seconds,
-            time_data.duration_seconds.sum()
-            .over(ibis.cumulative_window(order_by=time_data.start_time))
-            .name("running_total"),
-            time_data.duration_seconds.count()
-            .over(ibis.cumulative_window(order_by=time_data.start_time))
-            .name("running_count"),
-            time_data.duration_seconds.mean()
-            .over(ibis.cumulative_window(order_by=time_data.start_time))
             .name("running_avg"),
         ]
     )
@@ -1769,7 +1738,7 @@ def test_window_function_order_by(time_data):
 @assert_state_not_change
 @pytest.mark.parametrize(
     "sql_window,window_args",
-    [("UNBOUNDED PRECEDING", {"preceding": None, "following": None})],
+    [("UNBOUNDED PRECEDING", {"preceding": None, "following": 0})],
 )
 def test_window_rows(time_data, sql_window, window_args):
     my_table = query(

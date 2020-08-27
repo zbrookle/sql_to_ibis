@@ -60,6 +60,28 @@ class PartitionByExpression(ColumnExpression):
 
 
 @dataclass
+class ExtentExpression:
+    extent: Optional[int]
+
+
+@dataclass
+class Following(ExtentExpression):
+    extent: Optional[int] = 0
+
+
+@dataclass
+class Preceding(ExtentExpression):
+    extent: Optional[int] = None
+
+
+@dataclass
+class FrameExpression:
+    frame_type: str = "range"
+    preceding: Optional[Preceding] = Preceding()
+    following: Optional[Following] = Following()
+
+
+@dataclass
 class FromExpression:
     value: Union[Subquery, JoinBase, Table]
 

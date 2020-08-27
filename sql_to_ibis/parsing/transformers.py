@@ -6,7 +6,12 @@ from ibis.expr.api import NumericColumn
 from ibis.expr.types import AnyColumn, AnyScalar, BooleanValue, NumericScalar, TableExpr
 from ibis.expr.window import Window as IbisWindow
 from lark import Token, Transformer
-
+from sql_to_ibis.sql.sql_clause_objects import (
+    Preceding,
+    Following,
+    ExtentExpression,
+    FrameExpression,
+)
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
 from sql_to_ibis.exceptions.sql_exception import (
     AmbiguousColumnException,
@@ -726,15 +731,30 @@ class InternalTransformer(TransformerBaseClass):
         self.set_column_value(column, table_name)
         return column
 
+    def __frame_extract(self, specs: List[Token]) -> Optional[int]:
+        value = specs[0].value
+        if value == "UNBOUNDED":
+            return None
+        return value
+
     def frame_preceding(self, preceding_specs: List[Token]):
-        extent: Union[int, str] = preceding_specs[0].value
-        return extent, "PRECEDING"
+        return Preceding(self.__frame_extract(preceding_specs))
 
-    def frame_extent(self, extent):
-        print(extent)
+    def frame_following(self, following_specs: List[Token]):
+        return Following(self.__frame_extract(following_specs))
 
-    def row_range_clause(self, clause):
-        print(clause)
+    def frame_extent(self, extent_list: List[ExtentExpression]):
+        extents = {"following": Following(), "preceding": Preceding()}
+        for extent in extent_list:
+            if isinstance(extent, Following):
+                extents["following"] = extent
+            if isinstance(extent, Preceding):
+                extents["preceding"] = extent
+        return extents
+
+    def row_range_clause(self, clause: list):
+        rows_or_range_token: Token = clause[0]
+        return FrameExpression(rows_or_range_token.value, **clause[1])
 
     @classmethod
     def empty_transformer(cls):
