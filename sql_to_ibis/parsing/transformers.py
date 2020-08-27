@@ -81,6 +81,7 @@ class TransformerBaseClass(Transformer):
     """
     Base class for transformers
     """
+    _CURRENT_ROW = "CURRENT ROW"
 
     def __init__(
         self,
@@ -731,9 +732,9 @@ class InternalTransformer(TransformerBaseClass):
         self.set_column_value(column, table_name)
         return column
 
-    def __frame_extract(self, specs: List[Token]) -> Optional[int]:
-        value = specs[0].value
-        if value == "UNBOUNDED":
+    def __frame_extract(self, specs: List[Union[Token, int]]) -> Optional[int]:
+        value = specs[0]
+        if isinstance(value, Token) and value.value == "UNBOUNDED":
             return None
         return value
 
@@ -743,7 +744,21 @@ class InternalTransformer(TransformerBaseClass):
     def frame_following(self, following_specs: List[Token]):
         return Following(self.__frame_extract(following_specs))
 
+    def frame_bound(self, extent_expression_list: List[ExtentExpression]):
+        if not extent_expression_list:
+            return self._CURRENT_ROW
+        return extent_expression_list[0]
+
+    def frame_between(self, extent_expressions: list):
+        if extent_expressions[0] == self._CURRENT_ROW:
+            extent_expressions[0] = Preceding(0)
+        if extent_expressions[1] == self._CURRENT_ROW:
+            extent_expressions[1] = Following(0)
+        return extent_expressions
+
     def frame_extent(self, extent_list: List[ExtentExpression]):
+        if isinstance(extent_list[0], list):
+            extent_list = extent_list[0]
         extents = {"following": Following(), "preceding": Preceding()}
         for extent in extent_list:
             if isinstance(extent, Following):
@@ -753,8 +768,9 @@ class InternalTransformer(TransformerBaseClass):
         return extents
 
     def row_range_clause(self, clause: list):
+        print(clause)
         rows_or_range_token: Token = clause[0]
-        return FrameExpression(rows_or_range_token.value, **clause[1])
+        return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
 
     @classmethod
     def empty_transformer(cls):

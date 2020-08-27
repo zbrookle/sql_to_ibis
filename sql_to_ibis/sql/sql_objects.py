@@ -1,7 +1,7 @@
 """
 Module containing all sql objects
 """
-from typing import Any, List, Set
+from typing import Any, List, Set, Dict, Callable, ClassVar
 
 import ibis
 from ibis.expr.types import AnyColumn, NumericScalar
@@ -14,6 +14,7 @@ from sql_to_ibis.sql.sql_clause_objects import (
     FrameExpression,
 )
 from sql_to_ibis.sql.sql_value_objects import Table
+from dataclasses import dataclass, InitVar
 
 
 class AliasRegistry:
@@ -62,10 +63,16 @@ class AmbiguousColumn:
         return self._tables
 
 
+@dataclass
 class Window:
-    def __init__(
-        self, window_part_list: List[ColumnExpression], aggregation: NumericScalar
-    ):
+    window_part_list: InitVar[List[ColumnExpression]]
+    aggregation: NumericScalar
+    window_function_map: ClassVar[Dict[str, Callable]] = {
+        "range": ibis.range_window,
+        "rows": ibis.window,
+    }
+
+    def __post_init__(self, window_part_list):
         self.partition: List[AnyColumn] = [
             clause.column_value
             for clause in window_part_list
@@ -79,7 +86,6 @@ class Window:
         self.frame_expression: FrameExpression = self.__get_frame_expression(
             window_part_list
         )
-        self.aggregation = aggregation
 
     def __get_frame_expression(self, window_part_list: list) -> FrameExpression:
         filtered_expressions = [
@@ -90,6 +96,12 @@ class Window:
         return filtered_expressions[0]
 
     def apply_ibis_window_function(self) -> IbisWindow:
+        print(self.frame_expression)
         return self.aggregation.over(
-            ibis.window(group_by=self.partition, order_by=self.order_by)
+            self.window_function_map[self.frame_expression.frame_type](
+                group_by=self.partition,
+                order_by=self.order_by,
+                preceding=self.frame_expression.preceding.extent,
+                following=self.frame_expression.following.extent,
+            )
         )

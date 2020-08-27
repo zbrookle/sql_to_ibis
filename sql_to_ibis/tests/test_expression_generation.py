@@ -1681,13 +1681,13 @@ def test_window_function_partition(time_data):
             time_data.get_column("count"),
             time_data.duration_seconds,
             time_data.duration_seconds.sum()
-            .over(ibis.range_window(group_by=time_data.person))
+            .over(ibis.range_window(group_by=time_data.person, following=0))
             .name("running_total"),
             time_data.duration_seconds.count()
-            .over(ibis.range_window(group_by=time_data.person))
+            .over(ibis.range_window(group_by=time_data.person, following=0))
             .name("running_count"),
             time_data.duration_seconds.mean()
-            .over(ibis.range_window(group_by=time_data.person))
+            .over(ibis.range_window(group_by=time_data.person, following=0))
             .name("running_avg"),
         ]
     )
@@ -1717,29 +1717,47 @@ def test_window_function_partition_order_by(time_data):
                 ibis.range_window(
                     group_by=[time_data.person, time_data.team],
                     order_by=[time_data.start_time, time_data.end_time],
+                    following=0,
                 )
             )
             .name("running_total"),
             time_data.duration_seconds.count()
             .over(
-                ibis.range_window(group_by=time_data.person, order_by=count_column)
+                ibis.range_window(
+                    group_by=time_data.person, order_by=count_column, following=0
+                )
             )
             .name("running_count"),
             time_data.duration_seconds.mean()
             .over(
-                ibis.range_window(group_by=time_data.person, order_by=count_column)
+                ibis.range_window(
+                    group_by=time_data.person, order_by=count_column, following=0
+                )
             )
             .name("running_avg"),
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
+window_frame_params = pytest.mark.parametrize(
+    "sql_window,window_args",
+    [
+        ("UNBOUNDED PRECEDING", {"preceding": None, "following": 0}),
+        (
+            "BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING",
+            {"preceding": None, "following": None},
+        ),
+        (
+            "BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING",
+            {"preceding": 0, "following": None},
+        ),
+        ("5 PRECEDING", {"preceding": 5, "following": 0}),
+        ("BETWEEN 10 PRECEDING AND 10 FOLLOWING", {"preceding": 10, "following": 10})
+    ],
+)
 
 @assert_state_not_change
-@pytest.mark.parametrize(
-    "sql_window,window_args",
-    [("UNBOUNDED PRECEDING", {"preceding": None, "following": 0})],
-)
+@window_frame_params
 def test_window_rows(time_data, sql_window, window_args):
     my_table = query(
         f"""SELECT count,
@@ -1759,7 +1777,23 @@ def test_window_rows(time_data, sql_window, window_args):
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
-
 @assert_state_not_change
-def test_window_range():
-    raise Exception
+@window_frame_params
+def test_window_range(time_data, sql_window, window_args):
+    my_table = query(
+        f"""SELECT count,
+       duration_seconds,
+       SUM(duration_seconds) OVER
+         (ORDER BY start_time RANGE {sql_window}) AS running_total
+  FROM time_data"""
+    )
+    ibis_table = time_data.projection(
+        [
+            time_data.get_column("count"),
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+            .over(ibis.range_window(order_by=time_data.start_time, **window_args))
+            .name("running_total"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)

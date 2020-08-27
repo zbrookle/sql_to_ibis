@@ -52,13 +52,13 @@ window_form: "OVER"i "(" ["PARTITION"i "BY"i (partition_by ",")* partition_by] [
 
 partition_by: expression_math
 
-row_range_clause: ( ROWS | "RANGE"i ) frame_extent
+row_range_clause: ( ROWS | RANGE ) frame_extent
 frame_extent: frame_between | frame_preceding
 frame_between: "BETWEEN"i frame_bound "AND"i frame_bound
-frame_bound: ( frame_preceding | CURRENT_ROW ) | ( frame_following | CURRENT_ROW )
+frame_bound: frame_preceding | frame_following | "CURRENT"i "ROW"i
 frame_preceding: UNBOUNDED PRECEDING | integer PRECEDING
 frame_following: UNBOUNDED FOLLOWING | integer FOLLOWING
-CURRENT_ROW: "CURRENT"i ROWS
+RANGE: "RANGE"i
 ROWS: "ROWS"i
 UNBOUNDED: "UNBOUNDED"i
 PRECEDING: "PRECEDING"i
