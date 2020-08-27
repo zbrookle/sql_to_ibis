@@ -15,7 +15,11 @@ def pandas_client():
 def digimon_mon_list(pandas_client):
     frame = read_csv(DATA_PATH / "DigiDB_digimonlist.csv")
     frame["mon_attribute"] = frame["Attribute"]
-    return ibis.pandas.from_dataframe(frame, "DIGIMON_MON_LIST", pandas_client,)
+    return ibis.pandas.from_dataframe(
+        frame,
+        "DIGIMON_MON_LIST",
+        pandas_client,
+    )
 
 
 @pytest.fixture(scope="session")

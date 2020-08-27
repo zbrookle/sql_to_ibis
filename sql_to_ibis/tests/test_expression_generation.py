@@ -557,7 +557,8 @@ def test_having_multiple_conditions(forest_fires):
     )
     having_condition = (forest_fires.temp.min() > 2) & (forest_fires.DC.max() < 200)
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"),
+        having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -576,7 +577,8 @@ def test_having_multiple_conditions_with_or(forest_fires):
         (forest_fires.DC.max() > 1000)
     )
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"),
+        having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -1765,14 +1767,28 @@ def test_window_function_order_by(time_data):
 
 
 @assert_state_not_change
-def test_window_rows():
+@pytest.mark.parametrize(
+    "sql_window,window_args",
+    [("UNBOUNDED PRECEDING", {"preceding": None, "following": None})],
+)
+def test_window_rows(time_data, sql_window, window_args):
     my_table = query(
-        """SELECT count,
+        f"""SELECT count,
        duration_seconds,
        SUM(duration_seconds) OVER
-         (ORDER BY start_time ROWS UNBOUNDED PRECEDING) AS running_total
+         (ORDER BY start_time ROWS {sql_window}) AS running_total
   FROM time_data"""
     )
+    ibis_table = time_data.projection(
+        [
+            time_data.get_column("count"),
+            time_data.duration_seconds,
+            time_data.duration_seconds.sum()
+            .over(ibis.window(order_by=time_data.start_time, **window_args))
+            .name("running_total"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change

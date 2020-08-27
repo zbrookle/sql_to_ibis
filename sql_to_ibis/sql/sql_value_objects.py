@@ -67,22 +67,26 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other), alias=self.alias,
+            value=self.value + self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other), alias=self.alias,
+            value=self.value - self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other), alias=self.alias,
+            value=self.value * self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other), alias=self.alias,
+            value=self.value / self.get_other_value(other),
+            alias=self.alias,
         )
 
     def get_table(self):
@@ -381,7 +385,10 @@ class Subquery(Table):
 
 class JoinBase:
     def __init__(
-        self, left_table: Table, right_table: Table, join_type: str,
+        self,
+        left_table: Table,
+        right_table: Table,
+        join_type: str,
     ):
         self.left_table: Table = left_table
         self.right_table: Table = right_table
@@ -414,6 +421,8 @@ class Join(JoinBase):
 
 class CrossJoin(JoinBase):
     def __init__(
-        self, left_table: Table, right_table: Table,
+        self,
+        left_table: Table,
+        right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")

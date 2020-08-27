@@ -188,7 +188,9 @@ class SQLTransformer(TransformerBaseClass):
         return query_info
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
-        info = QueryInfo(InternalTransformer.empty_transformer(),)
+        info = QueryInfo(
+            InternalTransformer.empty_transformer(),
+        )
         info.add_table(join)
         info.add_column(Column(name="*"))
         return info
@@ -401,7 +403,10 @@ class SQLTransformer(TransformerBaseClass):
         :param table2: TableExpr2
         :return: Crossjoined dataframe
         """
-        return CrossJoin(left_table=table1, right_table=table2,)
+        return CrossJoin(
+            left_table=table1,
+            right_table=table2,
+        )
 
     def from_item(self, item):
         return item
@@ -772,7 +777,9 @@ class SQLTransformer(TransformerBaseClass):
         return self._to_ibis_table(query_info)
 
     def union_all(
-        self, expr1: TableExpr, expr2: TableExpr,
+        self,
+        expr1: TableExpr,
+        expr2: TableExpr,
     ):
         """
         Return union distinct of two TableExpr
@@ -783,7 +790,9 @@ class SQLTransformer(TransformerBaseClass):
         return expr1.union(expr2)
 
     def union_distinct(
-        self, expr1: TableExpr, expr2: TableExpr,
+        self,
+        expr1: TableExpr,
+        expr2: TableExpr,
     ):
         """
         Return union distinct of two TableExpr
