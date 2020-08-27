@@ -556,7 +556,8 @@ def test_having_multiple_conditions(forest_fires):
     )
     having_condition = (forest_fires.temp.min() > 2) & (forest_fires.DC.max() < 200)
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"),
+        having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -575,7 +576,8 @@ def test_having_multiple_conditions_with_or(forest_fires):
         (forest_fires.DC.max() > 1000)
     )
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"),
+        having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
