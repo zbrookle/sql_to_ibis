@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
-from lark import Token, Tree
+from lark import Tree
 
 from sql_to_ibis.parsing.transformers import InternalTransformer
 from sql_to_ibis.sql.sql_clause_objects import FromExpression
@@ -12,9 +12,9 @@ from sql_to_ibis.sql.sql_value_objects import (
     GroupByColumn,
     JoinBase,
     Literal,
+    Subquery,
     Table,
     Value,
-    Subquery,
 )
 
 

@@ -1739,6 +1739,7 @@ def test_window_function_partition_order_by(time_data):
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
+
 window_frame_params = pytest.mark.parametrize(
     "sql_window,window_args",
     [
@@ -1752,9 +1753,10 @@ window_frame_params = pytest.mark.parametrize(
             {"preceding": 0, "following": None},
         ),
         ("5 PRECEDING", {"preceding": 5, "following": 0}),
-        ("BETWEEN 10 PRECEDING AND 10 FOLLOWING", {"preceding": 10, "following": 10})
+        ("BETWEEN 10 PRECEDING AND 10 FOLLOWING", {"preceding": 10, "following": 10}),
     ],
 )
+
 
 @assert_state_not_change
 @window_frame_params
@@ -1776,6 +1778,7 @@ def test_window_rows(time_data, sql_window, window_args):
         ]
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
 
 @assert_state_not_change
 @window_frame_params

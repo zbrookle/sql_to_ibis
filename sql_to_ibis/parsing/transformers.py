@@ -6,12 +6,7 @@ from ibis.expr.api import NumericColumn
 from ibis.expr.types import AnyColumn, AnyScalar, BooleanValue, NumericScalar, TableExpr
 from ibis.expr.window import Window as IbisWindow
 from lark import Token, Transformer
-from sql_to_ibis.sql.sql_clause_objects import (
-    Preceding,
-    Following,
-    ExtentExpression,
-    FrameExpression,
-)
+
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
 from sql_to_ibis.exceptions.sql_exception import (
     AmbiguousColumnException,
@@ -30,9 +25,13 @@ from sql_to_ibis.parsing.aggregation_aliases import (
 from sql_to_ibis.sql.sql_clause_objects import (
     AliasExpression,
     ColumnExpression,
+    ExtentExpression,
+    Following,
+    FrameExpression,
     FromExpression,
     OrderByExpression,
     PartitionByExpression,
+    Preceding,
     WhereExpression,
 )
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn, Window
@@ -81,6 +80,7 @@ class TransformerBaseClass(Transformer):
     """
     Base class for transformers
     """
+
     _CURRENT_ROW = "CURRENT ROW"
 
     def __init__(

@@ -77,8 +77,8 @@ class Preceding(ExtentExpression):
 @dataclass
 class FrameExpression:
     frame_type: str = "range"
-    preceding: Optional[Preceding] = Preceding()
-    following: Optional[Following] = Following()
+    preceding: Preceding = Preceding()
+    following: Following = Following()
 
 
 @dataclass

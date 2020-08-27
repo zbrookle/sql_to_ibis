@@ -1,7 +1,8 @@
 """
 Module containing all sql objects
 """
-from typing import Any, List, Set, Dict, Callable, ClassVar
+from dataclasses import InitVar, dataclass
+from typing import Any, Callable, ClassVar, Dict, List, Set
 
 import ibis
 from ibis.expr.types import AnyColumn, NumericScalar
@@ -9,12 +10,11 @@ from ibis.expr.window import Window as IbisWindow
 
 from sql_to_ibis.sql.sql_clause_objects import (
     ColumnExpression,
+    FrameExpression,
     OrderByExpression,
     PartitionByExpression,
-    FrameExpression,
 )
 from sql_to_ibis.sql.sql_value_objects import Table
-from dataclasses import dataclass, InitVar
 
 
 class AliasRegistry:

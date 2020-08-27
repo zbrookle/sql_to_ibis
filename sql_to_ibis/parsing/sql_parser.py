@@ -2,7 +2,7 @@
 Module containing all lark internal_transformer classes
 """
 import re
-from typing import Dict, List, Set, Tuple, Union, Any
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import ibis
 from ibis.expr.types import TableExpr
@@ -19,10 +19,7 @@ from sql_to_ibis.parsing.transformers import (
     TransformerBaseClass,
 )
 from sql_to_ibis.query_info import OrderByInfo, QueryInfo
-from sql_to_ibis.sql.sql_clause_objects import (
-    LimitExpression,
-    WhereExpression,
-)
+from sql_to_ibis.sql.sql_clause_objects import LimitExpression, WhereExpression
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn
 from sql_to_ibis.sql.sql_value_objects import (
     Aggregate,
