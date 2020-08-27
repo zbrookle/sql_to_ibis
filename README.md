@@ -146,9 +146,14 @@ LIMIT 5
 #### Windowed aggregation:
 
 ```SQL
-<aggregate>() OVER([PARTITION BY (<expresssion> [, <expression>...)] 
-                   [ORDER_BY (<expresssion> [, <expression>...)]
-                  )
+<aggregate>() OVER(
+        [PARTITION BY (<expresssion> [, <expression>...)] 
+        [ORDER_BY (<expresssion> [, <expression>...)]
+        [ ( ROWS | RANGE ) ( <preceding> | BETWEEN <preceding> AND <following> ) ]
+       )
+
+<preceding>: UNBOUNDED PRECEDING | <unsigned_integer> PRECEDING | CURRENT ROW
+<following>: UNBOUNDED FOLLOWING | <unsigned_integer> FOLLOWING | CURRENT ROW
 ```
 
 #### Supported expressions and functions:
