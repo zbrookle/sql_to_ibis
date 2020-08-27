@@ -198,9 +198,9 @@ class InternalTransformer(TransformerBaseClass):
     def sql_aggregation(self, agg_parts: list):
         aggregation: Token = agg_parts[0]
         column: Column = agg_parts[1]
-        window_parts: Optional[List[Token]] = agg_parts[2] if len(
-            agg_parts
-        ) > 2 else None
+        window_parts: Optional[List[Token]] = (
+            agg_parts[2] if len(agg_parts) > 2 else None
+        )
         ibis_aggregation = self.apply_ibis_aggregation(
             column, aggregation.value.lower()
         )
@@ -214,7 +214,9 @@ class InternalTransformer(TransformerBaseClass):
                 ).apply_ibis_window_function(),
             )
         return Aggregate(
-            ibis_aggregation, alias=column.alias, typename=column.typename,
+            ibis_aggregation,
+            alias=column.alias,
+            typename=column.typename,
         )
 
     def mul(self, args: Tuple[int, int]):
@@ -464,7 +466,9 @@ class InternalTransformer(TransformerBaseClass):
         truth_series_pair_values: List[BooleanValue] = []
         for i, value in enumerate(truth_series_pair):
             truth_series_pair_values.append(value.get_value())
-        return Value(truth_series_pair_values[0] & truth_series_pair_values[1],)
+        return Value(
+            truth_series_pair_values[0] & truth_series_pair_values[1],
+        )
 
     def bool_parentheses(self, bool_expression_in_list: list):
         return bool_expression_in_list[0]
