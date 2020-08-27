@@ -96,7 +96,6 @@ class Window:
         return filtered_expressions[0]
 
     def apply_ibis_window_function(self) -> IbisWindow:
-        print(self.frame_expression)
         return self.aggregation.over(
             self.window_function_map[self.frame_expression.frame_type](
                 group_by=self.partition,

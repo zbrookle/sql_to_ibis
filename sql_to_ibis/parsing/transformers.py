@@ -768,7 +768,6 @@ class InternalTransformer(TransformerBaseClass):
         return extents
 
     def row_range_clause(self, clause: list):
-        print(clause)
         rows_or_range_token: Token = clause[0]
         return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
 
