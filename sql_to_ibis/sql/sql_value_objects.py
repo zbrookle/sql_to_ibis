@@ -1,13 +1,8 @@
-"""
-Module containing all sql objects
-"""
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Optional, Union
 
 import ibis
-from ibis.expr.types import AnyColumn, AnyScalar, NumericScalar, TableExpr, ValueExpr
-from ibis.expr.window import Window as IbisWindow
-from lark import Token
+from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from pandas import Series
 
 
@@ -32,64 +27,6 @@ class Table:
     @property
     def column_names(self):
         return self._value.columns
-
-
-class AliasRegistry:
-    def __init__(self):
-        self._registry = {}
-
-    def add_to_registry(self, alias: str, table: Table):
-        assert alias not in self._registry
-        self._registry[alias] = table
-
-    def get_registry_entry(self, item: str):
-        return self._registry[item]
-
-    def __contains__(self, item):
-        return item in self._registry
-
-    def __repr__(self):
-        return f"Registry:\n{self._registry}"
-
-
-class Subquery(Table):
-    """
-    Wrapper for subqueries
-    """
-
-    def __init__(self, name: str, value: TableExpr):
-        super().__init__(value, name, name)
-
-    def __repr__(self):
-        return f"Subquery(name={self.name}, value={self._value})"
-
-
-class AmbiguousColumn:
-    """
-    Class for identifying ambiguous table names
-    """
-
-    def __init__(self, tables: Set[str]) -> None:
-        assert tables != set()
-        self._tables = tables
-
-    def __repr__(self) -> str:
-        return f"AmbiguousColumn({', '.join(self.tables)})"
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, AmbiguousColumn) and self.tables == other.tables
-
-    def add_table(self, table):
-        self._tables.add(table)
-
-    def remove_table(self, table: str):
-        if len(self._tables) <= 1:
-            raise Exception("Ambiguous column table set cannot be empty!")
-        self._tables.remove(table)
-
-    @property
-    def tables(self):
-        return self._tables
 
 
 class Value:
@@ -434,6 +371,18 @@ class GroupByColumn(Column):
         self.value = self.value.name(self.get_name())
 
 
+class Subquery(Table):
+    """
+    Wrapper for subqueries
+    """
+
+    def __init__(self, name: str, value: TableExpr):
+        super().__init__(value, name, name)
+
+    def __repr__(self):
+        return f"Subquery(name={self.name}, value={self._value})"
+
+
 class JoinBase:
     def __init__(
         self,
@@ -477,71 +426,3 @@ class CrossJoin(JoinBase):
         right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")
-
-
-class Window:
-    def __init__(self, window_part_list: List[Token], aggregation: NumericScalar):
-        window_parts = self.get_order_and_partition_columns_from_list(window_part_list)
-        self.partition: List[AnyColumn] = window_parts["partition"]
-        self.order_by: List[AnyColumn] = window_parts["order"]
-        self.aggregation = aggregation
-
-    def get_order_and_partition_columns_from_list(self, window_part_list: List[Token]):
-
-        """
-        Will be sorted into two lists of columns, one with key 'order' and and one
-        with key
-        :param window_part_list:
-        :return:
-        """
-        window_parts_dict: Dict[str, List[Union[Column, Tuple[Column, bool]]]] = {
-            "partition": [],
-            "order": [],
-        }
-        for token in window_part_list:
-            window_parts_dict[token.type].append(token.value)
-
-        fixed_type_dict: Dict[str, List[Column]] = {
-            "order": self.__get_order_values(window_parts_dict["order"]),
-            "partition": self.__get_partition_vals(window_parts_dict),
-        }
-
-        return self.__get_ibis_values(fixed_type_dict)
-
-    def __get_partition_vals(self, window_parts_dict: dict) -> List[Column]:
-        return window_parts_dict["partition"]
-
-    def __get_ibis_values(
-        self, window_parts_dict: Dict[str, List[Column]]
-    ) -> Dict[str, List[AnyColumn]]:
-        return {
-            window_part_type: [
-                column.get_value() for column in window_parts_dict[window_part_type]
-            ]
-            for window_part_type in window_parts_dict
-        }
-
-    def __get_order_values(
-        self, order_tuples: List[Union[Column, Tuple[Column, bool]]]
-    ) -> List[Column]:
-        order_values: List[Column] = []
-        for i, order_tuple in enumerate(order_tuples):
-            order_values.append(self.__apply_column_order(order_tuple))
-        return order_values
-
-    @staticmethod
-    def __apply_column_order(
-        column_and_order: Union[Column, Tuple[Column, bool]]
-    ) -> Column:
-        if not isinstance(column_and_order, tuple):
-            raise Exception("Invalid column order format must be (Column, bool)")
-        column = column_and_order[0]
-        order = column_and_order[1]
-        if not order:
-            return column.desc()
-        return column
-
-    def apply_ibis_window_function(self) -> IbisWindow:
-        return self.aggregation.over(
-            ibis.cumulative_window(group_by=self.partition, order_by=self.order_by)
-        )

@@ -5,7 +5,7 @@ import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.types import AnyColumn, AnyScalar, BooleanValue, NumericScalar, TableExpr
 from ibis.expr.window import Window as IbisWindow
-from lark import Token, Transformer, Tree
+from lark import Token, Transformer
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
 from sql_to_ibis.exceptions.sql_exception import (
@@ -22,10 +22,21 @@ from sql_to_ibis.parsing.aggregation_aliases import (
     NUMERIC_AGGREGATIONS,
     SUM_AGGREGATIONS,
 )
-from sql_to_ibis.sql_objects import (
+from sql_to_ibis.sql.sql_clause_objects import (
+    AliasExpression,
+    ColumnExpression,
+    ExtentExpression,
+    Following,
+    FrameExpression,
+    FromExpression,
+    OrderByExpression,
+    PartitionByExpression,
+    Preceding,
+    WhereExpression,
+)
+from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn, Window
+from sql_to_ibis.sql.sql_value_objects import (
     Aggregate,
-    AliasRegistry,
-    AmbiguousColumn,
     Column,
     CountStar,
     CrossJoin,
@@ -39,7 +50,6 @@ from sql_to_ibis.sql_objects import (
     Subquery,
     Table,
     Value,
-    Window,
 )
 
 
@@ -70,6 +80,8 @@ class TransformerBaseClass(Transformer):
     """
     Base class for transformers
     """
+
+    _CURRENT_ROW = "CURRENT ROW"
 
     def __init__(
         self,
@@ -198,7 +210,7 @@ class InternalTransformer(TransformerBaseClass):
     def sql_aggregation(self, agg_parts: list):
         aggregation: Token = agg_parts[0]
         column: Column = agg_parts[1]
-        window_parts: Optional[List[Token]] = (
+        window_parts: Optional[List[ColumnExpression]] = (
             agg_parts[2] if len(agg_parts) > 2 else None
         )
         ibis_aggregation = self.apply_ibis_aggregation(
@@ -490,13 +502,13 @@ class InternalTransformer(TransformerBaseClass):
         """
         return comparison[0]
 
-    def where_expr(self, truth_value_dataframe):
+    def where_expr(self, where_value_list: List[Value]):
         """
         Return a where token_or_tree
-        :param truth_value_dataframe:
+        :param where_value_list:
         :return: Token
         """
-        return Token("where_expr", truth_value_dataframe[0])
+        return WhereExpression(where_value_list[0])
 
     def alias_string(self, name: List[str]):
         """
@@ -504,25 +516,18 @@ class InternalTransformer(TransformerBaseClass):
         :param name:
         :return:
         """
-        return Tree("alias", str(name[0]))
+        return AliasExpression(str(name[0]))
 
     def cross_join_expression(self, cross_join_list: List[CrossJoin]):
         return cross_join_list[0]
 
-    def from_expression(self, expression):
+    def from_expression(self, expression: List[Union[Subquery, JoinBase, Table]]):
         """
         Return a from sql_object token_or_tree
         :param expression:
         :return: Token from sql_object
         """
-        expression = expression[0]
-        if isinstance(expression, Tree):
-            expression = expression.children[0]
-        if isinstance(expression, (Subquery, JoinBase, Table)):
-            value = expression
-        else:
-            value = expression.value
-        return Token("from_expression", value)
+        return FromExpression(expression[0])
 
     def when_then(self, when_then_values):
         """
@@ -563,21 +568,11 @@ class InternalTransformer(TransformerBaseClass):
         """
         return form
 
-    def order_asc(self, column_list: List[Column]):
-        """
-        Return sql_object in asc order
-        :param column_list:
-        :return:
-        """
-        return Token("order", (column_list[0], True))
+    def order_asc(self, column_list: List[Column]) -> OrderByExpression:
+        return OrderByExpression(column_list[0])
 
-    def order_desc(self, column_list: List[Column]):
-        """
-        Return sql_object in asc order
-        :param column_list:
-        :return:
-        """
-        return Token("order", (column_list[0], False))
+    def order_desc(self, column_list: List[Column]) -> OrderByExpression:
+        return OrderByExpression(column_list[0], False)
 
     def partition_by(self, column_list: List[Column]):
         """
@@ -585,7 +580,7 @@ class InternalTransformer(TransformerBaseClass):
         :param column_list: List containing only one column
         :return:
         """
-        return Token("partition", column_list[0])
+        return PartitionByExpression(column_list[0])
 
     def apply_rank_function(self, first_column: AnyColumn, rank_function: str):
         """
@@ -593,32 +588,26 @@ class InternalTransformer(TransformerBaseClass):
         :param rank_function:
         :return:
         """
+        assert isinstance(first_column, AnyColumn)
         assert rank_function in {"rank", "dense_rank"}
         if rank_function == "rank":
             return first_column.rank()
         if rank_function == "dense_rank":
             return first_column.dense_rank()
 
-    def _get_first_column_from_tokens(self, tokens_and_tuples: List[Token]):
-        first_value = tokens_and_tuples[0].value
-        column = first_value
-        if isinstance(first_value, tuple):
-            column = first_value[0]
-        return column.get_value()
-
     def rank(
         self,
-        tokens_and_tuples_list: List[List[Union[Token, Tuple[Token, bool]]]],
+        column_clause_list_list: List[List[ColumnExpression]],
         rank_function: str,
     ):
         """
-        :param tokens_and_tuples:
+        :param column_clause_list_list:
         :param rank_function:
         :return:
         """
-        tokens_and_tuples = tokens_and_tuples_list[0]
-        first_column = self._get_first_column_from_tokens(tokens_and_tuples)
-        window = Window(tokens_and_tuples, first_column)
+        column_clause_list = column_clause_list_list[0]
+        first_column = column_clause_list[0].column.get_value()
+        window = Window(column_clause_list, first_column)
         return Expression(
             self.apply_rank_function(first_column, rank_function).over(
                 ibis.window(order_by=window.order_by, group_by=window.partition)
@@ -641,7 +630,9 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.rank(tokens, "dense_rank")
 
-    def select_expression(self, expression_and_alias):
+    def select_expression(
+        self, expression_and_alias: Tuple[Value, Optional[AliasExpression]]
+    ):
         """
         Returns the appropriate object for the given sql_object
         :param expression_and_alias: An sql_object token_or_tree and
@@ -649,12 +640,12 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         expression = expression_and_alias[0]
-        alias = None
+        alias_expression = None
         if len(expression_and_alias) == 2:
-            alias = expression_and_alias[1]
+            alias_expression = expression_and_alias[1]
 
-        if alias:
-            expression.set_alias(alias.children)
+        if alias_expression:
+            expression.set_alias(alias_expression.alias)
         return expression
 
     def join(self, *args):
@@ -706,8 +697,12 @@ class InternalTransformer(TransformerBaseClass):
             raise InvalidQueryException(
                 "Can only perform 'in' operation on subquery with one column present"
             )
-        return column.value.isin(
-            subquery_table.get_table_expr().get_column(subquery_table.column_names[0])
+        return Value(
+            column.value.isin(
+                subquery_table.get_table_expr().get_column(
+                    subquery_table.column_names[0]
+                )
+            )
         )
 
     def get_table(self, table_or_alias_name) -> Table:
@@ -720,13 +715,13 @@ class InternalTransformer(TransformerBaseClass):
             raise Exception(f"Table or alias '{table_or_alias_name}' not found")
         return self._alias_registry.get_registry_entry(table_or_alias_name)
 
-    def column_name(self, name_list_format: List[str]):
+    def column_name(self, name_list: List[str]):
         """
         Returns a column token_or_tree with the name extracted
-        :param name_list_format: List formatted name
+        :param name_list: List formatted name
         :return: Tree with column token_or_tree
         """
-        name = "".join(name_list_format)
+        name = name_list[0]
         table_name = ""
         if "." in name:
             table_name, name = name.split(".")
@@ -736,6 +731,45 @@ class InternalTransformer(TransformerBaseClass):
         column = Column(name="".join(name))
         self.set_column_value(column, table_name)
         return column
+
+    def __frame_extract(self, specs: List[Union[Token, int]]) -> Optional[int]:
+        value = specs[0]
+        if isinstance(value, Token) and value.value == "UNBOUNDED":
+            return None
+        return value
+
+    def frame_preceding(self, preceding_specs: List[Token]):
+        return Preceding(self.__frame_extract(preceding_specs))
+
+    def frame_following(self, following_specs: List[Token]):
+        return Following(self.__frame_extract(following_specs))
+
+    def frame_bound(self, extent_expression_list: List[ExtentExpression]):
+        if not extent_expression_list:
+            return self._CURRENT_ROW
+        return extent_expression_list[0]
+
+    def frame_between(self, extent_expressions: list):
+        if extent_expressions[0] == self._CURRENT_ROW:
+            extent_expressions[0] = Preceding(0)
+        if extent_expressions[1] == self._CURRENT_ROW:
+            extent_expressions[1] = Following(0)
+        return extent_expressions
+
+    def frame_extent(self, extent_list: List[ExtentExpression]):
+        if isinstance(extent_list[0], list):
+            extent_list = extent_list[0]
+        extents = {"following": Following(), "preceding": Preceding()}
+        for extent in extent_list:
+            if isinstance(extent, Following):
+                extents["following"] = extent
+            if isinstance(extent, Preceding):
+                extents["preceding"] = extent
+        return extents
+
+    def row_range_clause(self, clause: list):
+        rows_or_range_token: Token = clause[0]
+        return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
 
     @classmethod
     def empty_transformer(cls):

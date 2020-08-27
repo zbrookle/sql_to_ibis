@@ -2,7 +2,7 @@
 Module containing all lark internal_transformer classes
 """
 import re
-from typing import Dict, List, Set, Tuple, Union
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import ibis
 from ibis.expr.types import TableExpr
@@ -18,11 +18,11 @@ from sql_to_ibis.parsing.transformers import (
     InternalTransformerWithStarVal,
     TransformerBaseClass,
 )
-from sql_to_ibis.query_info import QueryInfo
-from sql_to_ibis.sql_objects import (
+from sql_to_ibis.query_info import OrderByInfo, QueryInfo
+from sql_to_ibis.sql.sql_clause_objects import LimitExpression, WhereExpression
+from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn
+from sql_to_ibis.sql.sql_value_objects import (
     Aggregate,
-    AliasRegistry,
-    AmbiguousColumn,
     Column,
     CountStar,
     CrossJoin,
@@ -60,6 +60,12 @@ TYPE_TO_PANDAS_TYPE = {
     "timedelta[ns]": "timedelta[ns]",
     "category": "category",
 }
+
+
+class TupleTree(Tree):
+    def __init__(self, data, children: Any, meta=None):
+        super().__init__(data, children, meta)
+
 
 for TYPE in PANDAS_TYPE_PYTHON_TYPE_FUNCTION:
     TYPE_TO_PANDAS_TYPE[TYPE] = TYPE
@@ -127,8 +133,7 @@ class SQLTransformer(TransformerBaseClass):
             raise TableExprDoesNotExist(table_name)
         true_name = self._table_name_map[table_name]
         if isinstance(alias, Tree) and alias.data == "alias_string":
-            alias_token: Token = alias.children[0]
-            alias = alias_token.value
+            alias = str(alias.children[0])
         table = Table(
             value=self._table_map[true_name].get_table_expr(),
             name=true_name,
@@ -146,7 +151,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         order_type = rank_tree.data
         ascending = order_type == "order_asc"
-        return Token("order_by", (rank_tree.children[0].children, ascending))
+        return OrderByInfo(rank_tree.children[0].children[0], ascending)
 
     def integer(self, integer_token):
         """
@@ -163,7 +168,7 @@ class SQLTransformer(TransformerBaseClass):
         :param limit_count_value:
         :return:
         """
-        return Token("limit", limit_count_value)
+        return LimitExpression(limit_count_value)
 
     def query_expr(self, query_info: QueryInfo, *args):
         """
@@ -173,11 +178,10 @@ class SQLTransformer(TransformerBaseClass):
         :return: Query info
         """
         for token in args:
-            if isinstance(token, Token):
-                if token.type == "order_by":
-                    query_info.order_by.append(token.value)
-                elif token.type == "limit":
-                    query_info.limit = token.value
+            if isinstance(token, OrderByInfo):
+                query_info.add_order_by_info(token)
+            if isinstance(token, LimitExpression):
+                query_info.limit = token.limit
         return query_info
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
@@ -195,8 +199,7 @@ class SQLTransformer(TransformerBaseClass):
         :param alias:
         :return:
         """
-        assert alias.data == "alias_string"
-        alias_name = alias.children[0].value
+        alias_name = str(alias.children[0])
         if isinstance(query_object, JoinBase):
             query_info = self._handle_join_subqueries(query_object)
         else:
@@ -212,7 +215,7 @@ class SQLTransformer(TransformerBaseClass):
 
     def column_name(self, *names):
         full_name = ".".join([str(name) for name in names])
-        return Tree("column_name", full_name)
+        return Tree("column_name", [full_name])
 
     def join(self, join_expression):
         """
@@ -222,7 +225,9 @@ class SQLTransformer(TransformerBaseClass):
         """
         return join_expression
 
-    def _determine_column_side(self, column, left_table: Table, right_table: Table):
+    def _determine_column_side(
+        self, column: str, left_table: Table, right_table: Table
+    ):
         """
         Check if column table prefix is one of the two tables (if there is one) AND
         the column has to be in one of the two tables
@@ -287,8 +292,8 @@ class SQLTransformer(TransformerBaseClass):
 
         # Check that there is a column from both sides
         column_comparison = join_condition.children[0].children[0].children
-        column1 = str(column_comparison[0].children)
-        column2 = str(column_comparison[1].children)
+        column1 = column_comparison[0].children[0]
+        column2 = column_comparison[1].children[0]
 
         column1_side, column1 = self._determine_column_side(column1, table1, table2)
         column2_side, column2 = self._determine_column_side(column2, table1, table2)
@@ -358,7 +363,7 @@ class SQLTransformer(TransformerBaseClass):
                     where_expr = select_expression
 
         internal_transformer = InternalTransformer(
-            tables,
+            tables,  # type: ignore
             self._table_map,
             self._column_name_map,
             self._column_to_table_name,
@@ -366,19 +371,26 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry,
         )
 
-        select_expressions_no_boolean_clauses = tuple(
-            select_expression
-            for select_expression in select_expressions
-            if isinstance(select_expression, Tree)
-            and select_expression.data not in ("having_expr", "where_expr")
-            or not isinstance(select_expression, Tree)
-        )
+        select_expressions_no_boolean_clauses: List[Union[str, Tree]] = []
+        distinct = False
+        for select_expression in select_expressions:
+            if isinstance(select_expression, Tree) and select_expression.data not in (
+                "having_expr",
+                "where_expr",
+            ):
+                select_expressions_no_boolean_clauses.append(select_expression)
+            if (
+                isinstance(select_expression, Token)
+                and select_expression.value.lower() == "distinct"
+            ):
+                distinct = True
 
         return QueryInfo(
             internal_transformer,
             select_expressions_no_boolean_clauses,
             having_expr=having_expr,
             where_expr=where_expr,
+            distinct=distinct,
         )
 
     def cross_join(self, table1: Table, table2: Table):
@@ -510,16 +522,15 @@ class SQLTransformer(TransformerBaseClass):
         :param internal_transformer: Transformer to transform the where clauses
         :return: Filtered TableExpr
         """
-        where_value = None
         if where_expr is not None:
-            where_value_token = internal_transformer.transform(where_expr)
-            where_value = where_value_token.value
-        if where_value is not None:
-            return ibis_table.filter(where_value)
+            where_expression: WhereExpression = internal_transformer.transform(
+                where_expr
+            )
+            return ibis_table.filter(where_expression.value.get_value())
         return ibis_table
 
     def subquery_in(self, column: Tree, subquery: Subquery):
-        return Tree("subquery_in", (column, subquery))
+        return TupleTree("subquery_in", (column, subquery))
 
     def handle_selection(
         self, ibis_table: TableExpr, columns: List[Value]

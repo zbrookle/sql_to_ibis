@@ -12,7 +12,8 @@ from lark.exceptions import VisitError
 
 from sql_to_ibis.exceptions.sql_exception import InvalidQueryException
 from sql_to_ibis.parsing.sql_parser import SQLTransformer
-from sql_to_ibis.sql_objects import AmbiguousColumn, Table
+from sql_to_ibis.sql.sql_objects import AmbiguousColumn
+from sql_to_ibis.sql.sql_value_objects import Table
 
 _ROOT = Path(__file__).parent
 GRAMMAR_PATH = os.path.join(_ROOT, "grammar", "sql.lark")
@@ -142,9 +143,13 @@ class SqlToTable:
             )
             raise InvalidQueryException(message)
         except VisitError as err:
-            while isinstance(err, VisitError):
-                err = err.orig_exc
-            raise err
+            curr_err: Exception = err
+            while True:
+                if isinstance(curr_err, VisitError):
+                    curr_err = curr_err.orig_exc
+                else:
+                    break
+            raise curr_err
 
 
 class TableInfo:
