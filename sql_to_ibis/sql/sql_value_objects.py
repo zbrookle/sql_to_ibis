@@ -196,41 +196,33 @@ class Literal(Value):
     def reset_literal_count(cls):
         cls.literal_count = 0
 
-
+@dataclass
 class Number(Literal):
     """
     Stores numerical data
     """
+    pass
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
-
-
+@dataclass
 class String(Literal):
     """
     Store information about a string literal
     """
+    pass
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
-
-
+@dataclass
 class Date(Literal):
     """
     Store information about a date literal
     """
+    pass
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
-
-
+@dataclass
 class Bool(Literal):
     """
     Store information about a date literal
     """
-
-    def __init__(self, value):
-        Literal.__init__(self, value)
+    pass
 
 
 class DerivedColumn(Value):
