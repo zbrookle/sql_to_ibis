@@ -32,16 +32,17 @@ class Table:
         return self._value.columns
 
 
+@dataclass
 class Value:
     """
     Parent class for expression_count and columns
     """
+    value: AnyColumn
+    alias: str = ""
+    typename: str = ""
 
-    def __init__(self, value, alias="", typename=""):
-        self.value = value
-        self.alias = alias
-        self.typename = typename
-        self.final_name = alias
+    def __post_init__(self):
+        self.final_name = self.alias
 
     def get_value_repr(self):
         string_type = str(type(self.value))
