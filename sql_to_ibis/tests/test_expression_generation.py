@@ -557,7 +557,8 @@ def test_having_multiple_conditions(forest_fires):
     )
     having_condition = (forest_fires.temp.min() > 2) & (forest_fires.DC.max() < 200)
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"),
+        having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -576,7 +577,8 @@ def test_having_multiple_conditions_with_or(forest_fires):
         (forest_fires.DC.max() > 1000)
     )
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"),
+        having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -1622,6 +1624,7 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
         query(sql)
 
 
+# TODO Make a session object so that class variables don't need to be reset
 @pytest.mark.parametrize(
     "sql",
     [
@@ -1639,15 +1642,18 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
              group by type ) t1""",
     ],
 )
+@assert_state_not_change
 def test_invalid_queries(sql):
     with pytest.raises(InvalidQueryException):
         query(sql)
+    sql_to_ibis.sql.sql_value_objects.DerivedColumn.reset_expression_count()
+    sql_to_ibis.sql.sql_value_objects.Literal.reset_literal_count()
 
 
 @assert_state_not_change
 def test_count_star(forest_fires):
     my_table = query("select count(*) from forest_fires")
-    ibis_table = forest_fires.aggregate([forest_fires.count().name("_col3")])
+    ibis_table = forest_fires.aggregate([forest_fires.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -1808,7 +1814,13 @@ def test_multi_column_joins(time_data):
         table1.start_time_count,
         table2.start_time_count_d
     FROM
-    (SELECT team, count(start_time) AS start_time_count FROM time_data GROUP BY team) table1
+    (SELECT
+        team,
+        count(start_time)
+        AS start_time_count
+    FROM
+        time_data
+        GROUP BY team) table1
         INNER JOIN
     (SELECT team, count(start_time) AS start_time_count_d FROM
         (SELECT distinct team, start_time FROM time_data) intermediate GROUP BY team

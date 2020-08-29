@@ -218,7 +218,7 @@ class InternalTransformer(TransformerBaseClass):
         )
         if isinstance(ibis_aggregation, NumericScalar) and window_parts is not None:
             return Column(
-                column.name,
+                name=column.name,
                 alias=column.alias,
                 typename=column.typename,
                 value=Window(

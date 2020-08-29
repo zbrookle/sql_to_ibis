@@ -1,20 +1,23 @@
+from dataclasses import InitVar, dataclass
 import re
-from typing import Optional, Union
+from typing import ClassVar, Optional, Union
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
-from pandas import Series
 from lark import Tree
+from pandas import Series
 
 
+@dataclass(unsafe_hash=True)
 class Table:
-    def __init__(self, value: TableExpr, name: str, alias: str = ""):
-        assert isinstance(value, TableExpr)
-        self._value = value
-        self.name = name
-        self.alias = alias
+    value: InitVar[TableExpr]
+    name: str
+    alias: str = ""
 
-    def get_table_expr(self) -> TableExpr:
+    def __post_init__(self, value: TableExpr):
+        self._value = value
+
+    def get_table_expr(self):
         return self._value
 
     def get_ibis_columns(self):
@@ -30,16 +33,18 @@ class Table:
         return self._value.columns
 
 
+@dataclass
 class Value:
     """
     Parent class for expression_count and columns
     """
 
-    def __init__(self, value, alias="", typename=""):
-        self.value = value
-        self.alias = alias
-        self.typename = typename
-        self.final_name = alias
+    value: AnyColumn
+    alias: str = ""
+    typename: str = ""
+
+    def __post_init__(self):
+        self.final_name = self.alias
 
     def get_value_repr(self):
         string_type = str(type(self.value))
@@ -68,22 +73,26 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other), alias=self.alias,
+            value=self.value + self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other), alias=self.alias,
+            value=self.value - self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other), alias=self.alias,
+            value=self.value * self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other), alias=self.alias,
+            value=self.value / self.get_other_value(other),
+            alias=self.alias,
         )
 
     def get_table(self):
@@ -91,7 +100,7 @@ class Value:
         Returns the table of the current value
         :return:
         """
-        return None
+        pass
 
     def get_name(self) -> str:
         """
@@ -168,15 +177,16 @@ class Value:
         return self.value & other
 
 
+@dataclass
 class Literal(Value):
     """
     Stores literal data
     """
 
-    literal_count = 0
+    literal_count: ClassVar[int] = 0
 
-    def __init__(self, value, alias=""):
-        Value.__init__(self, value, alias)
+    def __post_init__(self):
+        super().__post_init__()
         if not self.alias:
             self.alias = f"_literal{self.literal_count}"
             type(self).literal_count += 1
@@ -187,55 +197,59 @@ class Literal(Value):
             self.value = ibis.literal(self.value)
 
     def __repr__(self):
-        return Value.__repr__(self) + ")"
+        return super().__repr__() + ")"
+
+    @classmethod
+    def reset_literal_count(cls):
+        cls.literal_count = 0
 
 
+@dataclass
 class Number(Literal):
     """
     Stores numerical data
     """
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
+    pass
 
 
+@dataclass
 class String(Literal):
     """
     Store information about a string literal
     """
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
+    pass
 
 
+@dataclass
 class Date(Literal):
     """
     Store information about a date literal
     """
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
+    pass
 
 
+@dataclass
 class Bool(Literal):
     """
     Store information about a date literal
     """
 
-    def __init__(self, value):
-        Literal.__init__(self, value)
+    pass
 
 
+@dataclass
 class DerivedColumn(Value):
     """
     Base class for expressions and aggregates
     """
 
-    expression_count = 0
+    expression_count: ClassVar[int] = 0
+    function: str = ""
 
-    def __init__(self, value, alias="", typename="", function=""):
-        Value.__init__(self, value, alias, typename)
-        self.function = function
+    def __post_init__(self):
         if self.alias:
             self.final_name = self.alias
         else:
@@ -249,7 +263,7 @@ class DerivedColumn(Value):
                 self.final_name = str(self.value)
 
     def __repr__(self):
-        display = Value.__repr__(self)
+        display = super().__repr__()
         if self.function:
             display += f", function={self.function}"
         return display + ")"
@@ -263,28 +277,26 @@ class DerivedColumn(Value):
         cls.expression_count = 0
 
 
+@dataclass
 class Expression(DerivedColumn):
     """
     Store information about an sql_object
     """
 
-    def __init__(self, value, alias="", typename="", function=""):
-        DerivedColumn.__init__(self, value, alias, typename, function)
-
     def get_name(self) -> str:
         return self.alias
 
 
+@dataclass
 class Column(Value):
     """
     Store information about columns
     """
 
-    def __init__(
-        self, name: str, alias="", typename="", value: Optional[AnyColumn] = None
-    ):
-        Value.__init__(self, value, alias, typename)
-        self.name = name
+    value: AnyColumn = None
+    name: str = ""
+
+    def __post_init__(self):
         if self.alias:
             self.final_name = self.alias
         else:
@@ -328,9 +340,10 @@ class Column(Value):
         return self
 
 
+@dataclass
 class CountStar(Column):
-    def __init__(self):
-        super().__init__("*", alias="*")
+    name = "*"
+    alias: str = "*"
 
 
 class Aggregate(DerivedColumn):
@@ -339,26 +352,18 @@ class Aggregate(DerivedColumn):
     """
 
     def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
-        DerivedColumn.__init__(self, value, alias, typename)
+        super().__init__(value, alias, typename)
 
 
+@dataclass
 class GroupByColumn(Column):
-    def __init__(
-        self,
-        name: str,
-        groupby_name: str,
-        alias="",
-        typename="",
-        value: Optional[AnyColumn] = None,
-    ):
-        super().__init__(name, alias, typename, value)
-        self.group_by_name = groupby_name
+    group_by_name: str = ""
 
     @classmethod
     def from_column_type(cls, column: Column):
         return cls(
             name=column.name,
-            groupby_name=column.name,
+            group_by_name=column.name,
             alias=column.alias,
             typename=column.typename,
             value=column.value,
@@ -368,51 +373,33 @@ class GroupByColumn(Column):
         self.value = self.value.name(self.get_name())
 
 
+@dataclass
 class Subquery(Table):
     """
     Wrapper for subqueries
     """
 
-    def __init__(self, name: str, value: TableExpr):
-        super().__init__(value, name, name)
-
-    def __repr__(self):
-        return f"Subquery(name={self.name}, value={self._value})"
+    def __post_init__(self, value: TableExpr):
+        self._value = value
+        self.alias = self.name
 
 
+@dataclass
 class JoinBase:
-    def __init__(
-        self, left_table: Table, right_table: Table, join_type: str,
-    ):
-        self.left_table: Table = left_table
-        self.right_table: Table = right_table
-        self.join_type: str = join_type
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(left={self.left_table}, right="
-            f"{self.right_table}, type={self.join_type})"
-        )
+    left_table: Table
+    right_table: Table
+    join_type: str
 
 
+@dataclass
 class Join(JoinBase):
     """
     Wrapper for join related info
     """
 
-    def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
-        join_type: str,
-        join_condition: Tree,
-    ):
-        super().__init__(left_table, right_table, join_type)
-        self.join_condition = join_condition
+    join_condition: Tree
 
 
+@dataclass
 class CrossJoin(JoinBase):
-    def __init__(
-        self, left_table: Table, right_table: Table,
-    ):
-        super().__init__(left_table, right_table, "cross")
+    join_type: str = "cross"
