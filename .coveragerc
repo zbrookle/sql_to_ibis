@@ -1,0 +1,11 @@
+[run]
+branch = True
+source = sql_to_ibis
+
+[report]
+ignore_errors = True
+omit =
+    *_version.py
+    *tests*
+    *__init__*
+    *conftest*
