@@ -6,7 +6,7 @@ dependencies:
   - lark-parser=0.8.5
 
   # Test requirements
-  - black=20.8b1
+  - black=19.10b0
   - flake8
   - mypy
   - isort
