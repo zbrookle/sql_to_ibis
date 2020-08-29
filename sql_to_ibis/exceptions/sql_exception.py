@@ -4,15 +4,6 @@ Exceptions for SQL to Pandas
 from typing import List
 
 
-class MultipleQueriesException(Exception):
-    """
-    Raised when multiple queries are passed into sql to pandas.
-    """
-
-    def __init__(self):
-        Exception.__init__(self, "Only one sql statement may be entered")
-
-
 class InvalidQueryException(Exception):
     """
     Raised when an invalid query is passed into a sql to pandas.

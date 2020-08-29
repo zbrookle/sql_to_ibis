@@ -1,4 +1,6 @@
-from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Value
+import ibis
+
+from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal, Value
 
 
 def test_value_repr(time_data):
@@ -27,4 +29,13 @@ PandasTable[table]
 
 team = Column[string*] 'team' from table
   ref_0, value=IbisStringColumn(), type=string, function=sum)"""
+    )
+
+
+def test_literal_column():
+    column = Literal(ibis.literal(10), "my_int", "integer")
+    assert (
+        repr(column)
+        == "Literal(final_name=my_int, value=IbisIntegerScalar(), alias=my_int, "
+        "type=integer)"
     )
