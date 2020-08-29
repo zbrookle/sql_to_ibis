@@ -771,10 +771,6 @@ class InternalTransformer(TransformerBaseClass):
         rows_or_range_token: Token = clause[0]
         return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
 
-    @classmethod
-    def empty_transformer(cls):
-        return cls([], {}, {}, {}, {}, AliasRegistry())
-
 
 class InternalTransformerWithStarVal(InternalTransformer):
     def __init__(

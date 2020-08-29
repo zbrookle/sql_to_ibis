@@ -93,8 +93,7 @@ class SQLTransformer(TransformerBaseClass):
             column_name_map = {}
         if column_to_table_name is None:
             column_to_table_name = {}
-        TransformerBaseClass.__init__(
-            self,
+        super().__init__(
             table_name_map,
             table_map,
             column_name_map,
@@ -187,7 +186,14 @@ class SQLTransformer(TransformerBaseClass):
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
         info = QueryInfo(
-            InternalTransformer.empty_transformer(),
+            InternalTransformer(
+                join.get_tables(),
+                join.get_table_map(),
+                self._column_name_map,
+                self._column_to_table_name,
+                self._table_name_map,
+                self._alias_registry,
+            ),
         )
         info.add_table(join)
         info.add_column(Column(name="*"))
@@ -623,7 +629,6 @@ class SQLTransformer(TransformerBaseClass):
             compiled_condition: Value = internal_transformer.transform(
                 join.join_condition
             )
-            print(compiled_condition.get_value())
             result = left_ibis_table.join(
                 right_ibis_table,
                 predicates=compiled_condition.get_value(),

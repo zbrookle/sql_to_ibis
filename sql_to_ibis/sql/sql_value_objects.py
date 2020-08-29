@@ -1,6 +1,6 @@
 from dataclasses import InitVar, dataclass
 import re
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Dict, List, Optional, Union
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
@@ -31,6 +31,9 @@ class Table:
     @property
     def column_names(self):
         return self._value.columns
+
+    def get_column_name_map(self):
+        return {column.lower(): column for column in self._value.columns}
 
 
 @dataclass
@@ -389,6 +392,21 @@ class JoinBase:
     left_table: Table
     right_table: Table
     join_type: str
+
+    def get_tables(self) -> List[Table]:
+        return [self.left_table, self.right_table]
+
+    def get_table_map(self) -> Dict[str, Table]:
+        return {
+            self.left_table.get_alias_else_name(): self.left_table,
+            self.right_table.get_alias_else_name(): self.right_table,
+        }
+
+    def get_column_name_map(self):
+        column_map = {}
+        for table in self.get_tables():
+            column_map[table.get_alias_else_name()] = table.get_column_name_map()
+        return column_map
 
 
 @dataclass

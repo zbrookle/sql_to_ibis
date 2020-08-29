@@ -1371,7 +1371,8 @@ def test_sql_data_types(avocado):
     [
         """
     select * from
-    ((select X, Y, rain from forest_fires) table1
+    (
+    (select X, Y, rain from forest_fires) table1
     join
     (select X, Y, rain from forest_fires) table2
     on table1.x = table2.x) sub
