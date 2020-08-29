@@ -45,49 +45,42 @@ jobs:
     - name: Linting
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         ci/code_checks.sh lint
       if: always()
 
     - name: Dependencies consistency
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         ci/code_checks.sh dependencies
       if: always()
 
     - name: Checks on imported code
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         ci/code_checks.sh code
       if: always()
 
     - name: Running doctests
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         ci/code_checks.sh doctests
       if: always()
 
     - name: Docstring validation
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         ci/code_checks.sh docstrings
       if: always()
 
     - name: Typing validation
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         ci/code_checks.sh typing
       if: always()
 
     - name: Unit tests
       shell: bash -l {0}
       run: |
-        source activate sql_to_ibis
         chmod +x ci/run_tests.sh
         ci/run_tests.sh
       if: always()
