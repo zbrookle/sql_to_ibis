@@ -93,8 +93,7 @@ class SQLTransformer(TransformerBaseClass):
             column_name_map = {}
         if column_to_table_name is None:
             column_to_table_name = {}
-        TransformerBaseClass.__init__(
-            self,
+        super().__init__(
             table_name_map,
             table_map,
             column_name_map,
@@ -187,7 +186,14 @@ class SQLTransformer(TransformerBaseClass):
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
         info = QueryInfo(
-            InternalTransformer.empty_transformer(),
+            InternalTransformer(
+                join.get_tables(),
+                join.get_table_map(),
+                self._column_name_map,
+                self._column_to_table_name,
+                self._table_name_map,
+                self._alias_registry,
+            ),
         )
         info.add_table(join)
         info.add_column(Column(name="*"))
@@ -290,31 +296,11 @@ class SQLTransformer(TransformerBaseClass):
                     join_type = match.group("type")
             if join_type in {"full", "cross"}:
                 join_type = "outer"
-
-        # Check that there is a column from both sides
-        column_comparison = join_condition.children[0].children[0].children
-        column1 = column_comparison[0].children[0]
-        column2 = column_comparison[1].children[0]
-
-        column1_side, column1 = self._determine_column_side(column1, table1, table2)
-        column2_side, column2 = self._determine_column_side(column2, table1, table2)
-        if column1_side == column2_side:
-            raise Exception("Join columns must be one column from each join table!")
-        column1 = self._column_name_map[table1.name][column1]
-        column2 = self._column_name_map[table2.name][column2]
-        if column1_side == "left":
-            left_on = column1
-            right_on = column2
-        else:
-            left_on = column2
-            right_on = column1
-
         return Join(
             left_table=table1,
             right_table=table2,
             join_type=join_type,
-            left_on=left_on,
-            right_on=right_on,
+            join_condition=join_condition,
         )
 
     @staticmethod
@@ -546,22 +532,6 @@ class SQLTransformer(TransformerBaseClass):
             return ibis_table.projection(column_mutation)
         return ibis_table
 
-    def handle_duplicate_columns_in_join(
-        self, right_table: TableExpr, left_table: TableExpr, join: JoinBase
-    ):
-        duplicate_columns = set(left_table.columns).intersection(right_table.columns)
-        for column in duplicate_columns:
-            left_table = left_table.relabel({column: f"{join.left_table}." f"{column}"})
-            right_table = right_table.relabel(
-                {column: f"{join.right_table}" f".{column}"}
-            )
-
-        if isinstance(join, Join) and join.left_on == join.right_on:
-            join.left_on = f"{join.left_table}.{join.left_on}"
-            join.right_on = f"{join.right_table}.{join.right_on}"
-
-        return left_table, right_table
-
     @staticmethod
     def _columns_have_select_star(columns: List[Value]):
         for column in columns:
@@ -615,7 +585,12 @@ class SQLTransformer(TransformerBaseClass):
             all_columns += columns[table]
         return all_columns
 
-    def handle_join(self, join: JoinBase, columns: List[Value]) -> TableExpr:
+    def handle_join(
+        self,
+        join: JoinBase,
+        columns: List[Value],
+        internal_transformer: InternalTransformer,
+    ) -> TableExpr:
         """
         Return the table expr resulting from the join
         :param join:
@@ -635,10 +610,12 @@ class SQLTransformer(TransformerBaseClass):
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
         if isinstance(join, Join):
+            compiled_condition: Value = internal_transformer.transform(
+                join.join_condition
+            )
             result = left_ibis_table.join(
                 right_ibis_table,
-                predicates=left_ibis_table.get_column(join.left_on)
-                == right_ibis_table.get_column(join.right_on),
+                predicates=compiled_condition.get_value(),
                 how=join.join_type,
             )
         if isinstance(join, CrossJoin):
@@ -693,7 +670,11 @@ class SQLTransformer(TransformerBaseClass):
             raise Exception("No table specified")
         first_table = self.get_table_value(tables[0])
         if isinstance(first_table, JoinBase):
-            first_table = self.handle_join(join=first_table, columns=query_info.columns)
+            first_table = self.handle_join(
+                join=first_table,
+                columns=query_info.columns,
+                internal_transformer=query_info.internal_transformer,
+            )
         for table in tables[1:]:
             next_table = self.get_table_value(table)
             first_table = first_table.cross_join(next_table)

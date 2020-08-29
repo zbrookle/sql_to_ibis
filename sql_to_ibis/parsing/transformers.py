@@ -65,17 +65,6 @@ def num_eval(arg):
     return arg
 
 
-def get_wrapper_value(value):
-    """
-    If the value is a literal return it's value
-    :param value:
-    :return:
-    """
-    if isinstance(value, Value):
-        return value.get_value()
-    return value
-
-
 class TransformerBaseClass(Transformer):
     """
     Base class for transformers
@@ -770,10 +759,6 @@ class InternalTransformer(TransformerBaseClass):
     def row_range_clause(self, clause: list):
         rows_or_range_token: Token = clause[0]
         return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
-
-    @classmethod
-    def empty_transformer(cls):
-        return cls([], {}, {}, {}, {}, AliasRegistry())
 
 
 class InternalTransformerWithStarVal(InternalTransformer):

@@ -1371,7 +1371,8 @@ def test_sql_data_types(avocado):
     [
         """
     select * from
-    ((select X, Y, rain from forest_fires) table1
+    (
+    (select X, Y, rain from forest_fires) table1
     join
     (select X, Y, rain from forest_fires) table2
     on table1.x = table2.x) sub
@@ -1803,4 +1804,54 @@ def test_window_range(time_data, sql_window, window_args):
             .name("running_total"),
         ]
     )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def test_multi_column_joins(time_data):
+    my_table = query(
+        """
+    SELECT
+        table1.team,
+        table1.start_time_count,
+        table2.start_time_count_d
+    FROM
+    (SELECT
+        team,
+        count(start_time)
+        AS start_time_count
+    FROM
+        time_data
+        GROUP BY team) table1
+        INNER JOIN
+    (SELECT team, count(start_time) AS start_time_count_d FROM
+        (SELECT distinct team, start_time FROM time_data) intermediate GROUP BY team
+    ) table2
+        ON
+            table1.team = table2.team AND
+            table1.start_time_count = table2.start_time_count_d
+    """
+    )
+    table1 = time_data.group_by(time_data.team).aggregate(
+        [time_data.start_time.count().name("start_time_count")]
+    )
+    intermediate = time_data.projection(
+        [time_data.team, time_data.start_time]
+    ).distinct()
+    table2 = intermediate.group_by(intermediate.team).aggregate(
+        [intermediate.start_time.count().name("start_time_count_d")]
+    )
+    ibis_table = table1.join(
+        table2,
+        predicates=(
+            (table1.team == table2.team)
+            & (table1.start_time_count == table2.start_time_count_d)
+        ),
+        how="inner",
+    ).projection([table1.team, table1.start_time_count, table2.start_time_count_d])
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def test_select_star_with_table_specified(time_data):
+    my_table = query("select time_data.* from time_data")
+    ibis_table = time_data
     assert_ibis_equal_show_diff(ibis_table, my_table)
