@@ -15,4 +15,5 @@ dependencies:
   - pytest
   - pandas
   - pytest
+  - pytest-cov
   - freezegun
