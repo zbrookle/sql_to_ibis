@@ -1846,5 +1846,5 @@ def test_multi_column_joins(time_data):
             & (table1.start_time_count == table2.start_time_count_d)
         ),
         how="inner",
-    )
+    ).projection([table1.team, table1.start_time_count, table2.start_time_count_d])
     assert_ibis_equal_show_diff(ibis_table, my_table)
