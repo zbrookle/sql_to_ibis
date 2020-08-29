@@ -31,17 +31,16 @@ class AliasRegistry:
     def __contains__(self, item):
         return item in self.registry
 
-    def __repr__(self):
-        return f"Registry:\n{self.registry}"
 
-
+@dataclass
 class AmbiguousColumn:
     """
     Class for identifying ambiguous table names
     """
 
-    def __init__(self, tables: Set[str]) -> None:
-        assert tables != set()
+    tables: InitVar[Set[str]]
+
+    def __post_init__(self, tables: Set[str]):
         self._tables = tables
 
     def __repr__(self) -> str:
