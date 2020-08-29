@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Union
+from typing import Optional, Union, ClassVar
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
@@ -171,15 +171,15 @@ class Value:
         return self.value & other
 
 
+@dataclass
 class Literal(Value):
     """
     Stores literal data
     """
+    literal_count: ClassVar[int] = 0
 
-    literal_count = 0
-
-    def __init__(self, value, alias=""):
-        Value.__init__(self, value, alias)
+    def __post_init__(self):
+        super().__post_init__()
         if not self.alias:
             self.alias = f"_literal{self.literal_count}"
             type(self).literal_count += 1
