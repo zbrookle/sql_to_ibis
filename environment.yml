@@ -6,7 +6,6 @@ dependencies:
   - lark-parser=0.8.5
 
   # Test requirements
-  - black=19.10b0
   - flake8
   - mypy
   - isort
@@ -19,3 +18,4 @@ dependencies:
   - pip
   - pip:
       - ibis-framework==1.3.0
+      - black
