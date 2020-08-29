@@ -260,14 +260,11 @@ class DerivedColumn(Value):
     def reset_expression_count(cls):
         cls.expression_count = 0
 
-
+@dataclass
 class Expression(DerivedColumn):
     """
     Store information about an sql_object
     """
-
-    def __init__(self, value, alias="", typename="", function=""):
-        DerivedColumn.__init__(self, value, alias, typename, function)
 
     def get_name(self) -> str:
         return self.alias
