@@ -1649,7 +1649,7 @@ def test_invalid_queries(sql):
 @assert_state_not_change
 def test_count_star(forest_fires):
     my_table = query("select count(*) from forest_fires")
-    ibis_table = forest_fires.aggregate([forest_fires.count().name("_col3")])
+    ibis_table = forest_fires.aggregate([forest_fires.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 

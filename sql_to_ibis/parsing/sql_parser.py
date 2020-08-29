@@ -33,6 +33,7 @@ from sql_to_ibis.sql.sql_value_objects import (
     Subquery,
     Table,
     Value,
+    Literal
 )
 
 GET_TABLE_REGEX = re.compile(
@@ -831,4 +832,5 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         DerivedColumn.reset_expression_count()
+        Literal.reset_literal_count()
         return table

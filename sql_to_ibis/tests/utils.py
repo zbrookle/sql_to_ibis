@@ -7,6 +7,7 @@ from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from typing import Callable, Set
+from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal
 
 import ibis
 from ibis.expr.groupby import GroupedTableExpr
@@ -76,7 +77,13 @@ def assert_state_not_change(func: Callable):
         column_name_map = deepcopy(TableInfo.column_name_map)
         dataframe_name_map = deepcopy(TableInfo.ibis_table_name_map)
 
+        Literal.reset_literal_count()
+        DerivedColumn.reset_expression_count()
+
         func(*args, **kwargs)
+
+        assert Literal.literal_count == 0
+        assert DerivedColumn.expression_count == 0
 
         for key in TableInfo.ibis_table_map:
             assert table_state[key] == TableInfo.ibis_table_map[key]
@@ -94,6 +101,7 @@ def assert_state_not_change(func: Callable):
             display_dict_difference(
                 dataframe_name_map, TableInfo.ibis_table_name_map, "dataframe_name_map"
             )
+
 
     return new_func
 

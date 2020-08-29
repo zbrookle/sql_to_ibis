@@ -1,7 +1,7 @@
 """
 Module containing all sql objects
 """
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, dataclass, field
 from typing import Any, Callable, ClassVar, Dict, List, Set
 
 import ibis
@@ -16,23 +16,22 @@ from sql_to_ibis.sql.sql_clause_objects import (
 )
 from sql_to_ibis.sql.sql_value_objects import Table
 
-
+@dataclass
 class AliasRegistry:
-    def __init__(self):
-        self._registry = {}
+    registry: dict = field(default_factory=dict)
 
     def add_to_registry(self, alias: str, table: Table):
-        assert alias not in self._registry
-        self._registry[alias] = table
+        assert alias not in self.registry
+        self.registry[alias] = table
 
     def get_registry_entry(self, item: str):
-        return self._registry[item]
+        return self.registry[item]
 
     def __contains__(self, item):
-        return item in self._registry
+        return item in self.registry
 
     def __repr__(self):
-        return f"Registry:\n{self._registry}"
+        return f"Registry:\n{self.registry}"
 
 
 class AmbiguousColumn:

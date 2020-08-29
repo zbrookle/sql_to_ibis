@@ -192,6 +192,10 @@ class Literal(Value):
     def __repr__(self):
         return Value.__repr__(self) + ")"
 
+    @classmethod
+    def reset_literal_count(cls):
+        cls.literal_count = 0
+
 
 class Number(Literal):
     """
