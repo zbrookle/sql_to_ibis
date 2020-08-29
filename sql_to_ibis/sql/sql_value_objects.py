@@ -1,10 +1,10 @@
+from dataclasses import InitVar, dataclass
 import re
-from typing import Optional, Union, ClassVar
+from typing import ClassVar, Optional, Union
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from pandas import Series
-from dataclasses import dataclass, InitVar
 
 
 @dataclass(unsafe_hash=True)
@@ -37,6 +37,7 @@ class Value:
     """
     Parent class for expression_count and columns
     """
+
     value: AnyColumn
     alias: str = ""
     typename: str = ""
@@ -176,6 +177,7 @@ class Literal(Value):
     """
     Stores literal data
     """
+
     literal_count: ClassVar[int] = 0
 
     def __post_init__(self):
@@ -196,32 +198,40 @@ class Literal(Value):
     def reset_literal_count(cls):
         cls.literal_count = 0
 
+
 @dataclass
 class Number(Literal):
     """
     Stores numerical data
     """
+
     pass
+
 
 @dataclass
 class String(Literal):
     """
     Store information about a string literal
     """
+
     pass
+
 
 @dataclass
 class Date(Literal):
     """
     Store information about a date literal
     """
+
     pass
+
 
 @dataclass
 class Bool(Literal):
     """
     Store information about a date literal
     """
+
     pass
 
 
@@ -230,6 +240,7 @@ class DerivedColumn(Value):
     """
     Base class for expressions and aggregates
     """
+
     expression_count: ClassVar[int] = 0
     function: str = ""
 
@@ -260,6 +271,7 @@ class DerivedColumn(Value):
     def reset_expression_count(cls):
         cls.expression_count = 0
 
+
 @dataclass
 class Expression(DerivedColumn):
     """
@@ -275,6 +287,7 @@ class Column(Value):
     """
     Store information about columns
     """
+
     value: Optional[AnyColumn] = None
     name: str = ""
 
@@ -321,6 +334,7 @@ class Column(Value):
         self.value = ibis.desc(self.value)
         return self
 
+
 @dataclass
 class CountStar(Column):
     name = "*"
@@ -334,6 +348,7 @@ class Aggregate(DerivedColumn):
 
     def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
         super().__init__(value, alias, typename)
+
 
 @dataclass
 class GroupByColumn(Column):
@@ -376,6 +391,7 @@ class Join(JoinBase):
     """
     Wrapper for join related info
     """
+
     left_on: str
     right_on: str
 

@@ -30,10 +30,10 @@ from sql_to_ibis.sql.sql_value_objects import (
     GroupByColumn,
     Join,
     JoinBase,
+    Literal,
     Subquery,
     Table,
     Value,
-    Literal,
 )
 
 GET_TABLE_REGEX = re.compile(

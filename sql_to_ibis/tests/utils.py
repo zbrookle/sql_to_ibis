@@ -7,7 +7,6 @@ from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from typing import Callable, Set
-from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal
 
 import ibis
 from ibis.expr.groupby import GroupedTableExpr
@@ -16,6 +15,7 @@ from ibis.tests.util import assert_equal
 from pandas import DataFrame
 import pytest
 
+from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal
 from sql_to_ibis.sql_select_query import TableInfo
 
 DATA_PATH = Path(__file__).parent.parent / "data"
