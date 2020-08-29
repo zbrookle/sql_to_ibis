@@ -80,10 +80,7 @@ class QueryInfo:
         :param item_pos: Ordinal position of the token
         :return:
         """
-        if isinstance(token_or_tree, Tree):
-            if token_or_tree.data == "having_expr":
-                self.having_expr = token_or_tree
-        elif isinstance(token_or_tree, FromExpression):
+        if isinstance(token_or_tree, FromExpression):
             self.add_table(token_or_tree.value)
         else:
             self.__handle_non_token_non_tree(token_or_tree, item_pos)
