@@ -1624,6 +1624,7 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
         query(sql)
 
 
+# TODO Make a session object so that class variables don't need to be reset
 @pytest.mark.parametrize(
     "sql",
     [
@@ -1641,15 +1642,18 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
              group by type ) t1""",
     ],
 )
+@assert_state_not_change
 def test_invalid_queries(sql):
     with pytest.raises(InvalidQueryException):
         query(sql)
+    sql_to_ibis.sql.sql_value_objects.DerivedColumn.reset_expression_count()
+    sql_to_ibis.sql.sql_value_objects.Literal.reset_literal_count()
 
 
 @assert_state_not_change
 def test_count_star(forest_fires):
     my_table = query("select count(*) from forest_fires")
-    ibis_table = forest_fires.aggregate([forest_fires.count().name("_col3")])
+    ibis_table = forest_fires.aggregate([forest_fires.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 

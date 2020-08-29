@@ -30,6 +30,7 @@ from sql_to_ibis.sql.sql_value_objects import (
     GroupByColumn,
     Join,
     JoinBase,
+    Literal,
     Subquery,
     Table,
     Value,
@@ -831,4 +832,5 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         DerivedColumn.reset_expression_count()
+        Literal.reset_literal_count()
         return table
