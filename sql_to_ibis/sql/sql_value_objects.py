@@ -321,10 +321,10 @@ class Column(Value):
         self.value = ibis.desc(self.value)
         return self
 
-
+@dataclass
 class CountStar(Column):
-    def __init__(self):
-        super().__init__("*", alias="*")
+    name = "*"
+    alias: str = "*"
 
 
 class Aggregate(DerivedColumn):
