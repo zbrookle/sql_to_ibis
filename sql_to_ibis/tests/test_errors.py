@@ -6,6 +6,7 @@ from sql_to_ibis.exceptions.sql_exception import (
     ColumnNotFoundError,
     InvalidQueryException,
     TableExprDoesNotExist,
+    UnsupportedColumnOperation,
 )
 import sql_to_ibis.sql.sql_value_objects
 from sql_to_ibis.tests.utils import assert_state_not_change
@@ -80,3 +81,9 @@ def test_for_non_existent_table():
 def test_ambiguous_column():
     with pytest.raises(AmbiguousColumnException):
         query("select type from digimon_move_list, digimon_mon_list")
+
+
+@assert_state_not_change
+def test_unsupported_operation_exception():
+    with pytest.raises(UnsupportedColumnOperation):
+        query("select sum(month) from forest_fires")
