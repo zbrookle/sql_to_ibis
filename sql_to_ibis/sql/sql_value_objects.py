@@ -72,22 +72,26 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other), alias=self.alias,
+            value=self.value + self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other), alias=self.alias,
+            value=self.value - self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other), alias=self.alias,
+            value=self.value * self.get_other_value(other),
+            alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other), alias=self.alias,
+            value=self.value / self.get_other_value(other),
+            alias=self.alias,
         )
 
     def get_table(self):
@@ -391,6 +395,7 @@ class Join(JoinBase):
     """
     Wrapper for join related info
     """
+
     left_on: str
     right_on: str
 
