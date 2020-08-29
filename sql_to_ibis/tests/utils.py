@@ -77,10 +77,13 @@ def assert_state_not_change(func: Callable):
         column_name_map = deepcopy(TableInfo.column_name_map)
         dataframe_name_map = deepcopy(TableInfo.ibis_table_name_map)
 
-        Literal.reset_literal_count()
-        DerivedColumn.reset_expression_count()
-
-        func(*args, **kwargs)
+        # Reset the variables in the case of an error
+        try:
+            func(*args, **kwargs)
+        except Exception as err:
+            Literal.reset_literal_count()
+            DerivedColumn.reset_expression_count()
+            raise err
 
         assert Literal.literal_count == 0
         assert DerivedColumn.expression_count == 0
