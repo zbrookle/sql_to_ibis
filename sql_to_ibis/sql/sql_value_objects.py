@@ -32,9 +32,6 @@ class Table:
     def column_names(self):
         return self._value.columns
 
-    def get_column_name_map(self):
-        return {column.lower(): column for column in self._value.columns}
-
 
 @dataclass
 class Value:
@@ -401,12 +398,6 @@ class JoinBase:
             self.left_table.get_alias_else_name(): self.left_table,
             self.right_table.get_alias_else_name(): self.right_table,
         }
-
-    def get_column_name_map(self):
-        column_map = {}
-        for table in self.get_tables():
-            column_map[table.get_alias_else_name()] = table.get_column_name_map()
-        return column_map
 
 
 @dataclass
