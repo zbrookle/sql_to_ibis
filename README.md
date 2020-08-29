@@ -5,6 +5,8 @@
 [![PyPI license](https://img.shields.io/pypi/l/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI status](https://img.shields.io/pypi/status/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
+[![codecov](https://codecov.io/gh/zbrookle/sql_to_ibis/branch/master/graph/badge.svg)](https://codecov.io/gh/zbrookle/sql_to_ibis)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 **sql_to_ibis** is a Python package that translates SQL syntax into ibis expressions. This provides the capability of using only one SQL dialect to target many different backends
 
