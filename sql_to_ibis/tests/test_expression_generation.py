@@ -557,8 +557,7 @@ def test_having_multiple_conditions(forest_fires):
     )
     having_condition = (forest_fires.temp.min() > 2) & (forest_fires.DC.max() < 200)
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"),
-        having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -577,8 +576,7 @@ def test_having_multiple_conditions_with_or(forest_fires):
         (forest_fires.DC.max() > 1000)
     )
     ibis_table = forest_fires.aggregate(
-        metrics=forest_fires.temp.min().name("_col0"),
-        having=having_condition,
+        metrics=forest_fires.temp.min().name("_col0"), having=having_condition,
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
@@ -1798,5 +1796,43 @@ def test_window_range(time_data, sql_window, window_args):
             .over(ibis.range_window(order_by=time_data.start_time, **window_args))
             .name("running_total"),
         ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def test_multi_column_joins(time_data):
+    my_table = query(
+        """
+    SELECT
+        table1.team,
+        table1.start_time_count,
+        table2.start_time_count_d
+    FROM
+    (SELECT team, count(start_time) AS start_time_count FROM time_data GROUP BY team) table1
+        INNER JOIN
+    (SELECT team, count(start_time) AS start_time_count_d FROM
+        (SELECT distinct team, start_time FROM time_data) intermediate GROUP BY team
+    ) table2
+        ON
+            table1.team = table2.team AND
+            table1.start_time_count = table2.start_time_count_d
+    """
+    )
+    table1 = time_data.group_by(time_data.team).aggregate(
+        [time_data.start_time.count().name("start_time_count")]
+    )
+    intermediate = time_data.projection(
+        [time_data.team, time_data.start_time]
+    ).distinct()
+    table2 = intermediate.group_by(intermediate.team).aggregate(
+        [intermediate.start_time.count().name("start_time_count_d")]
+    )
+    ibis_table = table1.join(
+        table2,
+        predicates=(
+            (table1.team == table2.team)
+            & (table1.start_time_count == table2.start_time_count_d)
+        ),
+        how="inner",
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)

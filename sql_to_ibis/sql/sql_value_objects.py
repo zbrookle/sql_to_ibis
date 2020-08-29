@@ -4,6 +4,7 @@ from typing import Optional, Union
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from pandas import Series
+from lark import Tree
 
 
 class Table:
@@ -13,7 +14,7 @@ class Table:
         self.name = name
         self.alias = alias
 
-    def get_table_expr(self):
+    def get_table_expr(self) -> TableExpr:
         return self._value
 
     def get_ibis_columns(self):
@@ -67,26 +68,22 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other),
-            alias=self.alias,
+            value=self.value + self.get_other_value(other), alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other),
-            alias=self.alias,
+            value=self.value - self.get_other_value(other), alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other),
-            alias=self.alias,
+            value=self.value * self.get_other_value(other), alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other),
-            alias=self.alias,
+            value=self.value / self.get_other_value(other), alias=self.alias,
         )
 
     def get_table(self):
@@ -385,10 +382,7 @@ class Subquery(Table):
 
 class JoinBase:
     def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
-        join_type: str,
+        self, left_table: Table, right_table: Table, join_type: str,
     ):
         self.left_table: Table = left_table
         self.right_table: Table = right_table
@@ -411,18 +405,14 @@ class Join(JoinBase):
         left_table: Table,
         right_table: Table,
         join_type: str,
-        left_on: str,
-        right_on: str,
+        join_condition: Tree,
     ):
         super().__init__(left_table, right_table, join_type)
-        self.left_on = left_on
-        self.right_on = right_on
+        self.join_condition = join_condition
 
 
 class CrossJoin(JoinBase):
     def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
+        self, left_table: Table, right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")

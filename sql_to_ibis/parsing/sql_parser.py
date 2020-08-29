@@ -185,9 +185,7 @@ class SQLTransformer(TransformerBaseClass):
         return query_info
 
     def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
-        info = QueryInfo(
-            InternalTransformer.empty_transformer(),
-        )
+        info = QueryInfo(InternalTransformer.empty_transformer(),)
         info.add_table(join)
         info.add_column(Column(name="*"))
         return info
@@ -289,31 +287,11 @@ class SQLTransformer(TransformerBaseClass):
                     join_type = match.group("type")
             if join_type in {"full", "cross"}:
                 join_type = "outer"
-
-        # Check that there is a column from both sides
-        column_comparison = join_condition.children[0].children[0].children
-        column1 = column_comparison[0].children[0]
-        column2 = column_comparison[1].children[0]
-
-        column1_side, column1 = self._determine_column_side(column1, table1, table2)
-        column2_side, column2 = self._determine_column_side(column2, table1, table2)
-        if column1_side == column2_side:
-            raise Exception("Join columns must be one column from each join table!")
-        column1 = self._column_name_map[table1.name][column1]
-        column2 = self._column_name_map[table2.name][column2]
-        if column1_side == "left":
-            left_on = column1
-            right_on = column2
-        else:
-            left_on = column2
-            right_on = column1
-
         return Join(
             left_table=table1,
             right_table=table2,
             join_type=join_type,
-            left_on=left_on,
-            right_on=right_on,
+            join_condition=join_condition,
         )
 
     @staticmethod
@@ -400,10 +378,7 @@ class SQLTransformer(TransformerBaseClass):
         :param table2: TableExpr2
         :return: Crossjoined dataframe
         """
-        return CrossJoin(
-            left_table=table1,
-            right_table=table2,
-        )
+        return CrossJoin(left_table=table1, right_table=table2,)
 
     def from_item(self, item):
         return item
@@ -614,7 +589,12 @@ class SQLTransformer(TransformerBaseClass):
             all_columns += columns[table]
         return all_columns
 
-    def handle_join(self, join: JoinBase, columns: List[Value]) -> TableExpr:
+    def handle_join(
+        self,
+        join: JoinBase,
+        columns: List[Value],
+        internal_transformer: InternalTransformer,
+    ) -> TableExpr:
         """
         Return the table expr resulting from the join
         :param join:
@@ -634,10 +614,13 @@ class SQLTransformer(TransformerBaseClass):
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
         if isinstance(join, Join):
+            compiled_condition: Value = internal_transformer.transform(
+                join.join_condition
+            )
+            print(compiled_condition.get_value())
             result = left_ibis_table.join(
                 right_ibis_table,
-                predicates=left_ibis_table.get_column(join.left_on)
-                == right_ibis_table.get_column(join.right_on),
+                predicates=compiled_condition.get_value(),
                 how=join.join_type,
             )
         if isinstance(join, CrossJoin):
@@ -692,7 +675,11 @@ class SQLTransformer(TransformerBaseClass):
             raise Exception("No table specified")
         first_table = self.get_table_value(tables[0])
         if isinstance(first_table, JoinBase):
-            first_table = self.handle_join(join=first_table, columns=query_info.columns)
+            first_table = self.handle_join(
+                join=first_table,
+                columns=query_info.columns,
+                internal_transformer=query_info.internal_transformer,
+            )
         for table in tables[1:]:
             next_table = self.get_table_value(table)
             first_table = first_table.cross_join(next_table)
@@ -772,9 +759,7 @@ class SQLTransformer(TransformerBaseClass):
         return self._to_ibis_table(query_info)
 
     def union_all(
-        self,
-        expr1: TableExpr,
-        expr2: TableExpr,
+        self, expr1: TableExpr, expr2: TableExpr,
     ):
         """
         Return union distinct of two TableExpr
@@ -785,9 +770,7 @@ class SQLTransformer(TransformerBaseClass):
         return expr1.union(expr2)
 
     def union_distinct(
-        self,
-        expr1: TableExpr,
-        expr2: TableExpr,
+        self, expr1: TableExpr, expr2: TableExpr,
     ):
         """
         Return union distinct of two TableExpr
