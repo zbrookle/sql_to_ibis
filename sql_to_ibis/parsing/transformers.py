@@ -65,17 +65,6 @@ def num_eval(arg):
     return arg
 
 
-def get_wrapper_value(value):
-    """
-    If the value is a literal return it's value
-    :param value:
-    :return:
-    """
-    if isinstance(value, Value):
-        return value.get_value()
-    return value
-
-
 class TransformerBaseClass(Transformer):
     """
     Base class for transformers

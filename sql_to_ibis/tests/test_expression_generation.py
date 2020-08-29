@@ -1849,3 +1849,9 @@ def test_multi_column_joins(time_data):
         how="inner",
     ).projection([table1.team, table1.start_time_count, table2.start_time_count_d])
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def test_select_star_with_table_specified(time_data):
+    my_table = query("select time_data.* from time_data")
+    ibis_table = time_data
+    assert_ibis_equal_show_diff(ibis_table, my_table)
