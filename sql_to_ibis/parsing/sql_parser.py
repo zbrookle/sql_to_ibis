@@ -532,22 +532,6 @@ class SQLTransformer(TransformerBaseClass):
             return ibis_table.projection(column_mutation)
         return ibis_table
 
-    def handle_duplicate_columns_in_join(
-        self, right_table: TableExpr, left_table: TableExpr, join: JoinBase
-    ):
-        duplicate_columns = set(left_table.columns).intersection(right_table.columns)
-        for column in duplicate_columns:
-            left_table = left_table.relabel({column: f"{join.left_table}." f"{column}"})
-            right_table = right_table.relabel(
-                {column: f"{join.right_table}" f".{column}"}
-            )
-
-        if isinstance(join, Join) and join.left_on == join.right_on:
-            join.left_on = f"{join.left_table}.{join.left_on}"
-            join.right_on = f"{join.right_table}.{join.right_on}"
-
-        return left_table, right_table
-
     @staticmethod
     def _columns_have_select_star(columns: List[Value]):
         for column in columns:
