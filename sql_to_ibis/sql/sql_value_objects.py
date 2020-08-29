@@ -99,7 +99,7 @@ class Value:
         Returns the table of the current value
         :return:
         """
-        return None
+        pass
 
     def get_name(self) -> str:
         """
