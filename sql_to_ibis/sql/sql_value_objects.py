@@ -225,16 +225,15 @@ class Bool(Literal):
     pass
 
 
+@dataclass
 class DerivedColumn(Value):
     """
     Base class for expressions and aggregates
     """
+    expression_count: ClassVar[int] = 0
+    function: str = ""
 
-    expression_count = 0
-
-    def __init__(self, value, alias="", typename="", function=""):
-        Value.__init__(self, value, alias, typename)
-        self.function = function
+    def __post_init__(self):
         if self.alias:
             self.final_name = self.alias
         else:
