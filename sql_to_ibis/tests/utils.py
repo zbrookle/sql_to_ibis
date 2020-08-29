@@ -107,7 +107,6 @@ def assert_state_not_change(func: Callable):
                 dataframe_name_map, TableInfo.ibis_table_name_map, "dataframe_name_map"
             )
 
-
     return new_func
 
 

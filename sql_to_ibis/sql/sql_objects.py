@@ -16,6 +16,7 @@ from sql_to_ibis.sql.sql_clause_objects import (
 )
 from sql_to_ibis.sql.sql_value_objects import Table
 
+
 @dataclass
 class AliasRegistry:
     registry: dict = field(default_factory=dict)

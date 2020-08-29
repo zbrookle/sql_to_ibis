@@ -4,14 +4,17 @@ from typing import Optional, Union
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from pandas import Series
+from dataclasses import dataclass, InitVar
 
 
+@dataclass(unsafe_hash=True)
 class Table:
-    def __init__(self, value: TableExpr, name: str, alias: str = ""):
-        assert isinstance(value, TableExpr)
+    value: InitVar[TableExpr]
+    name: str
+    alias: str = ""
+
+    def __post_init__(self, value: TableExpr):
         self._value = value
-        self.name = name
-        self.alias = alias
 
     def get_table_expr(self):
         return self._value
@@ -67,26 +70,22 @@ class Value:
 
     def __add__(self, other):
         return Expression(
-            value=self.value + self.get_other_value(other),
-            alias=self.alias,
+            value=self.value + self.get_other_value(other), alias=self.alias,
         )
 
     def __sub__(self, other):
         return Expression(
-            value=self.value - self.get_other_value(other),
-            alias=self.alias,
+            value=self.value - self.get_other_value(other), alias=self.alias,
         )
 
     def __mul__(self, other):
         return Expression(
-            value=self.value * self.get_other_value(other),
-            alias=self.alias,
+            value=self.value * self.get_other_value(other), alias=self.alias,
         )
 
     def __truediv__(self, other):
         return Expression(
-            value=self.value / self.get_other_value(other),
-            alias=self.alias,
+            value=self.value / self.get_other_value(other), alias=self.alias,
         )
 
     def get_table(self):
@@ -375,24 +374,20 @@ class GroupByColumn(Column):
         self.value = self.value.name(self.get_name())
 
 
+@dataclass
 class Subquery(Table):
     """
     Wrapper for subqueries
     """
 
-    def __init__(self, name: str, value: TableExpr):
-        super().__init__(value, name, name)
-
-    def __repr__(self):
-        return f"Subquery(name={self.name}, value={self._value})"
+    def __post_init__(self, value: TableExpr):
+        self._value = value
+        self.alias = self.name
 
 
 class JoinBase:
     def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
-        join_type: str,
+        self, left_table: Table, right_table: Table, join_type: str,
     ):
         self.left_table: Table = left_table
         self.right_table: Table = right_table
@@ -425,8 +420,6 @@ class Join(JoinBase):
 
 class CrossJoin(JoinBase):
     def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
+        self, left_table: Table, right_table: Table,
     ):
         super().__init__(left_table, right_table, "cross")
