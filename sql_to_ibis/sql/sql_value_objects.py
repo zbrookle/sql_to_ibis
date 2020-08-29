@@ -270,16 +270,15 @@ class Expression(DerivedColumn):
         return self.alias
 
 
+@dataclass
 class Column(Value):
     """
     Store information about columns
     """
+    value: Optional[AnyColumn] = None
+    name: str = ""
 
-    def __init__(
-        self, name: str, alias="", typename="", value: Optional[AnyColumn] = None
-    ):
-        Value.__init__(self, value, alias, typename)
-        self.name = name
+    def __post_init__(self):
         if self.alias:
             self.final_name = self.alias
         else:
@@ -336,24 +335,15 @@ class Aggregate(DerivedColumn):
     def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
         DerivedColumn.__init__(self, value, alias, typename)
 
-
+@dataclass
 class GroupByColumn(Column):
-    def __init__(
-        self,
-        name: str,
-        groupby_name: str,
-        alias="",
-        typename="",
-        value: Optional[AnyColumn] = None,
-    ):
-        super().__init__(name, alias, typename, value)
-        self.group_by_name = groupby_name
+    group_by_name: str = ""
 
     @classmethod
     def from_column_type(cls, column: Column):
         return cls(
             name=column.name,
-            groupby_name=column.name,
+            group_by_name=column.name,
             alias=column.alias,
             typename=column.typename,
             value=column.value,
