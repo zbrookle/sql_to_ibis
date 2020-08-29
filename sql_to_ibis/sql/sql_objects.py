@@ -38,28 +38,18 @@ class AmbiguousColumn:
     Class for identifying ambiguous table names
     """
 
-    tables: InitVar[Set[str]]
-
-    def __post_init__(self, tables: Set[str]):
-        self._tables = tables
-
-    def __repr__(self) -> str:
-        return f"AmbiguousColumn({', '.join(self.tables)})"
+    tables: Set[str]
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, AmbiguousColumn) and self.tables == other.tables
 
     def add_table(self, table):
-        self._tables.add(table)
+        self.tables.add(table)
 
     def remove_table(self, table: str):
-        if len(self._tables) <= 1:
+        if len(self.tables) <= 1:
             raise Exception("Ambiguous column table set cannot be empty!")
-        self._tables.remove(table)
-
-    @property
-    def tables(self):
-        return self._tables
+        self.tables.remove(table)
 
 
 @dataclass
