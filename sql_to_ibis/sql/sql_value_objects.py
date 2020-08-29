@@ -333,7 +333,7 @@ class Aggregate(DerivedColumn):
     """
 
     def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
-        DerivedColumn.__init__(self, value, alias, typename)
+        super().__init__(value, alias, typename)
 
 @dataclass
 class GroupByColumn(Column):
@@ -364,41 +364,22 @@ class Subquery(Table):
         self.alias = self.name
 
 
+@dataclass
 class JoinBase:
-    def __init__(
-        self, left_table: Table, right_table: Table, join_type: str,
-    ):
-        self.left_table: Table = left_table
-        self.right_table: Table = right_table
-        self.join_type: str = join_type
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(left={self.left_table}, right="
-            f"{self.right_table}, type={self.join_type})"
-        )
+    left_table: Table
+    right_table: Table
+    join_type: str
 
 
+@dataclass
 class Join(JoinBase):
     """
     Wrapper for join related info
     """
-
-    def __init__(
-        self,
-        left_table: Table,
-        right_table: Table,
-        join_type: str,
-        left_on: str,
-        right_on: str,
-    ):
-        super().__init__(left_table, right_table, join_type)
-        self.left_on = left_on
-        self.right_on = right_on
+    left_on: str
+    right_on: str
 
 
+@dataclass
 class CrossJoin(JoinBase):
-    def __init__(
-        self, left_table: Table, right_table: Table,
-    ):
-        super().__init__(left_table, right_table, "cross")
+    join_type: str = "cross"
