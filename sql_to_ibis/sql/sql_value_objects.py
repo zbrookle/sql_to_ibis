@@ -192,7 +192,7 @@ class Literal(Value):
             self.value = ibis.literal(self.value)
 
     def __repr__(self):
-        return Value.__repr__(self) + ")"
+        return super().__repr__() + ")"
 
     @classmethod
     def reset_literal_count(cls):
@@ -258,7 +258,7 @@ class DerivedColumn(Value):
                 self.final_name = str(self.value)
 
     def __repr__(self):
-        display = Value.__repr__(self)
+        display = super().__repr__()
         if self.function:
             display += f", function={self.function}"
         return display + ")"
@@ -288,7 +288,7 @@ class Column(Value):
     Store information about columns
     """
 
-    value: Optional[AnyColumn] = None
+    value: AnyColumn = None
     name: str = ""
 
     def __post_init__(self):
@@ -391,7 +391,6 @@ class Join(JoinBase):
     """
     Wrapper for join related info
     """
-
     left_on: str
     right_on: str
 
