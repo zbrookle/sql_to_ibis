@@ -1,5 +1,4 @@
 from distutils.core import setup
-import os
 from pathlib import Path
 
 from setuptools import find_packages
@@ -9,11 +8,9 @@ import versioneer
 CODE_DIRECTORY = Path(__file__).parent
 
 
-def read_file(filename):
+def read_file(file_path: Path):
     """Source the contents of a file"""
-    with open(
-        os.path.join(os.path.dirname(__file__), filename), encoding="utf-8"
-    ) as file:
+    with open(str(file_path), encoding="utf-8") as file:
         return file.read()
 
 
@@ -22,7 +19,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    long_description="Coming soon...",
+    long_description=read_file(CODE_DIRECTORY / "docs" / "README.rst"),
     maintainer="Zach Brookler",
     maintainer_email="zachb1996@yahoo.com",
     description="A package for converting sql into ibis expressions",
