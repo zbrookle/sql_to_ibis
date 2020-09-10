@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/zbrookle/sql_to_ibis/workflows/CI/badge.svg)
 [![Downloads](https://pepy.tech/badge/sql-to-ibis)](https://pepy.tech/project/sql-to-ibis)
-[![PyPI license](https://img.shields.io/pypi/l/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
+[![PyPI license](https://img.shields.io/pypi/l/sql_to_ibis.svg)](https://github.com/zbrookle/sql_to_ibis/blob/master/LICENSE.txt)
 [![PyPI status](https://img.shields.io/pypi/status/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/sql_to_ibis.svg)](https://pypi.python.org/pypi/sql_to_ibis/)
 [![codecov](https://codecov.io/gh/zbrookle/sql_to_ibis/branch/master/graph/badge.svg)](https://codecov.io/gh/zbrookle/sql_to_ibis)
