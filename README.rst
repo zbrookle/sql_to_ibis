@@ -22,8 +22,12 @@ sql_to_ibis
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
-`sql_to_ibis` is a Python package that translates SQL syntax into ibis expressions.
-This provides the capability of using only one SQL dialect to target many different backends
+``sql_to_ibis`` is a Python_ package that translates SQL syntax into ibis_ expressions.
+This provides the capability of using only one SQL dialect to target many different
+backends
+
+.. _Python: https://www.python.org/
+.. _ibis: https://github.com/ibis-project/ibis
 
 Installation
 ------------
