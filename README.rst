@@ -221,8 +221,8 @@ Supported expressions and functions
 
     CAST (<expression> AS <data_type>)
 
-* Anything in <> is meant to be some string <br>
-* Anything in [] is optional <br>
+* Anything in <> is meant to be some string
+* Anything in [] is optional
 * Anything in {} is grouped together
 
 Supported Data Types for cast expressions include:
