@@ -720,10 +720,10 @@ class SQLTransformer(TransformerBaseClass):
                 for column in query_info.columns
                 if column.get_name() in remaining_columns
             ]
-        new_table = self.handle_selection(relation, query_info.columns)
         new_table = self.handle_filtering(
-            new_table, query_info.where_expr, query_info.internal_transformer
+            relation, query_info.where_expr, query_info.internal_transformer
         )
+        new_table = self.handle_selection(new_table, query_info.columns)
         new_table = self.handle_aggregation(
             query_info.aggregates,
             query_info.group_columns,
