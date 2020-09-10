@@ -115,6 +115,7 @@ Set operations
 
 
 Example:
+
 .. code-block:: SQL
 
     SELECT
