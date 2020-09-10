@@ -19,7 +19,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
-    long_description=read_file(CODE_DIRECTORY / "docs" / "README.rst"),
+    long_description=read_file(CODE_DIRECTORY / "README.rst"),
     maintainer="Zach Brookler",
     maintainer_email="zachb1996@yahoo.com",
     description="A package for converting sql into ibis expressions",
