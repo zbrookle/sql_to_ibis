@@ -1530,17 +1530,19 @@ def test_column_values_in_subquery(digimon_move_list):
     """
     )
     subquery = (
-        digimon_move_list.groupby("Type")
+        digimon_move_list.groupby(digimon_move_list.get_column("Type").name("type"))
         .aggregate(digimon_move_list.Power.max().name("power"))
-        .drop(["Type"])
+        .drop(["type"])
     )
-    ibis_table = digimon_move_list.projection(
+    ibis_table = digimon_move_list.filter(
+        digimon_move_list.Power.isin(subquery.get_column("power"))
+    ).projection(
         [
             digimon_move_list.Move.name("move"),
             digimon_move_list.Type.name("type"),
             digimon_move_list.Power.name("power"),
         ]
-    ).filter(digimon_move_list.Power.isin(subquery.get_column("power")))
+    )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -1782,4 +1784,12 @@ def test_multi_column_joins(time_data):
 def test_select_star_with_table_specified(time_data):
     my_table = query("select time_data.* from time_data")
     ibis_table = time_data
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def test_filter_on_non_selected_column(forest_fires):
+    my_table = query("select temp from forest_fires where month = 'mar'")
+    ibis_table = forest_fires[forest_fires.month == "mar"].projection(
+        [forest_fires.temp]
+    )
     assert_ibis_equal_show_diff(ibis_table, my_table)

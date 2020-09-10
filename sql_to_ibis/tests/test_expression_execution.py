@@ -187,3 +187,15 @@ def test_window_function(time_data):
         ]
     ).execute()
     assert_frame_equal(ibis_table, my_table)
+
+
+def test_filter_on_non_selected_column(forest_fires):
+    my_table = query("select temp from forest_fires where month = 'mar'").execute()
+    ibis_table = (
+        forest_fires.projection([forest_fires.temp, forest_fires.month])[
+            forest_fires.month == "mar"
+        ]
+        .projection([forest_fires.temp])
+        .execute()
+    )
+    assert_frame_equal(ibis_table, my_table)
