@@ -141,6 +141,12 @@ class Value:
     def set_type(self, type_name: str):
         self.value = self.value.cast(type_name)
 
+    def is_null(self):
+        return Value(self.value == ibis.null())
+
+    def is_not_null(self):
+        return Value(self.value != ibis.null())
+
     def __gt__(self, other):
         if isinstance(other, Value):
             return self.value > other.value

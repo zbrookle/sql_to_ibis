@@ -369,7 +369,7 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("today()")
         return date_value
 
-    def not_equals(self, expressions):
+    def not_equals(self, expressions: list):
         """
         Compares two expressions for inequality
         :param expressions:
@@ -377,7 +377,14 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] != expressions[1])
 
-    def greater_than(self, expressions):
+    def is_null(self, expressions: list):
+        # raise Exception(type(expressions[0]))
+        return Value(expressions[0]).is_null()
+
+    def is_not_null(self, expressions: list):
+        return Value(expressions[0]).is_not_null()
+
+    def greater_than(self, expressions: list):
         """
         Performs a greater than sql_object
         :param expressions:
@@ -385,7 +392,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] > expressions[1])
 
-    def greater_than_or_equal(self, expressions):
+    def greater_than_or_equal(self, expressions: list):
         """
         Performs a greater than or equal sql_object
         :param expressions:
@@ -393,7 +400,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] >= expressions[1])
 
-    def less_than(self, expressions):
+    def less_than(self, expressions: list):
         """
         Performs a less than sql_object
         :param expressions:
@@ -401,7 +408,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] < expressions[1])
 
-    def less_than_or_equal(self, expressions):
+    def less_than_or_equal(self, expressions: list):
         """
         Performs a less than or equal sql_object
         :param expressions:
@@ -452,7 +459,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return expression[0]
 
-    def equals(self, expressions):
+    def equals(self, expressions: list):
         """
         Compares two expressions for equality
         :param expressions:

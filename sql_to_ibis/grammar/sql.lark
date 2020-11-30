@@ -115,8 +115,10 @@ bool_parentheses: comparison_type
                  | "(" bool_expression "AND"i comparison_type ")" -> bool_and
                  | "(" bool_expression "OR"i comparison_type ")" -> bool_or
 comparison_type: equals | not_equals | greater_than | less_than | greater_than_or_equal
-| less_than_or_equal | between | in_expr | not_in_expr | subquery_in
+| less_than_or_equal | between | in_expr | not_in_expr | subquery_in | is_null | is_not_null
 equals: expression_math "=" expression_math
+is_null: expression_math "is"i "null"i
+is_not_null: expression_math "is"i "not"i "null"i
 not_equals: expression_math ("<>" | "!=") expression_math
 greater_than: expression_math ">" expression_math
 less_than: expression_math "<" expression_math

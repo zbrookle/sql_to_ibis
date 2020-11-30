@@ -2,6 +2,7 @@
 Test cases for panda to sql
 """
 from datetime import date, datetime
+from typing import Callable
 
 from freezegun import freeze_time
 import ibis
@@ -510,6 +511,20 @@ def test_all_boolean_ops_clause(forest_fires):
 def test_string_spaces(forest_fires, string: str):
     my_table = query(f"""select * from forest_fires where month = '{string}'""")
     ibis_table = forest_fires[forest_fires.month == string]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+@pytest.mark.parametrize(
+    "query_null,ibis_bool_func",
+    [
+        ("", lambda ff_table: ff_table.temp == ibis.null()),
+        ("not", lambda ff_table: ff_table.temp != ibis.null()),
+    ],
+)
+def test_null(forest_fires, query_null: str, ibis_bool_func: Callable):
+    my_table = query(f"select * from forest_fires where temp is {query_null} null")
+    ibis_table = forest_fires[ibis_bool_func(forest_fires)]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
