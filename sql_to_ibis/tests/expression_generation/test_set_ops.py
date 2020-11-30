@@ -244,20 +244,12 @@ def test_except_distinct(forest_fires):
         """
                 select * from forest_fires order by wind desc limit 5
                  except distinct
-                select * from forest_fires order by wind desc limit 3
+                select * from forest_fires order by wind asc limit 3
                 """
     )
-    ibis_table1 = (
-        forest_fires.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-    )
-    ibis_table2 = (
-        forest_fires.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-    )
-    ibis_table = (
-        ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)]
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
+    ibis_table1 = forest_fires.sort_by(("wind", False)).head(5)
+    ibis_table2 = forest_fires.sort_by(("wind", True)).head(3)
+    ibis_table = ibis_table1.difference(ibis_table2).distinct()
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -271,18 +263,12 @@ def test_except_all(forest_fires):
         """
                 select * from forest_fires order by wind desc limit 5
                  except all
-                select * from forest_fires order by wind desc limit 3
+                select * from forest_fires order by wind asc limit 3
                 """
     )
-    ibis_table1 = (
-        forest_fires.copy().sort_values(by=["wind"], ascending=[False]).head(5)
-    )
-    ibis_table2 = (
-        forest_fires.copy().sort_values(by=["wind"], ascending=[False]).head(3)
-    )
-    ibis_table = ibis_table1[~ibis_table1.isin(ibis_table2).all(axis=1)].reset_index(
-        drop=True
-    )
+    ibis_table1 = forest_fires.sort_by(("wind", False)).head(5)
+    ibis_table2 = forest_fires.sort_by(("wind", True)).head(3)
+    ibis_table = ibis_table1.difference(ibis_table2)
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
