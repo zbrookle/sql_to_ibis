@@ -446,6 +446,31 @@ def test_column_values_in_subquery(digimon_move_list):
 
 
 @assert_state_not_change
+def test_column_values_in_other_table(digimon_move_list, digimon_mon_list):
+    my_table = query(
+        """
+    select power from
+    digimon_move_list
+    where
+    type in
+        ( select type
+         from digimon_mon_list ) t1
+    """
+    )
+    digimimon_mon_list_lower_name = digimon_mon_list.projection(
+        [digimon_mon_list.Type.name("type")]
+    )
+    ibis_table = digimon_move_list.filter(
+        digimon_move_list.Type.isin(digimimon_mon_list_lower_name.type)
+    ).projection(
+        [
+            digimon_move_list.Power.name("power"),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_limit(forest_fires):
     """
     Test limit clause
