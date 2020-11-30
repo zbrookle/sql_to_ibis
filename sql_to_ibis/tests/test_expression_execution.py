@@ -4,18 +4,7 @@ from pandas.testing import assert_frame_equal
 import pytest
 
 from sql_to_ibis import query
-from sql_to_ibis.tests.utils import (
-    get_all_join_columns_handle_duplicates,
-    get_columns_with_alias,
-    join_params,
-)
-
-
-@pytest.fixture
-def digimon_move_mon_join_columns(digimon_mon_list, digimon_move_list):
-    return get_all_join_columns_handle_duplicates(
-        digimon_mon_list, digimon_move_list, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
-    )
+from sql_to_ibis.tests.utils import get_columns_with_alias, join_params
 
 
 @join_params
