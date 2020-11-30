@@ -506,6 +506,14 @@ def test_all_boolean_ops_clause(forest_fires):
 
 
 @assert_state_not_change
+@pytest.mark.parametrize("string", ["mar ", " mar", " mar ", "m ar", " ", ""])
+def test_string_spaces(forest_fires, string: str):
+    my_table = query(f"""select * from forest_fires where month = '{string}'""")
+    ibis_table = forest_fires[forest_fires.month == string]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
 def test_order_by(forest_fires):
     """
     Test order by clause

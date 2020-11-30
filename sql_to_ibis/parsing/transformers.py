@@ -306,7 +306,9 @@ class InternalTransformer(TransformerBaseClass):
         :param string_token:
         :return:
         """
-        return String(string_token[0].value)
+        val = string_token[0].value
+        without_quotes = val[1 : len(val) - 1]
+        return String(without_quotes)
 
     def timestamp_expression(self, date_list: List[Date]) -> Date:
         """
