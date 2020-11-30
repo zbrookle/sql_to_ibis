@@ -221,6 +221,14 @@ Supported expressions and functions
 
     CAST (<expression> AS <data_type>)
 
+.. code-block:: SQL
+
+    <expression> is null
+
+.. code-block:: SQL
+
+    <expression> is not null
+
 * Anything in <> is meant to be some string
 * Anything in [] is optional
 * Anything in {} is grouped together
