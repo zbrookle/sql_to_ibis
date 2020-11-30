@@ -6,13 +6,11 @@ from typing import Callable
 
 from freezegun import freeze_time
 import ibis
-from ibis.common.exceptions import IbisTypeError
 from ibis.expr.types import TableExpr
 import pytest
 
 from sql_to_ibis import query, register_temp_table, remove_temp_table
 from sql_to_ibis.sql.sql_objects import AmbiguousColumn
-import sql_to_ibis.sql.sql_value_objects
 from sql_to_ibis.sql_select_query import TableInfo
 from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (
@@ -1295,7 +1293,6 @@ def test_multiple_aliases_same_column(forest_fires):
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-@pytest.mark.xfail(reason="Will be fixed in next ibis release", raises=IbisTypeError)
 @assert_state_not_change
 def test_sql_data_types(avocado):
     """
@@ -1328,7 +1325,7 @@ def test_sql_data_types(avocado):
         """
     )
 
-    date_column = sql_to_ibis.sql.sql_value_objects.Date
+    date_column = avocado.Date
     id_column = avocado.avocado_id
     region_column = avocado.region
     ibis_table = avocado.projection(
