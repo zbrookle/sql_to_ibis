@@ -53,20 +53,6 @@ def test_raise_error_for_choosing_column_not_in_table(sql: str):
         query(sql)
 
 
-@pytest.mark.parametrize(
-    "set_op", ["except distinct", "except all", "intersect", "intersect distinct"]
-)
-def test_not_implemented_errors(set_op: str):
-    with pytest.raises(NotImplementedError):
-        query(
-            f"""
-        select * from forest_fires order by wind desc limit 5
-         {set_op}
-        select * from forest_fires order by wind desc limit 3
-        """
-        )
-
-
 @assert_state_not_change
 def test_for_non_existent_table():
     """

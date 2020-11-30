@@ -3,7 +3,7 @@ from pandas import read_csv
 import pytest
 
 from sql_to_ibis import register_temp_table, remove_temp_table
-from sql_to_ibis.tests.utils import DATA_PATH
+from sql_to_ibis.tests.utils import DATA_PATH, get_all_join_columns_handle_duplicates
 
 
 @pytest.fixture(scope="session")
@@ -66,3 +66,10 @@ def register_temp_tables(
     yield
     for table_name in tables:
         remove_temp_table(table_name)
+
+
+@pytest.fixture
+def digimon_move_mon_join_columns(digimon_mon_list, digimon_move_list):
+    return get_all_join_columns_handle_duplicates(
+        digimon_mon_list, digimon_move_list, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
+    )
