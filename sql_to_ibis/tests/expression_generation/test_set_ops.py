@@ -216,21 +216,22 @@ def test_union_all(forest_fires):
 
 
 @assert_state_not_change
-def test_intersect_distinct(forest_fires):
+@pytest.mark.parametrize("set_op", ["intersect", "intersect distinct"])
+def test_intersect_distinct(forest_fires, set_op: str):
     """
-    Test intersect distinct in queries
+    Test intersect in queries
     :return:
     """
     my_table = query(
-        """
+        f"""
             select * from forest_fires order by wind desc limit 5
-             intersect distinct
+             {set_op}
             select * from forest_fires order by wind asc limit 3
             """
     )
     ibis_table1 = forest_fires.sort_by(("wind", False)).head(5)
     ibis_table2 = forest_fires.sort_by(("wind", True)).head(3)
-    ibis_table = ibis_table1.intersect(ibis_table2).distinct()
+    ibis_table = ibis_table1.intersect(ibis_table2)
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 

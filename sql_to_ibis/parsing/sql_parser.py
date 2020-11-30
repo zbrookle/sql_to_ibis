@@ -786,7 +786,7 @@ class SQLTransformer(TransformerBaseClass):
         :param expr2: Right TableExpr
         :return:
         """
-        return expr1.intersect(expr2).distinct()
+        return expr1.intersect(expr2)
 
     def except_distinct(self, expr1: TableExpr, expr2: TableExpr):
         """
