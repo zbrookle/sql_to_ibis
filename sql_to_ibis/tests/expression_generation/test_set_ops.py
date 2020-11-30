@@ -1,7 +1,6 @@
 import pytest
 
 from sql_to_ibis import query
-from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (
     assert_ibis_equal_show_diff,
     assert_state_not_change,
@@ -216,27 +215,25 @@ def test_union_all(forest_fires):
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-@ibis_not_implemented
 @assert_state_not_change
 def test_intersect_distinct(forest_fires):
     """
-    Test union distinct in queries
+    Test intersect distinct in queries
     :return:
     """
     my_table = query(
         """
             select * from forest_fires order by wind desc limit 5
              intersect distinct
-            select * from forest_fires order by wind desc limit 3
+            select * from forest_fires order by wind asc limit 3
             """
     )
     ibis_table1 = forest_fires.sort_by(("wind", False)).head(5)
-    ibis_table2 = forest_fires.sort_by(("wind", True)).head(5)
-    ibis_table = ibis_table1.union(ibis_table2, distinct=True)
+    ibis_table2 = forest_fires.sort_by(("wind", True)).head(3)
+    ibis_table = ibis_table1.intersect(ibis_table2).distinct()
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-@ibis_not_implemented
 @assert_state_not_change
 def test_except_distinct(forest_fires):
     """
@@ -264,7 +261,6 @@ def test_except_distinct(forest_fires):
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-@ibis_not_implemented
 @assert_state_not_change
 def test_except_all(forest_fires):
     """

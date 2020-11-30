@@ -786,7 +786,7 @@ class SQLTransformer(TransformerBaseClass):
         :param expr2: Right TableExpr
         :return:
         """
-        raise NotImplementedError("Waiting on ibis for intersect implementation")
+        return expr1.intersect(expr2).distinct()
 
     def except_distinct(self, expr1: TableExpr, expr2: TableExpr):
         """
@@ -795,7 +795,7 @@ class SQLTransformer(TransformerBaseClass):
         :param expr2: Right TableExpr
         :return:
         """
-        raise NotImplementedError("Waiting on ibis for except implementation")
+        return expr1.difference(expr2).distinct()
 
     def except_all(self, expr1: TableExpr, expr2: TableExpr):
         """
@@ -804,7 +804,7 @@ class SQLTransformer(TransformerBaseClass):
         :param expr2: Right TableExpr
         :return:
         """
-        raise NotImplementedError("Waiting on ibis for except implementation")
+        return expr1.difference(expr2)
 
     def final(self, table):
         """
