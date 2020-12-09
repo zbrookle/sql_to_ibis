@@ -87,6 +87,15 @@ class TransformerBaseClass(Transformer):
         self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
 
+    def name(self, name_tokens: List[Token]):
+        """
+        Cleans the name depending on whether it is in quotes or not
+        """
+        token = name_tokens[0]
+        if token.type == "CNAME":
+            return token.value
+        return token.value[1:-1]
+
 
 class InternalTransformer(TransformerBaseClass):
     """

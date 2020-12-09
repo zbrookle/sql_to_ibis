@@ -25,7 +25,7 @@ groupby_expr: expression -> group_by
 
 window_expr: [window_expr ","] _window_name "AS"i ( window_definition )
 
-from_item: NAME [ [ "AS"i ] alias ] -> table
+from_item: name [ [ "AS"i ] alias ] -> table
             | join -> join
             | cross_join -> cross_join_expression
             | subquery
@@ -68,7 +68,7 @@ when_then: "WHEN"i bool_expression "THEN"i expression_math
 order: expression_math ["ASC"i] -> order_asc
           | expression_math "DESC"i -> order_desc
 
-column_name: [NAME "."] NAME
+column_name: [name "."] name
 ?expression_product: expression_parens
                   | expression_product "*" expression_parens -> expression_mul
                   | expression_product "/" expression_parens -> expression_div
@@ -79,7 +79,7 @@ column_name: [NAME "."] NAME
                   | "(" expression_parens "+" expression ")" -> expression_add
                   | "(" expression_parens "-" expression ")" -> expression_sub
 
-?expression: [NAME "."] (NAME | STAR) -> column_name
+?expression: [name "."] (name | STAR) -> column_name
             | literal
 
 
@@ -104,8 +104,8 @@ TYPENAME:  "object"i
          | "category"i
          | "string"i
 AGGREGATION.8: ("sum("i | "avg("i | "min("i | "max("i | "count("i)
-alias: NAME -> alias_string
-_window_name: NAME
+alias: name -> alias_string
+_window_name: name
 limit_count: integer -> limit_count
 skip_rows: integer
 bool_expression: bool_parentheses
@@ -154,8 +154,10 @@ time: HOURS ":" MINUTES ":" SECONDS
 HOURS: /[0-9]{2}/
 MINUTES: /[0-9]{2}/
 SECONDS: /[0-9]{2}/
+name: CNAME | ESCAPED_STRING
 
-%import common.CNAME -> NAME
+%import common.ESCAPED_STRING
+%import common.CNAME
 %import common.NUMBER
 %import common.WS
 %ignore WS

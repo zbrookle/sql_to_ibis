@@ -146,7 +146,15 @@ def test_select_ambiguous_column_in_database_context(digimon_mon_list):
     assert_ibis_equal_show_diff(my_table, ibis_table)
 
 
+@assert_state_not_change
 def test_select_star_with_table_specified(time_data):
     my_table = query("select time_data.* from time_data")
     ibis_table = time_data
-    assert_ibis_equal_show_diff(ibis_table, my_table)
+    assert_ibis_equal_show_diff(my_table, ibis_table)
+
+
+@assert_state_not_change
+def test_select_quoted_column_names(digimon_mon_list):
+    my_table = query('select "Equip Slots", "Lv50 Atk" from digimon_mon_list')
+    ibis_table = digimon_mon_list[["Equip Slots", "Lv50 Atk"]]
+    assert_ibis_equal_show_diff(my_table, ibis_table)
