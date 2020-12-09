@@ -158,3 +158,10 @@ def test_select_quoted_column_names(digimon_mon_list):
     my_table = query('select "Equip Slots", "Lv50 Atk" from digimon_mon_list')
     ibis_table = digimon_mon_list[["Equip Slots", "Lv50 Atk"]]
     assert_ibis_equal_show_diff(my_table, ibis_table)
+
+
+@assert_state_not_change
+def test_select_rename_to_string_with_spaces(digimon_mon_list):
+    my_table = query('select digimon as "Digimon Name" from digimon_mon_list')
+    ibis_table = digimon_mon_list[[digimon_mon_list.Digimon.name("Digimon Name")]]
+    assert_ibis_equal_show_diff(my_table, ibis_table)
