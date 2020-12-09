@@ -107,6 +107,16 @@ Example:
     GROUP BY
         column4
 
+Note that columns with spaces in them can be expressed using double quotes. For example:
+
+.. code-block:: SQL
+
+    SELECT
+        "my column 1",
+        column2 as "the second column"
+    FROM
+        my_table
+
 
 Set operations
 ~~~~~~~~~~~~~~
