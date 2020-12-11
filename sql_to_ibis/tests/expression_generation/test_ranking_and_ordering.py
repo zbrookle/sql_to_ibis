@@ -356,3 +356,21 @@ def test_order_by(forest_fires):
     )
     ibis_table = forest_fires.sort_by([("temp", False), ("wind", True), ("area", True)])
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_order_by_case_insensitive(forest_fires):
+    """
+    Test case sensitivity in order by clause
+    """
+    my_table = query(
+        """select * from forest_fires order by TeMp desc, WIND asc, areA"""
+    )
+    ibis_table = forest_fires.sort_by(
+        [
+            (forest_fires.temp, False),
+            (forest_fires.wind, True),
+            (forest_fires.area, True),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
