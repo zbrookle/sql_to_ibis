@@ -116,6 +116,18 @@ class QueryInfo:
     def perform_transformation(self):
         select_expressions = self.__get_internal_transformer_select_expression()
         self.__handle_tokens_and_trees_in_select_expressions(select_expressions)
+        self.sanitize_order_by_clause()
+
+    def sanitize_order_by_clause(self):
+        """
+        Names in the order by clause must be cleansed based on info provided by the
+        internal transformer
+        """
+        for i, order_by_column_tuple in enumerate(self.order_by):
+            column_list = [order_by_column_tuple[0]]
+            column = self.internal_transformer.column_name(column_list)
+            ascending = order_by_column_tuple[1]
+            self.order_by[i] = (column.get_value(), ascending)
 
     def __repr__(self):
         return (
