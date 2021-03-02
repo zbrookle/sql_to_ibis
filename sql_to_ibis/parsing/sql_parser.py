@@ -123,7 +123,7 @@ class SQLTransformer(TransformerBaseClass):
 
     def table(self, table_name, alias=""):
         """
-        Check for existence of pandas dataframe with same name
+        Check for existence of table with same name
         If not exists raise TableExprDoesNotExist
         Otherwise return the name of the actual TableExpr
         :return:
@@ -585,6 +585,30 @@ class SQLTransformer(TransformerBaseClass):
             all_columns += columns[table]
         return all_columns
 
+    @staticmethod
+    def _get_overlapping_column_names(left_table: TableExpr, right_table: TableExpr):
+        left_columns = set(left_table.columns)
+        right_columns = set(right_table.columns)
+        return left_columns & right_columns
+
+    def _get_overlapping_projection(self, table: Table, overlapping: Set[str]):
+        table_expr = table.get_table_expr()
+        columns = table_expr.get_columns(table_expr.columns)
+        self._rename_duplicates(
+            table, overlapping, table.get_alias_else_name(), columns
+        )
+        return table_expr.projection(columns)
+
+    def _create_non_overlapping_projections(
+        self,
+        join: JoinBase,
+        overlapping: Set[str],
+    ):
+        return (
+            self._get_overlapping_projection(join.left_table, overlapping),
+            self._get_overlapping_projection(join.right_table, overlapping),
+        )
+
     def handle_join(
         self,
         join: JoinBase,
@@ -609,6 +633,16 @@ class SQLTransformer(TransformerBaseClass):
 
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
+
+        overlapping = self._get_overlapping_column_names(
+            left_ibis_table, right_ibis_table
+        )
+        if overlapping and not all_columns:
+            (
+                left_ibis_table,
+                right_ibis_table,
+            ) = self._create_non_overlapping_projections(join, overlapping)
+
         if isinstance(join, Join):
             compiled_condition: Value = internal_transformer.transform(
                 join.join_condition
@@ -664,7 +698,7 @@ class SQLTransformer(TransformerBaseClass):
         query_info.perform_transformation()
         return query_info
 
-    def _get_relation(self, query_info: QueryInfo):
+    def _get_relation(self, query_info: QueryInfo) -> TableExpr:
         tables = query_info.tables
         if not tables:
             raise Exception("No table specified")
@@ -720,8 +754,11 @@ class SQLTransformer(TransformerBaseClass):
                 for column in query_info.columns
                 if column.get_name() in remaining_columns
             ]
+        # new_table = self.materialize_join_if_needed(relation, all_columns_pre_join)
         new_table = self.handle_filtering(
-            relation, query_info.where_expr, query_info.internal_transformer
+            relation,
+            query_info.where_expr,
+            query_info.internal_transformer,
         )
         new_table = self.handle_selection(new_table, query_info.columns)
         new_table = self.handle_aggregation(
