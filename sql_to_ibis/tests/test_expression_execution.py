@@ -188,3 +188,19 @@ def test_filter_on_non_selected_column(forest_fires):
         .execute()
     )
     assert_frame_equal(ibis_table, my_table)
+
+
+@pytest.mark.skip("Failure is coming from ibis")
+def test_order_by_not_select_star(forest_fires):
+    """
+    Test case sensitivity in order by clause
+    """
+    my_table = query("""select wind from forest_fires order by temp desc""").execute()
+    ibis_table = forest_fires[[forest_fires.wind]].sort_by(
+        [
+            (forest_fires.temp, False),
+            (forest_fires.wind, True),
+            (forest_fires.area, True),
+        ]
+    )
+    assert_frame_equal(ibis_table, my_table)

@@ -167,3 +167,23 @@ def get_columns_with_alias(table: TableExpr, alias: str):
         column.name(f"{alias}.{column_name}")
         for column_name, column in zip(table.columns, table.get_columns(table.columns))
     ]
+
+
+def handle_duplicate_column_names(
+    table1: TableExpr,
+    table2: TableExpr,
+    name1: str,
+    name2: str,
+):
+    # Handle duplicate columns
+    cols1 = table1.get_columns(table1.columns)
+    cols2 = table2.get_columns(table2.columns)
+    overlapping = set(table1.columns) & set(table2.columns)
+    for name, column_set in [
+        (name1, cols1),
+        (name2, cols2),
+    ]:
+        for i, column in enumerate(column_set):
+            if column.get_name() in overlapping:
+                column_set[i] = column.name(f"{name}.{column.get_name()}")
+    return table1.projection(cols1), table2.projection(cols2)
