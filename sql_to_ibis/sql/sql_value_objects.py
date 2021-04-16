@@ -9,6 +9,8 @@ from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from lark import Tree
 from pandas import Series
 
+from sql_to_ibis.sql.column_utils import rename_duplicates
+
 
 @dataclass(unsafe_hash=True)
 class Table:
@@ -422,13 +424,25 @@ class NestedJoinBase:
             unresolved_tables.append(sub_table)
         self._resolve_tables(unresolved_tables, tables)
 
+    def get_all_join_columns_handle_duplicates(
+        self, left: TableOrJoinbase, right: TableOrJoinbase
+    ) -> List[AnyColumn]:
+        left_columns = left.get_ibis_columns()
+        right_columns = right.get_ibis_columns()
+        duplicates = set(left.column_names).intersection(right.column_names)
+        left_columns = rename_duplicates(
+            left, duplicates, self.left_table.name, left_columns
+        )
+        right_columns = rename_duplicates(
+            right, duplicates, self.right_table.name, right_columns
+        )
+        return left_columns + right_columns
+
     def get_ibis_columns(self):
         tables: List[Table] = []
         self._resolve_tables(self.get_tables(), tables)
-        ibis_columns: List[AnyColumn] = []
-        for table in tables:
-            ibis_columns += table.get_ibis_columns()
-        return ibis_columns
+        left, right = tables
+        return self.get_all_join_columns_handle_duplicates(left, right)
 
     @property
     def column_names(self) -> List[str]:
@@ -445,7 +459,7 @@ class NestedJoinBase:
     def get_alias_else_name(self) -> str:
         return self.name
 
-    def get_table_map(self) -> Dict[str, Table]:
+    def get_table_map(self) -> Dict[str, TableOrJoinbase]:
         return {
             self.left_table.get_alias_else_name(): self.left_table,
             self.right_table.get_alias_else_name(): self.right_table,
@@ -475,5 +489,5 @@ class NestedCrossJoin(NestedJoinBase):
 
 
 @dataclass
-class StrictCrossJoin(NestedJoinBase):
+class StrictCrossJoin(StrictJoinBase):
     join_type: str = "cross"

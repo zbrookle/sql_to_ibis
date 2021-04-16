@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import ibis
 from ibis.expr.api import NumericColumn
@@ -76,14 +76,17 @@ class TransformerBaseClass(Transformer):
     def __init__(
         self,
         table_name_map: Dict[str, str],
-        table_map: Dict[str, Table],
+        table_map: Mapping[str, TableOrJoinbase],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         _temp_dataframes_dict=None,
     ):
         super().__init__(visit_tokens=False)
         self._table_name_map = table_name_map
-        self._table_map = table_map
+        self._table_map: Mapping[str, Table] = {}
+        for name, table in table_map.items():
+            if isinstance(table, Table):
+                self._table_map[name] = table
         self._column_name_map = column_name_map
         self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
@@ -106,7 +109,7 @@ class InternalTransformer(TransformerBaseClass):
     def __init__(
         self,
         tables: List[TableOrJoinbase],
-        table_map: Dict[str, Table],
+        table_map: Mapping[str, TableOrJoinbase],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         table_name_map: Dict[str, str],
@@ -746,7 +749,7 @@ class InternalTransformer(TransformerBaseClass):
         value = specs[0]
         if isinstance(value, Token) and value.value == "UNBOUNDED":
             return None
-        return value
+        return cast(int, value)
 
     def frame_preceding(self, preceding_specs: List[Union[Token, int]]):
         return Preceding(self.__frame_extract(preceding_specs))
@@ -786,7 +789,7 @@ class InternalTransformerWithStarVal(InternalTransformer):
     def __init__(
         self,
         tables: List[TableOrJoinbase],
-        table_map: Dict[str, Table],
+        table_map: Mapping[str, Table],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         table_name_map: Dict[str, str],

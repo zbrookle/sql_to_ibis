@@ -54,7 +54,7 @@ def time_data(pandas_client):
 
 
 @scope_fixture
-def multitable_join_main_table():
+def multitable_join_main_table(pandas_client):
     return ibis.pandas.from_dataframe(
         DataFrame(
             {
@@ -63,33 +63,41 @@ def multitable_join_main_table():
                 "relationship_id": [0, 1, 2, 2, 1],
                 "promotion_id": [0, 1, 2, 1, 0],
             }
-        )
+        ),
+        "MULTI_MAIN",
+        pandas_client,
     )
 
 
 @scope_fixture
-def multitable_join_lookup_table():
+def multitable_join_lookup_table(pandas_client):
     return ibis.pandas.from_dataframe(
         DataFrame(
             {
                 "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                "value": [0, 3, 20, 10, 40, 20, 10, 10, 10, 10],
+                "lookup_value": [0, 3, 20, 10, 40, 20, 10, 10, 10, 10],
             }
-        )
+        ),
+        "MULTI_LOOKUP",
+        pandas_client,
     )
 
 
 @scope_fixture
-def multitable_join_relationship_table():
+def multitable_join_relationship_table(pandas_client):
     return ibis.pandas.from_dataframe(
-        DataFrame({"id": [0, 1, 2], "relation": ["rel1", "rel2", "rel3"]})
+        DataFrame({"id": [0, 1, 2], "relation": ["rel1", "rel2", "rel3"]}),
+        "MULTI_RELATIONSHIP",
+        pandas_client,
     )
 
 
 @scope_fixture
-def multitable_join_promotion_table():
+def multitable_join_promotion_table(pandas_client):
     return ibis.pandas.from_dataframe(
-        DataFrame({"id": [0, 1, 2], "promotion": ["none", "special", "extra special"]})
+        DataFrame({"id": [0, 1, 2], "promotion": ["none", "special", "extra special"]}),
+        "MULTI_PROMOTION",
+        pandas_client,
     )
 
 
