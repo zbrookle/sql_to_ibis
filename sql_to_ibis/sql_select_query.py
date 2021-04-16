@@ -143,13 +143,13 @@ class SqlToTable:
             )
             raise InvalidQueryException(message)
         except VisitError as err:
-            curr_err: Exception = err
+            current_err: Exception = err
             while True:
-                if isinstance(curr_err, VisitError):
-                    curr_err = curr_err.orig_exc
+                if isinstance(current_err, VisitError):
+                    current_err = current_err.orig_exc
                 else:
                     break
-            raise curr_err
+            raise current_err
 
 
 class TableInfo:
