@@ -61,6 +61,7 @@ def multitable_join_main_table():
                 "id": [0, 1, 2, 3, 4],
                 "lookup_id": [1, 5, 8, 9, 10],
                 "relationship_id": [0, 1, 2, 2, 1],
+                "promotion_id": [0, 1, 2, 1, 0],
             }
         )
     )
@@ -85,6 +86,13 @@ def multitable_join_relationship_table():
     )
 
 
+@scope_fixture
+def multitable_join_promotion_table():
+    return ibis.pandas.from_dataframe(
+        DataFrame({"id": [0, 1, 2], "promotion": ["none", "special", "extra special"]})
+    )
+
+
 @pytest.fixture(autouse=True, scope="session")
 def register_temp_tables(
     digimon_mon_list,
@@ -95,6 +103,7 @@ def register_temp_tables(
     multitable_join_main_table,
     multitable_join_lookup_table,
     multitable_join_relationship_table,
+    multitable_join_promotion_table,
 ):
     tables = {
         "DIGIMON_MON_LIST": digimon_mon_list,
@@ -105,6 +114,7 @@ def register_temp_tables(
         "MULTI_MAIN": multitable_join_main_table,
         "MULTI_LOOKUP": multitable_join_lookup_table,
         "MULTI_RELATIONSHIP": multitable_join_relationship_table,
+        "MULTI_PROMOTION": multitable_join_promotion_table,
     }
     for table_name in tables:
         register_temp_table(tables[table_name], table_name)
