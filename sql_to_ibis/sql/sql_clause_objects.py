@@ -1,7 +1,13 @@
 from dataclasses import dataclass
 from typing import Optional, Union
 
-from sql_to_ibis.sql.sql_value_objects import Column, JoinBase, Subquery, Table, Value
+from sql_to_ibis.sql.sql_value_objects import (
+    Column,
+    NestedJoinBase,
+    Subquery,
+    Table,
+    Value,
+)
 
 
 @dataclass
@@ -66,7 +72,7 @@ class FrameExpression:
 
 @dataclass
 class FromExpression:
-    value: Union[Subquery, JoinBase, Table]
+    value: Union[Subquery, NestedJoinBase, Table]
 
 
 @dataclass
