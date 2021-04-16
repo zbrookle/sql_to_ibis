@@ -39,16 +39,17 @@ from sql_to_ibis.sql.sql_value_objects import (
     Aggregate,
     Column,
     CountStar,
-    CrossJoin,
     Date,
     Expression,
     GroupByColumn,
-    JoinBase,
     Literal,
+    NestedCrossJoin,
+    NestedJoinBase,
     Number,
     String,
     Subquery,
     Table,
+    TableOrJoinbase,
     Value,
 )
 
@@ -104,7 +105,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def __init__(
         self,
-        tables: List[Table],
+        tables: List[TableOrJoinbase],
         table_map: Dict[str, Table],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
@@ -118,7 +119,9 @@ class InternalTransformer(TransformerBaseClass):
             column_to_table_name=column_to_table_name,
         )
         self._tables = tables
-        self._table_names_list = [table.name for table in tables]
+        self._table_names_list = [
+            table.name for table in tables if isinstance(table, Table)
+        ]
         self._column_to_table_name = column_to_table_name.copy()  # This must be
         # copied because when ambiguity is resolved in the following method,
         # we don't want that resolution to carry over to other subqueries
@@ -163,9 +166,9 @@ class InternalTransformer(TransformerBaseClass):
             table = self._column_to_table_name[column]
             if isinstance(table, AmbiguousColumn):
                 present_tables = [
-                    ambig_table
-                    for ambig_table in table.tables
-                    if ambig_table in all_selected_table_names
+                    ambiguous_table
+                    for ambiguous_table in table.tables
+                    if ambiguous_table in all_selected_table_names
                 ]
                 if len(present_tables) == 1:
                     self._column_to_table_name[column] = present_tables[0]
@@ -525,10 +528,10 @@ class InternalTransformer(TransformerBaseClass):
         """
         return AliasExpression(str(name[0]))
 
-    def cross_join_expression(self, cross_join_list: List[CrossJoin]):
+    def cross_join_expression(self, cross_join_list: List[NestedCrossJoin]):
         return cross_join_list[0]
 
-    def from_expression(self, expression: List[Union[Subquery, JoinBase, Table]]):
+    def from_expression(self, expression: List[Union[Subquery, NestedJoinBase, Table]]):
         """
         Return a from sql_object token_or_tree
         :param expression:
@@ -745,10 +748,10 @@ class InternalTransformer(TransformerBaseClass):
             return None
         return value
 
-    def frame_preceding(self, preceding_specs: List[Token]):
+    def frame_preceding(self, preceding_specs: List[Union[Token, int]]):
         return Preceding(self.__frame_extract(preceding_specs))
 
-    def frame_following(self, following_specs: List[Token]):
+    def frame_following(self, following_specs: List[Union[Token, int]]):
         return Following(self.__frame_extract(following_specs))
 
     def frame_bound(self, extent_expression_list: List[ExtentExpression]):
@@ -782,7 +785,7 @@ class InternalTransformer(TransformerBaseClass):
 class InternalTransformerWithStarVal(InternalTransformer):
     def __init__(
         self,
-        tables: List[Table],
+        tables: List[TableOrJoinbase],
         table_map: Dict[str, Table],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
