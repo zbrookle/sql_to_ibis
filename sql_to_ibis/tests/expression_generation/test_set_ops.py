@@ -557,6 +557,38 @@ def test_join_more_than_2_tables(
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@assert_state_not_change
+@pytest.mark.skip("Need to implement this")
+def test_cross_join_more_than_2_tables(
+    multitable_join_main_table,
+    multitable_join_lookup_table,
+    multitable_join_relationship_table,
+    multitable_join_promotion_table,
+):
+    query_text = """
+    SELECT multi_main.id
+    FROM multi_main
+    cross join multi_lookup
+    cross join multi_relationship
+    cross join multi_promotion
+    """
+    my_table = query(query_text)
+    ibis_table = (
+        multitable_join_main_table.cross_join(
+            multitable_join_lookup_table,
+        )
+        .cross_join(
+            multitable_join_relationship_table,
+        )
+        .cross_join(
+            multitable_join_promotion_table,
+        )
+        .projection([multitable_join_main_table.id])
+    )
+
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
 # @assert_state_not_change
 # def test_join_with_alias():
 #     query_text = """
