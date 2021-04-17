@@ -589,6 +589,34 @@ def test_cross_join_more_than_2_tables(
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+@assert_state_not_change
+@join_params
+def test_join_without_overlapping_columns(
+    multitable_join_main_table,
+    multitable_join_promotion_table_no_overlap,
+    sql_join: str,
+    ibis_join: str,
+):
+    my_table = query(
+        f"""
+    select id, promotion from multi_main {sql_join} join
+    multi_promotion_no_overlap
+    on id = other_id
+    """
+    )
+    join_type = ibis_join
+    ibis_table = multitable_join_main_table.join(
+        multitable_join_promotion_table_no_overlap,
+        predicates=multitable_join_main_table.id
+        == multitable_join_promotion_table_no_overlap.other_id,
+        how=join_type,
+    )[
+        multitable_join_main_table.id,
+        multitable_join_promotion_table_no_overlap.promotion,
+    ]
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
 # @assert_state_not_change
 # def test_join_with_alias():
 #     query_text = """
