@@ -1,10 +1,12 @@
 """
 Module containing all lark internal_transformer classes
 """
+from collections import defaultdict
 import re
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, DefaultDict, Dict, List, Set, Tuple, Union
 
 import ibis
+from ibis.expr.operations import CrossJoin
 from ibis.expr.types import AnyColumn, TableExpr
 from lark import Token, Tree, v_args
 
@@ -32,14 +34,14 @@ from sql_to_ibis.sql.sql_value_objects import (
     NestedCrossJoin,
     NestedJoin,
     NestedJoinBase,
-    StrictCrossJoin,
-    StrictJoin,
-    StrictJoinBase,
     Subquery,
     Table,
     TableOrJoinbase,
     Value,
 )
+
+TableWithColumn = Tuple[Table, AnyColumn]
+TableWithColumnCollection = DefaultDict[str, List[TableWithColumn]]
 
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
@@ -571,27 +573,19 @@ class SQLTransformer(TransformerBaseClass):
 
     @staticmethod
     def _get_overlapping_column_names(
-        left_table: TableExpr, right_table: TableExpr
+        columns_by_name: TableWithColumnCollection,
     ) -> Set[AnyColumn]:
-        left_columns = set(left_table.columns)
-        right_columns = set(right_table.columns)
-        return left_columns & right_columns
+        overlapping = set()
+        for column_name, column_list in columns_by_name.items():
+            if len(column_list) > 1:
+                for table, column in column_list:
+                    overlapping.add(column.name(table.name + "." + column_name))
+        return overlapping
 
-    def _get_overlapping_projection(self, table: Table, overlapping: Set[str]):
-        table_expr = table.get_table_expr()
-        columns = table_expr.get_columns(table_expr.columns)
+    def _get_overlapping_projection(self, table: TableExpr, overlapping: Set[str]):
+        columns = table.get_columns(table.columns)
         rename_duplicates(table, overlapping, table.get_alias_else_name(), columns)
-        return table_expr.projection(columns)
-
-    def _create_non_overlapping_projections(
-        self,
-        join: StrictJoinBase,
-        overlapping: Set[str],
-    ):
-        return (
-            self._get_overlapping_projection(join.left_table, overlapping),
-            self._get_overlapping_projection(join.right_table, overlapping),
-        )
+        return table.projection(columns)
 
     def handle_join(
         self,
@@ -606,32 +600,48 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
 
-        def resolve_table(table: TableOrJoinbase):
-            if isinstance(table, NestedJoinBase):
-                return Table(
-                    self.handle_join(table, columns, internal_transformer)[
-                        table.get_all_join_columns_handle_duplicates(
-                            table.left_table, table.right_table
-                        )
-                    ],
-                    "joined",
+        def get_join_table(
+            join: NestedJoin, left_table: TableExpr, right_table: TableExpr
+        ) -> TableExpr:
+            compiled_condition: Value = internal_transformer.transform(
+                join.join_condition
+            )
+            return left_table.join(
+                right_table,
+                predicates=compiled_condition.get_value(),
+                how=join.join_type,
+            )
+
+        def get_cross_table(join: CrossJoin, left_table, right_table) -> TableExpr:
+            return ibis.cross_join(left_table, right_table)
+
+        def rename_or_add_columns(table: Table, columns: TableWithColumnCollection):
+            for column in table.column_names:
+                columns[column].append(
+                    (table, table.get_table_expr().get_column(column))
                 )
-            return table
+
+        def resolve_table(
+            table: TableOrJoinbase,
+            columns: TableWithColumnCollection,
+        ):
+            if isinstance(table, NestedJoinBase):
+                left = resolve_table(table.left_table, columns)
+                right = resolve_table(table.right_table, columns)
+                join_actions = {
+                    NestedJoin: get_join_table,
+                    NestedCrossJoin: get_cross_table,
+                }
+                return join_actions[type(table)](table, left, right)
+            rename_or_add_columns(table, columns)
+            return table.get_table_expr()
 
         result: TableExpr = None
-        all_columns: List[Value] = []
-        left_table = resolve_table(join.left_table)
-        right_table = resolve_table(join.right_table)
-        resolved_join: StrictJoinBase
-        if isinstance(join, NestedJoin):
-            resolved_join = StrictJoin(
-                left_table, right_table, join.join_type, join.join_condition
-            )
-        elif isinstance(join, NestedCrossJoin):
-            resolved_join = StrictCrossJoin(left_table, right_table)
-        else:
-            raise Exception("Join must be of type cross or standard")
+        columns_by_name: TableWithColumnCollection = defaultdict(lambda: [])
+        left_table = Table(resolve_table(join.left_table, columns_by_name), "left")
+        right_table = Table(resolve_table(join.right_table, columns_by_name), "right")
 
+        all_columns: List[Value] = []
         if self._columns_have_select_star(columns):
             all_columns = join.get_all_join_columns_handle_duplicates(
                 left_table, right_table
@@ -639,16 +649,6 @@ class SQLTransformer(TransformerBaseClass):
 
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
-
-        overlapping = self._get_overlapping_column_names(
-            left_ibis_table, right_ibis_table
-        )
-        if overlapping and not all_columns:
-            (
-                left_ibis_table,
-                right_ibis_table,
-            ) = self._create_non_overlapping_projections(resolved_join, overlapping)
-
         if isinstance(join, NestedJoin):
             compiled_condition: Value = internal_transformer.transform(
                 join.join_condition
@@ -660,6 +660,26 @@ class SQLTransformer(TransformerBaseClass):
             )
         if isinstance(join, NestedCrossJoin):
             result = ibis.cross_join(left_ibis_table, right_ibis_table)
+
+        def get_renamed_columns(
+            column_collection: TableWithColumnCollection,
+        ) -> List[AnyColumn]:
+            renamed_columns: List[AnyColumn] = []
+            for column_name in column_collection:
+                if len(column_collection[column_name]) > 1:
+                    for table, column in column_collection[column_name]:
+                        renamed_columns.append(
+                            column.name(f"{table.get_alias_else_name()}.{column_name}")
+                        )
+                else:
+                    original_column = column_collection[column_name][0][1]
+                    renamed_columns.append(original_column)
+            return renamed_columns
+
+        overlapping = self._get_overlapping_column_names(columns_by_name)
+        if overlapping and not all_columns:
+            renamed_columns = get_renamed_columns(columns_by_name)
+            return result.projection(renamed_columns)
 
         if all_columns:
             return result[all_columns]

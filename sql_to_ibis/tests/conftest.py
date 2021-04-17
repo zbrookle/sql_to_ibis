@@ -4,7 +4,14 @@ from pandas.core.frame import DataFrame
 import pytest
 
 from sql_to_ibis import register_temp_table, remove_temp_table
-from sql_to_ibis.tests.utils import DATA_PATH, get_all_join_columns_handle_duplicates
+from sql_to_ibis.tests.utils import (
+    DATA_PATH,
+    MULTI_LOOKUP,
+    MULTI_MAIN,
+    MULTI_PROMOTION,
+    MULTI_RELATIONSHIP,
+    get_all_join_columns_handle_duplicates,
+)
 
 scope_fixture = pytest.fixture(scope="session")
 
@@ -64,7 +71,7 @@ def multitable_join_main_table(pandas_client):
                 "promotion_id": [0, 1, 2, 1, 0],
             }
         ),
-        "MULTI_MAIN",
+        MULTI_MAIN,
         pandas_client,
     )
 
@@ -78,7 +85,7 @@ def multitable_join_lookup_table(pandas_client):
                 "lookup_value": [0, 3, 20, 10, 40, 20, 10, 10, 10, 10],
             }
         ),
-        "MULTI_LOOKUP",
+        MULTI_LOOKUP,
         pandas_client,
     )
 
@@ -87,7 +94,7 @@ def multitable_join_lookup_table(pandas_client):
 def multitable_join_relationship_table(pandas_client):
     return ibis.pandas.from_dataframe(
         DataFrame({"id": [0, 1, 2], "relation": ["rel1", "rel2", "rel3"]}),
-        "MULTI_RELATIONSHIP",
+        MULTI_RELATIONSHIP,
         pandas_client,
     )
 
@@ -96,7 +103,7 @@ def multitable_join_relationship_table(pandas_client):
 def multitable_join_promotion_table(pandas_client):
     return ibis.pandas.from_dataframe(
         DataFrame({"id": [0, 1, 2], "promotion": ["none", "special", "extra special"]}),
-        "MULTI_PROMOTION",
+        MULTI_PROMOTION,
         pandas_client,
     )
 

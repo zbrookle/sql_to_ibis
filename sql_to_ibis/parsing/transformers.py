@@ -472,6 +472,7 @@ class InternalTransformer(TransformerBaseClass):
         :param expression:
         :return: boolean sql_object
         """
+        # print("boolean", expression[0].get_value())
         return expression[0]
 
     def equals(self, expressions: list):

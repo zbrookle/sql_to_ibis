@@ -3,7 +3,7 @@ from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (
     assert_ibis_equal_show_diff,
     assert_state_not_change,
-    handle_duplicate_column_names,
+    resolved_columns,
 )
 
 
@@ -213,10 +213,16 @@ def test_count_star_cross_join(digimon_move_list, digimon_mon_list):
     my_table = query(
         "select count(*) from digimon_move_list cross join digimon_mon_list"
     )
-    digimon_move_list_dedup, digimon_mon_list_dedup = handle_duplicate_column_names(
+    print(my_table.columns)
+    # digimon_move_list_dedup, digimon_mon_list_dedup = handle_duplicate_column_names(
+    #     digimon_move_list, digimon_mon_list, "DIGIMON_MOVE_LIST", "DIGIMON_MON_LIST"
+    # )
+    resolved = resolved_columns(
         digimon_move_list, digimon_mon_list, "DIGIMON_MOVE_LIST", "DIGIMON_MON_LIST"
     )
-    cross_join_table = digimon_move_list_dedup.cross_join(digimon_mon_list_dedup)
+    cross_join_table = digimon_move_list.cross_join(digimon_mon_list).projection(
+        resolved
+    )
     ibis_table = cross_join_table.aggregate([cross_join_table.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 

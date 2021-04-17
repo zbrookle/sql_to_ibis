@@ -436,6 +436,9 @@ class NestedJoinBase:
         right_columns = rename_duplicates(
             right, duplicates, self.right_table.name, right_columns
         )
+        get_names = lambda y: [x.get_name() for x in y]
+        print(duplicates, get_names(left_columns), get_names(right_columns))
+        # raise Exception("Test")
         return left_columns + right_columns
 
     def get_ibis_columns(self):
