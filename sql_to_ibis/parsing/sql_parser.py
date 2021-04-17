@@ -11,8 +11,8 @@ from ibis.expr.types import AnyColumn, TableExpr
 from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
-    ColumnNotFoundError,
     InvalidQueryException,
+    NeedsAggOrGroupQueryException,
     TableExprDoesNotExist,
 )
 from sql_to_ibis.parsing.transformers import (
@@ -21,7 +21,6 @@ from sql_to_ibis.parsing.transformers import (
     TransformerBaseClass,
 )
 from sql_to_ibis.query_info import OrderByInfo, QueryInfo
-from sql_to_ibis.sql.column_utils import rename_duplicates
 from sql_to_ibis.sql.sql_clause_objects import LimitExpression, WhereExpression
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn
 from sql_to_ibis.sql.sql_value_objects import (
@@ -87,19 +86,11 @@ class SQLTransformer(TransformerBaseClass):
 
     def __init__(
         self,
-        table_name_map=None,
-        table_map=None,
-        column_name_map=None,
-        column_to_table_name=None,
+        table_name_map: dict,
+        table_map: dict,
+        column_name_map: dict,
+        column_to_table_name: dict,
     ):
-        if table_name_map is None:
-            table_name_map = {}
-        if table_map is None:
-            table_map = {}
-        if column_name_map is None:
-            column_name_map = {}
-        if column_to_table_name is None:
-            column_to_table_name = {}
         super().__init__(
             table_name_map,
             table_map,
@@ -239,43 +230,6 @@ class SQLTransformer(TransformerBaseClass):
         """
         return join_expression
 
-    def _determine_column_side(
-        self, column: str, left_table: Table, right_table: Table
-    ):
-        """
-        Check if column table prefix is one of the two tables (if there is one) AND
-        the column has to be in one of the two tables
-        """
-        # TODO Refactor so that this fits with the new table object framework
-        column_match = GET_TABLE_REGEX.match(column)
-        column_table = ""
-        if column_match:
-            column = column_match.group("column").lower()
-            column_table = column_match.group("table").lower()
-        left_columns = self._column_name_map[left_table.name]
-        right_columns = self._column_name_map[right_table.name]
-        if column not in left_columns and column not in right_columns:
-            raise ColumnNotFoundError(column, [left_table.name, right_table.name])
-
-        left_table_name = left_table.name.lower()
-        right_table_name = right_table.name.lower()
-        if column_table:
-            if column_table == left_table_name and column in left_columns:
-                return "left", column
-            if column_table == right_table_name and column in right_columns:
-                return "right", column
-            raise Exception("Table specified in join columns not present in join")
-        if column in left_columns and column in right_columns:
-            raise Exception(
-                f"Ambiguous column: {column}\nSpecify table name with table_name"
-                f".{column}"
-            )
-        if column in left_columns:
-            return "left", column
-        if column in right_columns:
-            return "right", column
-        raise Exception("Column does not exist in either table")
-
     def comparison_type(self, comparison):
         """
         Return the comparison expression
@@ -309,18 +263,6 @@ class SQLTransformer(TransformerBaseClass):
             join_type=join_type,
             join_condition=join_condition,
         )
-
-    @staticmethod
-    def has_star(column_list: List[str]):
-        """
-        Returns true if any columns have a star
-        :param column_list:
-        :return:
-        """
-        for column_name in column_list:
-            if re.match(r"\*", column_name):
-                return True
-        return False
 
     def select(self, *select_expressions: Tuple[Tree]) -> QueryInfo:
         """
@@ -404,10 +346,6 @@ class SQLTransformer(TransformerBaseClass):
     def from_item(self, item):
         return item
 
-    @staticmethod
-    def format_column_needs_agg_or_group_msg(column):
-        return f"For column '{column}' you must either group or provide an aggregation"
-
     def _handle_count_star(self, aggregate: Aggregate, relation: TableExpr):
         if isinstance(aggregate.value, CountStar):
             aggregate.value = relation.count()
@@ -438,9 +376,7 @@ class SQLTransformer(TransformerBaseClass):
         if having is not None and not aggregates:
             for column in table.columns:
                 if column not in group_column_names:
-                    raise InvalidQueryException(
-                        self.format_column_needs_agg_or_group_msg(column)
-                    )
+                    raise NeedsAggOrGroupQueryException(column)
         return having
 
     def handle_aggregation(
@@ -481,9 +417,7 @@ class SQLTransformer(TransformerBaseClass):
                 selected_column.get_name() for selected_column in selected_columns
             ]:
                 if column not in group_columns:
-                    raise InvalidQueryException(
-                        self.format_column_needs_agg_or_group_msg(column)
-                    )
+                    raise NeedsAggOrGroupQueryException(column)
             table = table.distinct()
         elif aggregates and not group_columns:
             table = table.aggregate(aggregate_ibis_columns, having=having)
@@ -581,11 +515,6 @@ class SQLTransformer(TransformerBaseClass):
                 for table, column in column_list:
                     overlapping.add(column.name(table.name + "." + column_name))
         return overlapping
-
-    def _get_overlapping_projection(self, table: TableExpr, overlapping: Set[str]):
-        columns = table.get_columns(table.columns)
-        rename_duplicates(table, overlapping, table.get_alias_else_name(), columns)
-        return table.projection(columns)
 
     def handle_join(
         self,
