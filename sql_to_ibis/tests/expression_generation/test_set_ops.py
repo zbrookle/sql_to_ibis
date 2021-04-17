@@ -510,25 +510,28 @@ def get_columns(table: TableExpr):
     return table.get_columns(table.columns)
 
 
+@join_params
 @assert_state_not_change
 def test_join_more_than_2_tables(
     multitable_join_main_table,
     multitable_join_lookup_table,
     multitable_join_relationship_table,
     multitable_join_promotion_table,
+    sql_join: str,
+    ibis_join: str,
 ):
-    query_text = """
+    query_text = f"""
     SELECT multi_main.id
     FROM multi_main
-    left join multi_lookup
+    {sql_join} join multi_lookup
     on multi_main.lookup_id = multi_lookup.id
-    left join multi_relationship
+    {sql_join} join multi_relationship
     on multi_main.relationship_id = multi_relationship.id
-    left join multi_promotion
+    {sql_join} join multi_promotion
     on multi_main.promotion_id = multi_promotion.id
     """
     my_table = query(query_text)
-    join_type = "left"
+    join_type = ibis_join
     ibis_table = (
         multitable_join_main_table.join(
             multitable_join_lookup_table,
