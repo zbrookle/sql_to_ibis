@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Mapping, Optional, Tuple, Union, cast
+from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Union, cast
 
 import ibis
 from ibis.expr.api import NumericColumn
@@ -83,7 +83,7 @@ class TransformerBaseClass(Transformer):
     ):
         super().__init__(visit_tokens=False)
         self._table_name_map = table_name_map
-        self._table_map: Mapping[str, Table] = {}
+        self._table_map: MutableMapping[str, Table] = {}
         for name, table in table_map.items():
             if isinstance(table, Table):
                 self._table_map[name] = table
