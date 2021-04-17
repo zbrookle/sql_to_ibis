@@ -235,14 +235,6 @@ class InternalTransformer(TransformerBaseClass):
             typename=column.typename,
         )
 
-    def mul(self, args: Tuple[int, int]):
-        """
-        Returns the product two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) * num_eval(arg2)
-
     def expression_mul(self, args: Tuple):
         """
         Returns the product of two expressions
@@ -252,14 +244,6 @@ class InternalTransformer(TransformerBaseClass):
         arg1 = args[0]
         arg2 = args[1]
         return arg1 * arg2
-
-    def add(self, args: Tuple):
-        """
-        Returns the sum two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) + num_eval(arg2)
 
     def expression_add(self, args: Tuple):
         """
@@ -271,14 +255,6 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 + arg2
 
-    def sub(self, args: Tuple):
-        """
-        Returns the difference between two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) - num_eval(arg2)
-
     def expression_sub(self, args: Tuple):
         """
         Returns the difference between two expressions
@@ -288,14 +264,6 @@ class InternalTransformer(TransformerBaseClass):
         arg1 = args[0]
         arg2 = args[1]
         return arg1 - arg2
-
-    def div(self, args: Tuple):
-        """
-        Returns the division of two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) / num_eval(arg2)
 
     def expression_div(self, args):
         """

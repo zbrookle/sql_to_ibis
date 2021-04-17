@@ -15,11 +15,7 @@ from sql_to_ibis.exceptions.sql_exception import (
     NeedsAggOrGroupQueryException,
     TableExprDoesNotExist,
 )
-from sql_to_ibis.parsing.transformers import (
-    InternalTransformer,
-    InternalTransformerWithStarVal,
-    TransformerBaseClass,
-)
+from sql_to_ibis.parsing.transformers import InternalTransformer, TransformerBaseClass
 from sql_to_ibis.query_info import OrderByInfo, QueryInfo
 from sql_to_ibis.sql.sql_clause_objects import LimitExpression, WhereExpression
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn
@@ -636,22 +632,6 @@ class SQLTransformer(TransformerBaseClass):
             return table.get_table_expr()
         if isinstance(table, NestedJoinBase):
             return table
-
-    @staticmethod
-    def _reevaluate_transformation(query_info: QueryInfo, relations: List[TableExpr]):
-        DerivedColumn.reset_expression_count()
-        internal_transformer = InternalTransformerWithStarVal.from_internal_transformer(
-            internal_transformer=query_info.internal_transformer,
-            available_relations=relations,
-        )
-        query_info = QueryInfo(
-            internal_transformer,
-            query_info.select_expressions_no_boolean_clauses,
-            query_info.having_expr,
-            query_info.where_expr,
-        )
-        query_info.perform_transformation()
-        return query_info
 
     def _get_relation(self, query_info: QueryInfo) -> TableExpr:
         tables = query_info.tables
