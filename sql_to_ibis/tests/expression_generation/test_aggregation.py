@@ -213,10 +213,6 @@ def test_count_star_cross_join(digimon_move_list, digimon_mon_list):
     my_table = query(
         "select count(*) from digimon_move_list cross join digimon_mon_list"
     )
-    print(my_table.columns)
-    # digimon_move_list_dedup, digimon_mon_list_dedup = handle_duplicate_column_names(
-    #     digimon_move_list, digimon_mon_list, "DIGIMON_MOVE_LIST", "DIGIMON_MON_LIST"
-    # )
     resolved = resolved_columns(
         digimon_move_list, digimon_mon_list, "DIGIMON_MOVE_LIST", "DIGIMON_MON_LIST"
     )

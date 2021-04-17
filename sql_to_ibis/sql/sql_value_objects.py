@@ -407,9 +407,6 @@ class NestedJoinBase:
     right_table: TableOrJoinbase
     join_type: str
 
-    # def __post_init__(self):
-    #     print("Tables:", self.left_table, self.right_table, self.join_type)
-
     def _resolve_tables(
         self, unresolved_tables: List[TableOrJoinbase], tables: List[Table]
     ):
@@ -436,9 +433,6 @@ class NestedJoinBase:
         right_columns = rename_duplicates(
             right, duplicates, self.right_table.name, right_columns
         )
-        get_names = lambda y: [x.get_name() for x in y]
-        print(duplicates, get_names(left_columns), get_names(right_columns))
-        # raise Exception("Test")
         return left_columns + right_columns
 
     def get_ibis_columns(self):

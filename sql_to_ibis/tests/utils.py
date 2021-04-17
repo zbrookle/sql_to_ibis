@@ -201,7 +201,6 @@ def resolved_columns(
     ]:
         _rename_duplicate_columns(table, name, column_collection)
     for column_name in column_collection:
-        print(column_name)
         for table_name, column in column_collection[column_name]:
             if len(column_collection[column_name]) > 1:
                 column = column.name(f"{table_name}.{column_name}")
