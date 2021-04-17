@@ -1,16 +1,17 @@
 """
 Shared functions among the tests like setting up test environment
 """
+from collections import defaultdict
 from copy import deepcopy
 from functools import wraps
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
-from typing import Callable, Set
+from typing import Callable, DefaultDict, List, Set, Tuple
 
 import ibis
 from ibis.expr.groupby import GroupedTableExpr
-from ibis.expr.types import TableExpr
+from ibis.expr.types import AnyColumn, TableExpr
 from ibis.tests.util import assert_equal
 from pandas import DataFrame
 import pytest
@@ -19,6 +20,10 @@ from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal
 from sql_to_ibis.sql_select_query import TableInfo
 
 DATA_PATH = Path(__file__).parent.parent / "data"
+MULTI_MAIN = "MULTI_MAIN"
+MULTI_LOOKUP = "MULTI_LOOKUP"
+MULTI_RELATIONSHIP = "MULTI_RELATIONSHIP"
+MULTI_PROMOTION = "MULTI_PROMOTION"
 
 
 def pandas_to_ibis(frame: DataFrame, name: str):
@@ -167,6 +172,40 @@ def get_columns_with_alias(table: TableExpr, alias: str):
         column.name(f"{alias}.{column_name}")
         for column_name, column in zip(table.columns, table.get_columns(table.columns))
     ]
+
+
+ColumnCollection = DefaultDict[str, List[Tuple[str, AnyColumn]]]
+
+
+def _rename_duplicate_columns(
+    table: TableExpr,
+    table_name: str,
+    column_collection: ColumnCollection,
+):
+    for column_name in table.columns:
+        column = table.get_column(column_name)
+        column_collection[column_name].append((table_name, column))
+
+
+def resolved_columns(
+    table1: TableExpr,
+    table2: TableExpr,
+    name1: str,
+    name2: str,
+) -> List[AnyColumn]:
+    resolved: List[AnyColumn] = []
+    column_collection: ColumnCollection = defaultdict(lambda: [])
+    for name, table in [
+        (name1, table1),
+        (name2, table2),
+    ]:
+        _rename_duplicate_columns(table, name, column_collection)
+    for column_name in column_collection:
+        for table_name, column in column_collection[column_name]:
+            if len(column_collection[column_name]) > 1:
+                column = column.name(f"{table_name}.{column_name}")
+            resolved.append(column)
+    return resolved
 
 
 def handle_duplicate_column_names(

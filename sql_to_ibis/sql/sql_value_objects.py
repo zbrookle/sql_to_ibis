@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import InitVar, dataclass
 import re
 from typing import ClassVar, Dict, List, Optional, Union
@@ -6,6 +8,8 @@ import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
 from lark import Tree
 from pandas import Series
+
+from sql_to_ibis.sql.column_utils import rename_duplicates
 
 
 @dataclass(unsafe_hash=True)
@@ -20,7 +24,7 @@ class Table:
     def get_table_expr(self):
         return self._value
 
-    def get_ibis_columns(self):
+    def get_ibis_columns(self) -> List[AnyColumn]:
         return self._value.get_columns(self.column_names)
 
     def get_alias_else_name(self):
@@ -29,7 +33,7 @@ class Table:
         return self.name
 
     @property
-    def column_names(self):
+    def column_names(self) -> List[str]:
         return self._value.columns
 
 
@@ -391,23 +395,79 @@ class Subquery(Table):
 
 
 @dataclass
-class JoinBase:
+class StrictJoinBase:
     left_table: Table
     right_table: Table
     join_type: str
 
-    def get_tables(self) -> List[Table]:
+
+@dataclass
+class NestedJoinBase:
+    left_table: TableOrJoinbase
+    right_table: TableOrJoinbase
+    join_type: str
+
+    def _resolve_tables(
+        self, unresolved_tables: List[TableOrJoinbase], tables: List[Table]
+    ):
+        if not unresolved_tables:
+            return
+        table = unresolved_tables.pop()
+        if isinstance(table, Table):
+            tables.append(table)
+            self._resolve_tables(unresolved_tables, tables)
+            return
+        for sub_table in [table.left_table, table.right_table]:
+            unresolved_tables.append(sub_table)
+        self._resolve_tables(unresolved_tables, tables)
+
+    def get_all_join_columns_handle_duplicates(
+        self, left: TableOrJoinbase, right: TableOrJoinbase
+    ) -> List[AnyColumn]:
+        left_columns = left.get_ibis_columns()
+        right_columns = right.get_ibis_columns()
+        duplicates = set(left.column_names).intersection(right.column_names)
+        left_columns = rename_duplicates(
+            left, duplicates, self.left_table.name, left_columns
+        )
+        right_columns = rename_duplicates(
+            right, duplicates, self.right_table.name, right_columns
+        )
+        return left_columns + right_columns
+
+    def get_ibis_columns(self):
+        tables: List[Table] = []
+        self._resolve_tables(self.get_tables(), tables)
+        left, right = tables
+        return self.get_all_join_columns_handle_duplicates(left, right)
+
+    @property
+    def column_names(self) -> List[str]:
+        names = {column.get_name() for column in self.get_ibis_columns()}
+        return list(names)
+
+    @property
+    def name(self) -> str:
+        return self.left_table.name + "_joined_" + self.right_table.name
+
+    def get_tables(self) -> List[TableOrJoinbase]:
         return [self.left_table, self.right_table]
 
-    def get_table_map(self) -> Dict[str, Table]:
+    def get_alias_else_name(self) -> str:
+        return self.name
+
+    def get_table_map(self) -> Dict[str, TableOrJoinbase]:
         return {
             self.left_table.get_alias_else_name(): self.left_table,
             self.right_table.get_alias_else_name(): self.right_table,
         }
 
 
+TableOrJoinbase = Union[Table, NestedJoinBase]
+
+
 @dataclass
-class Join(JoinBase):
+class NestedJoin(NestedJoinBase):
     """
     Wrapper for join related info
     """
@@ -416,5 +476,15 @@ class Join(JoinBase):
 
 
 @dataclass
-class CrossJoin(JoinBase):
+class StrictJoin(StrictJoinBase):
+    join_condition: Tree
+
+
+@dataclass
+class NestedCrossJoin(NestedJoinBase):
+    join_type: str = "cross"
+
+
+@dataclass
+class StrictCrossJoin(StrictJoinBase):
     join_type: str = "cross"

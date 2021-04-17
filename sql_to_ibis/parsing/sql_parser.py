@@ -1,11 +1,13 @@
 """
 Module containing all lark internal_transformer classes
 """
+from collections import defaultdict
 import re
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, DefaultDict, Dict, List, Set, Tuple, Union
 
 import ibis
-from ibis.expr.types import TableExpr
+from ibis.expr.operations import CrossJoin
+from ibis.expr.types import AnyColumn, TableExpr
 from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
@@ -19,22 +21,27 @@ from sql_to_ibis.parsing.transformers import (
     TransformerBaseClass,
 )
 from sql_to_ibis.query_info import OrderByInfo, QueryInfo
+from sql_to_ibis.sql.column_utils import rename_duplicates
 from sql_to_ibis.sql.sql_clause_objects import LimitExpression, WhereExpression
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn
 from sql_to_ibis.sql.sql_value_objects import (
     Aggregate,
     Column,
     CountStar,
-    CrossJoin,
     DerivedColumn,
     GroupByColumn,
-    Join,
-    JoinBase,
     Literal,
+    NestedCrossJoin,
+    NestedJoin,
+    NestedJoinBase,
     Subquery,
     Table,
+    TableOrJoinbase,
     Value,
 )
+
+TableWithColumn = Tuple[Table, AnyColumn]
+TableWithColumnCollection = DefaultDict[str, List[TableWithColumn]]
 
 GET_TABLE_REGEX = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
@@ -184,7 +191,7 @@ class SQLTransformer(TransformerBaseClass):
                 query_info.limit = token.limit
         return query_info
 
-    def _handle_join_subqueries(self, join: JoinBase) -> QueryInfo:
+    def _handle_join_subqueries(self, join: NestedJoinBase) -> QueryInfo:
         info = QueryInfo(
             InternalTransformer(
                 join.get_tables(),
@@ -199,7 +206,7 @@ class SQLTransformer(TransformerBaseClass):
         info.add_column(Column(name="*"))
         return info
 
-    def subquery(self, query_object: Union[QueryInfo, JoinBase], alias: Tree):
+    def subquery(self, query_object: Union[QueryInfo, NestedJoinBase], alias: Tree):
         """
         Handle subqueries amd return a subquery object
         :param query_object:
@@ -207,7 +214,7 @@ class SQLTransformer(TransformerBaseClass):
         :return:
         """
         alias_name = str(alias.children[0])
-        if isinstance(query_object, JoinBase):
+        if isinstance(query_object, NestedJoinBase):
             query_info = self._handle_join_subqueries(query_object)
         else:
             query_info = query_object
@@ -296,7 +303,7 @@ class SQLTransformer(TransformerBaseClass):
                     join_type = match.group("type")
             if join_type in {"full", "cross"}:
                 join_type = "outer"
-        return Join(
+        return NestedJoin(
             left_table=table1,
             right_table=table2,
             join_type=join_type,
@@ -321,14 +328,14 @@ class SQLTransformer(TransformerBaseClass):
         :param select_expressions:
         :return:
         """
-        tables: List[Token] = []
+        tables: List[TableOrJoinbase] = []
         having_expr = None
         where_expr = None
         for select_expression in select_expressions:
             if isinstance(select_expression, Tree):
                 if select_expression.data == "from_expression":
                     table_object = select_expression.children[0]
-                    if isinstance(table_object, JoinBase):
+                    if isinstance(table_object, NestedJoinBase):
                         tables += [
                             table_object.right_table,
                             table_object.left_table,
@@ -337,20 +344,22 @@ class SQLTransformer(TransformerBaseClass):
                         isinstance(table_object, Tree)
                         and table_object.data == "cross_join_expression"
                     ):
-                        cross_join: CrossJoin = table_object.children[0]
+                        cross_join: NestedCrossJoin = table_object.children[0]
                         tables += [
                             cross_join.right_table,
                             cross_join.left_table,
                         ]
-                    else:
+                    elif isinstance(table_object, Table):
                         tables.append(table_object)
+                    else:
+                        raise Exception(f"Invalid type found: {type(table_object)}")
                 elif select_expression.data == "having_expr":
                     having_expr = select_expression
                 elif select_expression.data == "where_expr":
                     where_expr = select_expression
 
         internal_transformer = InternalTransformer(
-            tables,  # type: ignore
+            tables,
             self._table_map,
             self._column_name_map,
             self._column_to_table_name,
@@ -387,7 +396,7 @@ class SQLTransformer(TransformerBaseClass):
         :param table2: TableExpr2
         :return: Crossjoined dataframe
         """
-        return CrossJoin(
+        return NestedCrossJoin(
             left_table=table1,
             right_table=table2,
         )
@@ -539,29 +548,6 @@ class SQLTransformer(TransformerBaseClass):
                 return True
         return False
 
-    @staticmethod
-    def _rename_duplicates(
-        table: Table, duplicates: Set[str], table_name: str, table_columns: list
-    ):
-        for i, column in enumerate(table.column_names):
-            if column in duplicates:
-                table_columns[i] = table_columns[i].name(f"{table_name}.{column}")
-        return table_columns
-
-    def _get_all_join_columns_handle_duplicates(
-        self, left: Table, right: Table, join: JoinBase
-    ):
-        left_columns = left.get_ibis_columns()
-        right_columns = right.get_ibis_columns()
-        duplicates = set(left.column_names).intersection(right.column_names)
-        left_columns = self._rename_duplicates(
-            left, duplicates, join.left_table.name, left_columns
-        )
-        right_columns = self._rename_duplicates(
-            right, duplicates, join.right_table.name, right_columns
-        )
-        return left_columns + right_columns
-
     def _get_all_columns_rename_duplicates(self, tables: List[Table]):
         columns = {table: table.get_ibis_columns() for table in tables}
 
@@ -586,32 +572,24 @@ class SQLTransformer(TransformerBaseClass):
         return all_columns
 
     @staticmethod
-    def _get_overlapping_column_names(left_table: TableExpr, right_table: TableExpr):
-        left_columns = set(left_table.columns)
-        right_columns = set(right_table.columns)
-        return left_columns & right_columns
+    def _get_overlapping_column_names(
+        columns_by_name: TableWithColumnCollection,
+    ) -> Set[AnyColumn]:
+        overlapping = set()
+        for column_name, column_list in columns_by_name.items():
+            if len(column_list) > 1:
+                for table, column in column_list:
+                    overlapping.add(column.name(table.name + "." + column_name))
+        return overlapping
 
-    def _get_overlapping_projection(self, table: Table, overlapping: Set[str]):
-        table_expr = table.get_table_expr()
-        columns = table_expr.get_columns(table_expr.columns)
-        self._rename_duplicates(
-            table, overlapping, table.get_alias_else_name(), columns
-        )
-        return table_expr.projection(columns)
-
-    def _create_non_overlapping_projections(
-        self,
-        join: JoinBase,
-        overlapping: Set[str],
-    ):
-        return (
-            self._get_overlapping_projection(join.left_table, overlapping),
-            self._get_overlapping_projection(join.right_table, overlapping),
-        )
+    def _get_overlapping_projection(self, table: TableExpr, overlapping: Set[str]):
+        columns = table.get_columns(table.columns)
+        rename_duplicates(table, overlapping, table.get_alias_else_name(), columns)
+        return table.projection(columns)
 
     def handle_join(
         self,
-        join: JoinBase,
+        join: NestedJoinBase,
         columns: List[Value],
         internal_transformer: InternalTransformer,
     ) -> TableExpr:
@@ -621,29 +599,57 @@ class SQLTransformer(TransformerBaseClass):
         :param columns: List of all column values
         :return:
         """
-        result: TableExpr = None
-        all_columns: List[Value] = []
-        left_table = join.left_table
-        right_table = join.right_table
 
+        def get_join_table(
+            join: NestedJoin, left_table: TableExpr, right_table: TableExpr
+        ) -> TableExpr:
+            compiled_condition: Value = internal_transformer.transform(
+                join.join_condition
+            )
+            return left_table.join(
+                right_table,
+                predicates=compiled_condition.get_value(),
+                how=join.join_type,
+            )
+
+        def get_cross_table(join: CrossJoin, left_table, right_table) -> TableExpr:
+            return ibis.cross_join(left_table, right_table)
+
+        def rename_or_add_columns(table: Table, columns: TableWithColumnCollection):
+            for column in table.column_names:
+                columns[column].append(
+                    (table, table.get_table_expr().get_column(column))
+                )
+
+        def resolve_table(
+            table: TableOrJoinbase,
+            columns: TableWithColumnCollection,
+        ):
+            if isinstance(table, NestedJoinBase):
+                left = resolve_table(table.left_table, columns)
+                right = resolve_table(table.right_table, columns)
+                join_actions = {
+                    NestedJoin: get_join_table,
+                    NestedCrossJoin: get_cross_table,
+                }
+                return join_actions[type(table)](table, left, right)
+            rename_or_add_columns(table, columns)
+            return table.get_table_expr()
+
+        result: TableExpr = None
+        columns_by_name: TableWithColumnCollection = defaultdict(lambda: [])
+        left_table = Table(resolve_table(join.left_table, columns_by_name), "left")
+        right_table = Table(resolve_table(join.right_table, columns_by_name), "right")
+
+        all_columns: List[Value] = []
         if self._columns_have_select_star(columns):
-            all_columns = self._get_all_join_columns_handle_duplicates(
-                left_table, right_table, join
+            all_columns = join.get_all_join_columns_handle_duplicates(
+                left_table, right_table
             )
 
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
-
-        overlapping = self._get_overlapping_column_names(
-            left_ibis_table, right_ibis_table
-        )
-        if overlapping and not all_columns:
-            (
-                left_ibis_table,
-                right_ibis_table,
-            ) = self._create_non_overlapping_projections(join, overlapping)
-
-        if isinstance(join, Join):
+        if isinstance(join, NestedJoin):
             compiled_condition: Value = internal_transformer.transform(
                 join.join_condition
             )
@@ -652,8 +658,28 @@ class SQLTransformer(TransformerBaseClass):
                 predicates=compiled_condition.get_value(),
                 how=join.join_type,
             )
-        if isinstance(join, CrossJoin):
+        if isinstance(join, NestedCrossJoin):
             result = ibis.cross_join(left_ibis_table, right_ibis_table)
+
+        def get_renamed_columns(
+            column_collection: TableWithColumnCollection,
+        ) -> List[AnyColumn]:
+            renamed_columns: List[AnyColumn] = []
+            for column_name in column_collection:
+                if len(column_collection[column_name]) > 1:
+                    for table, column in column_collection[column_name]:
+                        renamed_columns.append(
+                            column.name(f"{table.get_alias_else_name()}.{column_name}")
+                        )
+                else:
+                    original_column = column_collection[column_name][0][1]
+                    renamed_columns.append(original_column)
+            return renamed_columns
+
+        overlapping = self._get_overlapping_column_names(columns_by_name)
+        if overlapping and not all_columns:
+            renamed_columns = get_renamed_columns(columns_by_name)
+            return result.projection(renamed_columns)
 
         if all_columns:
             return result[all_columns]
@@ -675,11 +701,11 @@ class SQLTransformer(TransformerBaseClass):
                     selection_statement_name
                 )
 
-    def get_table_value(self, table: Union[Table, JoinBase, Subquery]):
-        assert isinstance(table, (Table, JoinBase, Subquery))
+    def get_table_value(self, table: Union[Table, NestedJoinBase, Subquery]):
+        assert isinstance(table, (Table, NestedJoinBase, Subquery))
         if isinstance(table, Table):
             return table.get_table_expr()
-        if isinstance(table, JoinBase):
+        if isinstance(table, NestedJoinBase):
             return table
 
     @staticmethod
@@ -703,7 +729,7 @@ class SQLTransformer(TransformerBaseClass):
         if not tables:
             raise Exception("No table specified")
         first_table = self.get_table_value(tables[0])
-        if isinstance(first_table, JoinBase):
+        if isinstance(first_table, NestedJoinBase):
             first_table = self.handle_join(
                 join=first_table,
                 columns=query_info.columns,

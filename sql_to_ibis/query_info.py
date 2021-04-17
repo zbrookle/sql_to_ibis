@@ -10,8 +10,8 @@ from sql_to_ibis.sql.sql_value_objects import (
     Column,
     Expression,
     GroupByColumn,
-    JoinBase,
     Literal,
+    NestedJoinBase,
     Subquery,
     Table,
     Value,
@@ -47,7 +47,7 @@ class QueryInfo:
         distinct: bool = False,
     ):
         self.columns: List[Value] = []
-        self.tables: List[Union[Table, JoinBase]] = []
+        self.tables: List[Union[Table, NestedJoinBase]] = []
         self.all_names: List[str] = []
         self.name_order: Dict[str, int] = {}
         self.aggregates: Dict[str, Aggregate] = {}
@@ -64,7 +64,7 @@ class QueryInfo:
             else []
         )
 
-    def add_table(self, table: Union[Table, JoinBase]):
+    def add_table(self, table: Union[Table, NestedJoinBase]):
         self.tables.append(table)
 
     def add_column(self, column: Value):

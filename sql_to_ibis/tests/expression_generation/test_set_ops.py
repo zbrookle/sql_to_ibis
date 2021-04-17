@@ -1,11 +1,12 @@
+from ibis.expr.types import TableExpr
 import pytest
 
 from sql_to_ibis import query
 from sql_to_ibis.tests.utils import (
     assert_ibis_equal_show_diff,
     assert_state_not_change,
-    handle_duplicate_column_names,
     join_params,
+    resolved_columns,
 )
 
 
@@ -74,11 +75,8 @@ def test_join_specify_selection(
             digimon_move_list
             on digimon_mon_list.attribute = digimon_move_list.attribute"""
     )
-    digimon_mon_list_dedup, digimon_move_list_dedup = handle_duplicate_column_names(
-        digimon_mon_list, digimon_move_list, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
-    )
-    ibis_table = digimon_mon_list_dedup.join(
-        digimon_move_list_dedup,
+    ibis_table = digimon_mon_list.join(
+        digimon_move_list,
         predicates=digimon_mon_list.Attribute == digimon_move_list.Attribute,
         how=ibis_join,
     )[digimon_move_list.Power.name("power")]
@@ -141,13 +139,7 @@ def test_cross_join_with_selection(digimon_move_list, digimon_mon_list):
         """select power from digimon_mon_list cross join
             digimon_move_list"""
     )
-    digimon_mon_list_dedup, digimon_move_list_dedup = handle_duplicate_column_names(
-        digimon_mon_list,
-        digimon_move_list,
-        "DIGIMON_MON_LIST",
-        "DIGIMON_MOVE_LIST",
-    )
-    ibis_table = digimon_mon_list_dedup.cross_join(digimon_move_list_dedup)[
+    ibis_table = digimon_mon_list.cross_join(digimon_move_list)[
         digimon_move_list.Power.name("power")
     ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
@@ -414,11 +406,8 @@ def test_multi_column_joins(time_data):
     table2 = intermediate.group_by(intermediate.team).aggregate(
         [intermediate.start_time.count().name("start_time_count_d")]
     )
-    table1_dedup, table2_dedup = handle_duplicate_column_names(
-        table1, table2, "table1", "table2"
-    )
-    ibis_table = table1_dedup.join(
-        table2_dedup,
+    ibis_table = table1.join(
+        table2,
         predicates=(
             (table1.team == table2.team)
             & (table1.start_time_count == table2.start_time_count_d)
@@ -470,11 +459,11 @@ def test_column_values_in_other_table(digimon_move_list, digimon_mon_list):
          from digimon_mon_list ) t1
     """
     )
-    digimimon_mon_list_lower_name = digimon_mon_list.projection(
+    digimon_mon_list_lower_name = digimon_mon_list.projection(
         [digimon_mon_list.Type.name("type")]
     )
     ibis_table = digimon_move_list.filter(
-        digimon_move_list.Type.isin(digimimon_mon_list_lower_name.type)
+        digimon_move_list.Type.isin(digimon_mon_list_lower_name.type)
     ).projection(
         [
             digimon_move_list.Power.name("power"),
@@ -504,17 +493,75 @@ def test_join_with_overlapping_column_names(digimon_mon_list, digimon_move_list)
     where memory < 70
     """
     my_table = query(query_text)
-
-    mon_list, move_list = handle_duplicate_column_names(
+    renamed_columns = resolved_columns(
         digimon_mon_list, digimon_move_list, "mon_list", "move_list"
     )
-    # mon_list = digimon_mon_list.projection(mon_columns)
-    # move_list = digimon_move_list.projection(move_columns)
-    joined_tables = mon_list.join(
-        move_list,
+    joined_tables = digimon_mon_list.join(
+        digimon_move_list,
         predicates=digimon_move_list.Attribute == digimon_mon_list.Attribute,
         how="inner",
-    )
+    )[renamed_columns]
     filtered = joined_tables.filter(digimon_mon_list.Memory < 70)
     ibis_table = filtered[[digimon_mon_list.Attribute.name("attribute")]]
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def get_columns(table: TableExpr):
+    return table.get_columns(table.columns)
+
+
+@assert_state_not_change
+def test_join_more_than_2_tables(
+    multitable_join_main_table,
+    multitable_join_lookup_table,
+    multitable_join_relationship_table,
+    multitable_join_promotion_table,
+):
+    query_text = """
+    SELECT multi_main.id
+    FROM multi_main
+    left join multi_lookup
+    on multi_main.lookup_id = multi_lookup.id
+    left join multi_relationship
+    on multi_main.relationship_id = multi_relationship.id
+    left join multi_promotion
+    on multi_main.promotion_id = multi_promotion.id
+    """
+    my_table = query(query_text)
+    join_type = "left"
+    ibis_table = (
+        multitable_join_main_table.join(
+            multitable_join_lookup_table,
+            predicates=multitable_join_main_table.lookup_id
+            == multitable_join_lookup_table.id,
+            how=join_type,
+        )
+        .join(
+            multitable_join_relationship_table,
+            predicates=multitable_join_main_table.relationship_id
+            == multitable_join_relationship_table.id,
+            how=join_type,
+        )
+        .join(
+            multitable_join_promotion_table,
+            predicates=multitable_join_main_table.promotion_id
+            == multitable_join_promotion_table.id,
+            how=join_type,
+        )
+        .projection([multitable_join_main_table.id])
+    )
+
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+# @assert_state_not_change
+# def test_join_with_alias():
+#     query_text = """
+#     SELECT mon_list.attribute as attribute
+#     FROM digimon_mon_list
+#     left join digimon_move_list
+#     on move_list.attribute=mon_list.attribute
+#     left join mon_list
+#     on mon_list.number=move_list.sp_cost
+#     """
+#     my_table = query(query_text)
