@@ -104,7 +104,7 @@ class Value:
         Returns the table of the current value
         :return:
         """
-        pass
+        raise NotImplementedError
 
     def get_name(self) -> str:
         """
@@ -403,26 +403,12 @@ class StrictJoinBase:
 
 @dataclass
 class NestedJoinBase:
-    left_table: TableOrJoinbase
-    right_table: TableOrJoinbase
+    left_table: Table
+    right_table: Table
     join_type: str
 
-    def _resolve_tables(
-        self, unresolved_tables: List[TableOrJoinbase], tables: List[Table]
-    ):
-        if not unresolved_tables:
-            return
-        table = unresolved_tables.pop()
-        if isinstance(table, Table):
-            tables.append(table)
-            self._resolve_tables(unresolved_tables, tables)
-            return
-        for sub_table in [table.left_table, table.right_table]:
-            unresolved_tables.append(sub_table)
-        self._resolve_tables(unresolved_tables, tables)
-
     def get_all_join_columns_handle_duplicates(
-        self, left: TableOrJoinbase, right: TableOrJoinbase
+        self, left: Table, right: Table
     ) -> List[AnyColumn]:
         left_columns = left.get_ibis_columns()
         right_columns = right.get_ibis_columns()
@@ -435,26 +421,8 @@ class NestedJoinBase:
         )
         return left_columns + right_columns
 
-    def get_ibis_columns(self):
-        tables: List[Table] = []
-        self._resolve_tables(self.get_tables(), tables)
-        left, right = tables
-        return self.get_all_join_columns_handle_duplicates(left, right)
-
-    @property
-    def column_names(self) -> List[str]:
-        names = {column.get_name() for column in self.get_ibis_columns()}
-        return list(names)
-
-    @property
-    def name(self) -> str:
-        return self.left_table.name + "_joined_" + self.right_table.name
-
     def get_tables(self) -> List[TableOrJoinbase]:
         return [self.left_table, self.right_table]
-
-    def get_alias_else_name(self) -> str:
-        return self.name
 
     def get_table_map(self) -> Dict[str, TableOrJoinbase]:
         return {
@@ -476,15 +444,5 @@ class NestedJoin(NestedJoinBase):
 
 
 @dataclass
-class StrictJoin(StrictJoinBase):
-    join_condition: Tree
-
-
-@dataclass
 class NestedCrossJoin(NestedJoinBase):
-    join_type: str = "cross"
-
-
-@dataclass
-class StrictCrossJoin(StrictJoinBase):
     join_type: str = "cross"

@@ -13,6 +13,13 @@ class InvalidQueryException(Exception):
         Exception.__init__(self, f"Invalid query!\n{message}")
 
 
+class NeedsAggOrGroupQueryException(InvalidQueryException):
+    def __init__(self, column):
+        super().__init__(
+            f"For column '{column}' you must either group or provide an aggregation"
+        )
+
+
 class TableExprDoesNotExist(Exception):
     """
     Raised when a DataFrame doesn't exist

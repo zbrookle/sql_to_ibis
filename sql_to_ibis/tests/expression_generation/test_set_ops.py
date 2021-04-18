@@ -510,25 +510,28 @@ def get_columns(table: TableExpr):
     return table.get_columns(table.columns)
 
 
+@join_params
 @assert_state_not_change
 def test_join_more_than_2_tables(
     multitable_join_main_table,
     multitable_join_lookup_table,
     multitable_join_relationship_table,
     multitable_join_promotion_table,
+    sql_join: str,
+    ibis_join: str,
 ):
-    query_text = """
+    query_text = f"""
     SELECT multi_main.id
     FROM multi_main
-    left join multi_lookup
+    {sql_join} join multi_lookup
     on multi_main.lookup_id = multi_lookup.id
-    left join multi_relationship
+    {sql_join} join multi_relationship
     on multi_main.relationship_id = multi_relationship.id
-    left join multi_promotion
+    {sql_join} join multi_promotion
     on multi_main.promotion_id = multi_promotion.id
     """
     my_table = query(query_text)
-    join_type = "left"
+    join_type = ibis_join
     ibis_table = (
         multitable_join_main_table.join(
             multitable_join_lookup_table,
@@ -551,6 +554,66 @@ def test_join_more_than_2_tables(
         .projection([multitable_join_main_table.id])
     )
 
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+@pytest.mark.skip("Need to implement this")
+def test_cross_join_more_than_2_tables(
+    multitable_join_main_table,
+    multitable_join_lookup_table,
+    multitable_join_relationship_table,
+    multitable_join_promotion_table,
+):
+    query_text = """
+    SELECT multi_main.id
+    FROM multi_main
+    cross join multi_lookup
+    cross join multi_relationship
+    cross join multi_promotion
+    """
+    my_table = query(query_text)
+    ibis_table = (
+        multitable_join_main_table.cross_join(
+            multitable_join_lookup_table,
+        )
+        .cross_join(
+            multitable_join_relationship_table,
+        )
+        .cross_join(
+            multitable_join_promotion_table,
+        )
+        .projection([multitable_join_main_table.id])
+    )
+
+    assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+@join_params
+def test_join_without_overlapping_columns(
+    multitable_join_main_table,
+    multitable_join_promotion_table_no_overlap,
+    sql_join: str,
+    ibis_join: str,
+):
+    my_table = query(
+        f"""
+    select id, promotion from multi_main {sql_join} join
+    multi_promotion_no_overlap
+    on id = other_id
+    """
+    )
+    join_type = ibis_join
+    ibis_table = multitable_join_main_table.join(
+        multitable_join_promotion_table_no_overlap,
+        predicates=multitable_join_main_table.id
+        == multitable_join_promotion_table_no_overlap.other_id,
+        how=join_type,
+    )[
+        multitable_join_main_table.id,
+        multitable_join_promotion_table_no_overlap.promotion,
+    ]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
