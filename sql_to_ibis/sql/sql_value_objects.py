@@ -453,9 +453,3 @@ class SQLFunction:
     args: List[Value]
     name: str
     ibisFunction: Callable
-
-
-@dataclass
-class Coalesce(SQLFunction):
-    name = "coalesce"
-    ibisFunction = ibis.coalesce
