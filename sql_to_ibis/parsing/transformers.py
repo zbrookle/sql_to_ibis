@@ -17,6 +17,7 @@ from sql_to_ibis.exceptions.sql_exception import (
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
     COUNT_AGGREGATIONS,
+    COUNT_DISTINCT_AGGREGATIONS,
     MAX_AGGREGATIONS,
     MIN_AGGREGATIONS,
     NUMERIC_AGGREGATIONS,
@@ -209,6 +210,8 @@ class InternalTransformer(TransformerBaseClass):
             return ibis_column.min()
         if aggregation in COUNT_AGGREGATIONS:
             return ibis_column.count()
+        if aggregation in COUNT_DISTINCT_AGGREGATIONS:
+            return ibis_column.nunique()
         raise UnsupportedColumnOperation(type(ibis_column), aggregation)
 
     def sql_aggregation(self, agg_parts: list):
