@@ -7,7 +7,6 @@ from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff, assert_state_no
 @assert_state_not_change
 def test_coalesce(forest_fires):
     my_table = query("select coalesce(wind, rain, 2) as my_number from forest_fires")
-    print(my_table.columns)
     ibis_table = forest_fires[
         ibis.coalesce(forest_fires.wind, forest_fires.rain, 2).name("my_number")
     ]
