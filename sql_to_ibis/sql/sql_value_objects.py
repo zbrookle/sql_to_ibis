@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
 import re
-from typing import ClassVar, Dict, List, Optional, Union
+from typing import Callable, ClassVar, Dict, List, Optional, Union
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
@@ -446,3 +446,16 @@ class NestedJoin(NestedJoinBase):
 @dataclass
 class NestedCrossJoin(NestedJoinBase):
     join_type: str = "cross"
+
+
+@dataclass
+class SQLFunction:
+    args: List[Value]
+    name: str
+    ibisFunction: Callable
+
+
+@dataclass
+class Coalesce(SQLFunction):
+    name = "coalesce"
+    ibisFunction = ibis.coalesce

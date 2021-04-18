@@ -37,6 +37,7 @@ from sql_to_ibis.sql.sql_clause_objects import (
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn, Window
 from sql_to_ibis.sql.sql_value_objects import (
     Aggregate,
+    Coalesce,
     Column,
     CountStar,
     Date,
@@ -610,6 +611,9 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         return self.rank(tokens, "dense_rank")
+
+    def coalesce_expression(self, tokens):
+        return Coalesce(args=tokens)
 
     def select_expression(
         self, expression_and_alias: Tuple[Value, Optional[AliasExpression]]
