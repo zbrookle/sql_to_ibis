@@ -235,3 +235,12 @@ def test_group_by_having(digimon_move_list):
         .having(digimon_move_list.Power.mean() > 50)
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+@assert_state_not_change
+def test_count_distinct(digimon_move_list):
+    my_table = query("select count(distinct type) from digimon_move_list")
+    ibis_table = digimon_move_list.aggregate(
+        digimon_move_list.Type.nunique().name("_col0")
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
