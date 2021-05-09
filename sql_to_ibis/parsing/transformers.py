@@ -17,6 +17,7 @@ from sql_to_ibis.exceptions.sql_exception import (
 from sql_to_ibis.parsing.aggregation_aliases import (
     AVG_AGGREGATIONS,
     COUNT_AGGREGATIONS,
+    COUNT_DISTINCT_AGGREGATIONS,
     MAX_AGGREGATIONS,
     MIN_AGGREGATIONS,
     NUMERIC_AGGREGATIONS,
@@ -209,6 +210,8 @@ class InternalTransformer(TransformerBaseClass):
             return ibis_column.min()
         if aggregation in COUNT_AGGREGATIONS:
             return ibis_column.count()
+        if aggregation in COUNT_DISTINCT_AGGREGATIONS:
+            return ibis_column.nunique()
         raise UnsupportedColumnOperation(type(ibis_column), aggregation)
 
     def sql_aggregation(self, agg_parts: list):
@@ -235,14 +238,6 @@ class InternalTransformer(TransformerBaseClass):
             typename=column.typename,
         )
 
-    def mul(self, args: Tuple[int, int]):
-        """
-        Returns the product two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) * num_eval(arg2)
-
     def expression_mul(self, args: Tuple):
         """
         Returns the product of two expressions
@@ -252,14 +247,6 @@ class InternalTransformer(TransformerBaseClass):
         arg1 = args[0]
         arg2 = args[1]
         return arg1 * arg2
-
-    def add(self, args: Tuple):
-        """
-        Returns the sum two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) + num_eval(arg2)
 
     def expression_add(self, args: Tuple):
         """
@@ -271,14 +258,6 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 + arg2
 
-    def sub(self, args: Tuple):
-        """
-        Returns the difference between two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) - num_eval(arg2)
-
     def expression_sub(self, args: Tuple):
         """
         Returns the difference between two expressions
@@ -288,14 +267,6 @@ class InternalTransformer(TransformerBaseClass):
         arg1 = args[0]
         arg2 = args[1]
         return arg1 - arg2
-
-    def div(self, args: Tuple):
-        """
-        Returns the division of two numbers
-        """
-        arg1 = args[0]
-        arg2 = args[1]
-        return num_eval(arg1) / num_eval(arg2)
 
     def expression_div(self, args):
         """
@@ -642,6 +613,10 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         return self.rank(tokens, "dense_rank")
+
+    def coalesce_expression(self, tokens: List[Value]):
+        coalesce_args = [token.value for token in tokens]
+        return Column(ibis.coalesce(*coalesce_args))
 
     def select_expression(
         self, expression_and_alias: Tuple[Value, Optional[AliasExpression]]

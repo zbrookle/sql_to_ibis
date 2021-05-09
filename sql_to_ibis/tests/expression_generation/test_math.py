@@ -15,10 +15,12 @@ def test_using_math(forest_fires):
     Test the mathematical operations and order of operations
     :return:
     """
-    my_table = query("select temp, 1 + 2 * 3 as my_number from forest_fires")
+    my_table = query("select temp, 1 + 2 * 3 - 2 as my_number from forest_fires")
     ibis_table = forest_fires[["temp"]]
     ibis_table = ibis_table.mutate(
-        (ibis.literal(1) + ibis.literal(2) * ibis.literal(3)).name("my_number")
+        (ibis.literal(1) + ibis.literal(2) * ibis.literal(3) - ibis.literal(2)).name(
+            "my_number"
+        )
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 

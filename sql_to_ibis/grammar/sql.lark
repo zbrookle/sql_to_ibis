@@ -46,6 +46,7 @@ JOIN_TYPE.5: "INNER"i | /FULL\sOUTER/i | /LEFT\sOUTER/i |  /RIGHT\sOUTER/i | "FU
                | AGGREGATION expression_math ")" [window_form] -> sql_aggregation
                | "RANK"i "(" ")" window_form -> rank_expression
                | "DENSE_RANK"i "(" ")" window_form -> dense_rank_expression
+               | "COALESCE"i "(" [(expression_math ",")*] expression_math ")" -> coalesce_expression
 
 window_form: "OVER"i "(" ["PARTITION"i "BY"i (partition_by ",")* partition_by] ["ORDER"i "BY"i (order ",")* order [ row_range_clause ] ] ")"
 
@@ -102,7 +103,7 @@ TYPENAME:  "object"i
          | "date"i
          | "category"i
          | "string"i
-AGGREGATION.8: ("sum("i | "avg("i | "min("i | "max("i | "count("i)
+AGGREGATION.8: ("sum("i | "avg("i | "min("i | "max("i | "count("i "distinct"i | "count("i)
 alias: name -> alias_string
 _window_name: name
 limit_count: integer -> limit_count
