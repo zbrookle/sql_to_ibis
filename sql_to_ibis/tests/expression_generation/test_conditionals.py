@@ -1,6 +1,7 @@
 from typing import List
 
 import ibis
+from ibis.expr.operations import Literal
 import pytest
 
 from sql_to_ibis import query
@@ -142,7 +143,7 @@ in_list_params = pytest.mark.parametrize(
 
 @assert_state_not_change
 @in_list_params
-def test_in_operator(forest_fires, sql: str, ibis_expr_list: List[ibis.literal]):
+def test_in_operator(forest_fires, sql: str, ibis_expr_list: List[Literal]):
     """
     Test using in operator in a sql query
     :return:
@@ -173,7 +174,7 @@ def test_in_operator_expression_numerical(forest_fires):
 
 @assert_state_not_change
 @in_list_params
-def test_not_in_operator(forest_fires, sql: str, ibis_expr_list: List[ibis.literal]):
+def test_not_in_operator(forest_fires, sql: str, ibis_expr_list: List[Literal]):
     """
     Test using in operator in a sql query
     :return:
