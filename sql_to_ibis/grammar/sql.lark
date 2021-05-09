@@ -29,7 +29,6 @@ from_item: name [ [ "AS"i ] alias ] -> table
             | join -> join
             | cross_join -> cross_join_expression
             | subquery
-            | with_query_name [ [ "AS"i ] alias ]
 
 subquery: ( "(" (query_expr | join | cross_join) ")" ) [ [ "AS"i ] alias ]
 
@@ -126,9 +125,9 @@ less_than: expression_math "<" expression_math
 greater_than_or_equal: expression_math ">=" expression_math
 less_than_or_equal: expression_math "<=" expression_math
 between: expression_math "BETWEEN"i expression_math "AND"i expression_math
-in_expr: expression_math "IN"i "(" [expression_math ","] expression_math ")"
+in_expr: expression_math "IN"i "(" [expression_math ","]* expression_math ")"
 subquery_in: expression_math "IN"i subquery
-not_in_expr: expression_math "NOT"i "IN"i "(" [expression_math ","] expression_math ")"
+not_in_expr: expression_math "NOT"i "IN"i "(" [expression_math ","]* expression_math ")"
 ?literal: boolean -> bool
        | number_expr -> number
        | /'([^']|\s)+'|''/ -> string
@@ -142,7 +141,6 @@ boolean: "true"i -> true
 integer: /[1-9][0-9]*/
 STAR: "*"
 window_definition:
-with_query_name:
 timestamp_expression: "NOW"i "(" ")" -> datetime_now
                     | "TODAY"i "(" ")" -> date_today
                     | "TIMESTAMP"i "(" "'" date "'" "," "'" time "'" ")" -> custom_timestamp
