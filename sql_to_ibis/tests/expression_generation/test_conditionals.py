@@ -1,4 +1,7 @@
+from typing import List
+
 import ibis
+import pytest
 
 from sql_to_ibis import query
 from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff, assert_state_not_change
@@ -122,20 +125,34 @@ def test_between_operator(forest_fires):
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
+in_list_params = pytest.mark.parametrize(
+    "sql,ibis_expr_list",
+    [
+        (
+            "('fri', 'sun')",
+            [ibis.literal("fri"), ibis.literal("sun")],
+        ),
+        (
+            "('fri', 'sun', 'sat')",
+            [ibis.literal("fri"), ibis.literal("sun"), ibis.literal("sat")],
+        ),
+    ],
+)
+
+
 @assert_state_not_change
-def test_in_operator(forest_fires):
+@in_list_params
+def test_in_operator(forest_fires, sql: str, ibis_expr_list: List[ibis.literal]):
     """
     Test using in operator in a sql query
     :return:
     """
     my_table = query(
-        """
-    select * from forest_fires where day in ('fri', 'sun')
+        f"""
+    select * from forest_fires where day in {sql}
     """
     )
-    ibis_table = forest_fires[
-        forest_fires.day.isin([ibis.literal("fri"), ibis.literal("sun")])
-    ]
+    ibis_table = forest_fires[forest_fires.day.isin(ibis_expr_list)]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
@@ -155,19 +172,18 @@ def test_in_operator_expression_numerical(forest_fires):
 
 
 @assert_state_not_change
-def test_not_in_operator(forest_fires):
+@in_list_params
+def test_not_in_operator(forest_fires, sql: str, ibis_expr_list: List[ibis.literal]):
     """
     Test using in operator in a sql query
     :return:
     """
     my_table = query(
-        """
-    select * from forest_fires where day not in ('fri', 'sun')
+        f"""
+    select * from forest_fires where day not in {sql}
     """
     )
-    ibis_table = forest_fires[
-        forest_fires.day.notin([ibis.literal("fri"), ibis.literal("sun")])
-    ]
+    ibis_table = forest_fires[forest_fires.day.notin(ibis_expr_list)]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
