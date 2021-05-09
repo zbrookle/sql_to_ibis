@@ -225,7 +225,7 @@ Supported expressions and functions
 
 .. code-block:: SQL
 
-    {RANK | DENSE_RANK} OVER([PARTITION BY (<expresssion> [, <expression>...)])
+    {RANK | DENSE_RANK} OVER([PARTITION BY (<expresssion> [, <expression>...])])
 
 .. code-block:: SQL
 
@@ -238,6 +238,10 @@ Supported expressions and functions
 .. code-block:: SQL
 
     <expression> is not null
+
+.. code-block:: SQL
+
+    COALESCE(<expresssion> [, <expression>...])
 
 * Anything in <> is meant to be some string
 * Anything in [] is optional

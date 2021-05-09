@@ -9,6 +9,7 @@ from sql_to_ibis.tests.utils import (
     MULTI_LOOKUP,
     MULTI_MAIN,
     MULTI_PROMOTION,
+    MULTI_PROMOTION_NO_OVERLAP,
     MULTI_RELATIONSHIP,
     get_all_join_columns_handle_duplicates,
 )
@@ -108,6 +109,17 @@ def multitable_join_promotion_table(pandas_client):
     )
 
 
+@scope_fixture
+def multitable_join_promotion_table_no_overlap(pandas_client):
+    return ibis.pandas.from_dataframe(
+        DataFrame(
+            {"other_id": [0, 1, 2], "promotion": ["none", "special", "extra special"]}
+        ),
+        MULTI_PROMOTION_NO_OVERLAP,
+        pandas_client,
+    )
+
+
 @pytest.fixture(autouse=True, scope="session")
 def register_temp_tables(
     digimon_mon_list,
@@ -119,6 +131,7 @@ def register_temp_tables(
     multitable_join_lookup_table,
     multitable_join_relationship_table,
     multitable_join_promotion_table,
+    multitable_join_promotion_table_no_overlap,
 ):
     tables = {
         "DIGIMON_MON_LIST": digimon_mon_list,
@@ -126,10 +139,11 @@ def register_temp_tables(
         "FOREST_FIRES": forest_fires,
         "TIME_DATA": time_data,
         "AVOCADO": avocado,
-        "MULTI_MAIN": multitable_join_main_table,
-        "MULTI_LOOKUP": multitable_join_lookup_table,
-        "MULTI_RELATIONSHIP": multitable_join_relationship_table,
-        "MULTI_PROMOTION": multitable_join_promotion_table,
+        MULTI_MAIN: multitable_join_main_table,
+        MULTI_LOOKUP: multitable_join_lookup_table,
+        MULTI_RELATIONSHIP: multitable_join_relationship_table,
+        MULTI_PROMOTION: multitable_join_promotion_table,
+        MULTI_PROMOTION_NO_OVERLAP: multitable_join_promotion_table_no_overlap,
     }
     for table_name in tables:
         register_temp_table(tables[table_name], table_name)
