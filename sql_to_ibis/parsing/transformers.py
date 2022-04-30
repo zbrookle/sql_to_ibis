@@ -1,11 +1,21 @@
 from datetime import date, datetime
-from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import ibis
 from ibis.expr.api import NumericColumn
 from ibis.expr.types import AnyColumn, AnyScalar, BooleanValue, NumericScalar, TableExpr
 from ibis.expr.window import Window as IbisWindow
-from lark import Token, Transformer
+from lark import Token, Transformer, Tree
 
 from sql_to_ibis.conversions.conversions import TYPE_TO_SQL_TYPE, to_ibis_type
 from sql_to_ibis.exceptions.sql_exception import (
@@ -55,7 +65,7 @@ from sql_to_ibis.sql.sql_value_objects import (
 )
 
 
-def num_eval(arg):
+def num_eval(arg: Any) -> Union[int, float]:
     """
     Takes an argument that may be a string or number and outputs a number
     :param arg:
@@ -81,7 +91,7 @@ class TransformerBaseClass(Transformer):
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         _temp_dataframes_dict=None,
-    ):
+    ) -> None:
         super().__init__(visit_tokens=False)
         self._table_name_map = table_name_map
         self._table_map: MutableMapping[str, Table] = {}
@@ -92,7 +102,7 @@ class TransformerBaseClass(Transformer):
         self._column_to_table_name = column_to_table_name
         self._temp_dataframes_dict = _temp_dataframes_dict
 
-    def name(self, name_tokens: List[Token]):
+    def name(self, name_tokens: List[Token]) -> str:
         """
         Cleans the name depending on whether it is in quotes or not
         """
@@ -161,7 +171,7 @@ class InternalTransformer(TransformerBaseClass):
         column.value = table.get_table_expr()[column_true_name]
         column.set_table(table)
 
-    def _remove_non_selected_tables_from_transformation(self):
+    def _remove_non_selected_tables_from_transformation(self) -> None:
         all_selected_table_names = {
             table.name if isinstance(table, Table) else table
             for table in self._table_names_list
@@ -181,7 +191,7 @@ class InternalTransformer(TransformerBaseClass):
                         set(present_tables)
                     )
 
-    def transform(self, tree):
+    def transform(self, tree: Tree):
         new_tree = TransformerBaseClass.transform(self, tree)
         if isinstance(new_tree, Token) and isinstance(new_tree.value, Value):
             new_tree.value = new_tree.value.value

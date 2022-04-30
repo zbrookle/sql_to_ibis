@@ -21,7 +21,7 @@ with open(file=GRAMMAR_PATH) as sql_grammar_file:
     _GRAMMAR_TEXT = sql_grammar_file.read()
 
 
-def register_temp_table(table: TableExpr, table_name: str):
+def register_temp_table(table: TableExpr, table_name: str) -> None:
     """
     Registers related metadata from a :class: ~`ibis.expr.types.TableExpr` for use with
     SQL
@@ -54,7 +54,7 @@ def register_temp_table(table: TableExpr, table_name: str):
     table_info.register_temporary_table(table, table_name)
 
 
-def remove_temp_table(table_name: str):
+def remove_temp_table(table_name: str) -> None:
     """
     Removes all registered metadata related to a table name
 

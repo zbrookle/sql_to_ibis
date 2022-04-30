@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from ibis.expr.types import TableExpr
 import pytest
 
@@ -11,7 +13,7 @@ from sql_to_ibis.tests.utils import (
 
 
 @assert_state_not_change
-def test_distinct(forest_fires):
+def test_distinct(forest_fires: TableExpr) -> None:
     """
     Test use of the distinct keyword
     :return:
@@ -22,14 +24,14 @@ def test_distinct(forest_fires):
 
 
 @assert_state_not_change
-def test_columns_maintain_order_chosen(forest_fires):
+def test_columns_maintain_order_chosen(forest_fires: TableExpr) -> None:
     my_table = query("select area, rain from forest_fires")
     ibis_table = forest_fires[["area", "rain"]]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
-def test_subquery(forest_fires):
+def test_subquery(forest_fires: TableExpr) -> None:
     """
     Test ability to perform subqueries
     :return:
@@ -42,12 +44,12 @@ def test_subquery(forest_fires):
 @join_params
 @assert_state_not_change
 def test_joins(
-    digimon_move_mon_join_columns,
+    digimon_move_mon_join_columns: list,
     sql_join: str,
     ibis_join: str,
-    digimon_move_list,
-    digimon_mon_list,
-):
+    digimon_move_list: TableExpr,
+    digimon_mon_list: TableExpr,
+) -> None:
     my_table = query(
         f"select * from digimon_mon_list {sql_join} join "
         "digimon_move_list on "
@@ -64,8 +66,11 @@ def test_joins(
 @join_params
 @assert_state_not_change
 def test_join_specify_selection(
-    sql_join: str, ibis_join: str, digimon_move_list, digimon_mon_list
-):
+    sql_join: str,
+    ibis_join: str,
+    digimon_move_list: TableExpr,
+    digimon_mon_list: TableExpr,
+) -> None:
     """
     Test join
     :return:
@@ -86,12 +91,12 @@ def test_join_specify_selection(
 @join_params
 @assert_state_not_change
 def test_join_wo_specifying_table(
-    digimon_move_mon_join_columns,
+    digimon_move_mon_join_columns: list,
     sql_join: str,
     ibis_join: str,
-    digimon_move_list,
-    digimon_mon_list,
-):
+    digimon_move_list: TableExpr,
+    digimon_mon_list: TableExpr,
+) -> None:
     """
     Test join where table isn't specified in join
     :return:
@@ -113,8 +118,10 @@ def test_join_wo_specifying_table(
 
 @assert_state_not_change
 def test_cross_joins(
-    digimon_move_mon_join_columns, digimon_move_list, digimon_mon_list
-):
+    digimon_move_mon_join_columns,
+    digimon_move_list: TableExpr,
+    digimon_mon_list: TableExpr,
+) -> None:
     """
     Test right, left, inner, and outer joins
     :return:
@@ -130,7 +137,9 @@ def test_cross_joins(
 
 
 @assert_state_not_change
-def test_cross_join_with_selection(digimon_move_list, digimon_mon_list):
+def test_cross_join_with_selection(
+    digimon_move_list: TableExpr, digimon_mon_list: TableExpr
+) -> None:
     """
     Test right, left, inner, and outer joins
     :return:
@@ -146,7 +155,7 @@ def test_cross_join_with_selection(digimon_move_list, digimon_mon_list):
 
 
 @assert_state_not_change
-def test_nested_subquery(forest_fires):
+def test_nested_subquery(forest_fires: TableExpr) -> None:
     """
     Test nested subqueries
     :return:
@@ -161,7 +170,7 @@ def test_nested_subquery(forest_fires):
 
 
 @assert_state_not_change
-def test_union(forest_fires):
+def test_union(forest_fires: TableExpr) -> None:
     """
     Test union in queries
     :return:
@@ -180,7 +189,7 @@ def test_union(forest_fires):
 
 
 @assert_state_not_change
-def test_union_distinct(forest_fires):
+def test_union_distinct(forest_fires: TableExpr) -> None:
     """
     Test union distinct in queries
     :return:
@@ -199,7 +208,7 @@ def test_union_distinct(forest_fires):
 
 
 @assert_state_not_change
-def test_union_all(forest_fires):
+def test_union_all(forest_fires: TableExpr) -> None:
     """
     Test union distinct in queries
     :return:
@@ -219,7 +228,7 @@ def test_union_all(forest_fires):
 
 @assert_state_not_change
 @pytest.mark.parametrize("set_op", ["intersect", "intersect distinct"])
-def test_intersect_distinct(forest_fires: TableExpr, set_op: str):
+def test_intersect_distinct(forest_fires: TableExpr, set_op: str) -> None:
     """
     Test intersect in queries
     :return:
@@ -238,7 +247,7 @@ def test_intersect_distinct(forest_fires: TableExpr, set_op: str):
 
 
 @assert_state_not_change
-def test_except_distinct(forest_fires):
+def test_except_distinct(forest_fires: TableExpr) -> None:
     """
     Test except distinct in queries
     :return:
@@ -257,7 +266,7 @@ def test_except_distinct(forest_fires):
 
 
 @assert_state_not_change
-def test_except_all(forest_fires):
+def test_except_all(forest_fires: TableExpr) -> None:
     """
     Test except distinct in queries
     :return:
@@ -297,11 +306,13 @@ def test_except_all(forest_fires):
     ],
 )
 @assert_state_not_change
-def test_joining_two_subqueries_with_overlapping_columns_same_table(sql, forest_fires):
+def test_joining_two_subqueries_with_overlapping_columns_same_table(
+    sql: str, forest_fires: TableExpr
+) -> None:
     my_table = query(sql)
     columns = ["X", "Y", "rain"]
 
-    def get_select_rename_columns(alias: str):
+    def get_select_rename_columns(alias: str) -> Tuple[list, list]:
         my_columns = forest_fires.get_columns(columns)
         renamed_columns = []
         for i, column in enumerate(my_columns):
@@ -340,8 +351,8 @@ def test_joining_two_subqueries_with_overlapping_columns_same_table(sql, forest_
 )
 @assert_state_not_change
 def test_joining_two_subqueries_with_overlapping_columns_different_tables(
-    sql, digimon_mon_list, digimon_move_list
-):
+    sql: str, digimon_mon_list: TableExpr, digimon_move_list: TableExpr
+) -> None:
     my_table = query(sql)
     subquery1 = digimon_move_list[
         [
@@ -373,7 +384,7 @@ def test_joining_two_subqueries_with_overlapping_columns_different_tables(
 
 
 @assert_state_not_change
-def test_multi_column_joins(time_data):
+def test_multi_column_joins(time_data: TableExpr) -> None:
     my_table = query(
         """
     SELECT
@@ -418,7 +429,7 @@ def test_multi_column_joins(time_data):
 
 
 @assert_state_not_change
-def test_column_values_in_subquery(digimon_move_list):
+def test_column_values_in_subquery(digimon_move_list: TableExpr) -> None:
     my_table = query(
         """
     select move, type, power from
@@ -448,7 +459,9 @@ def test_column_values_in_subquery(digimon_move_list):
 
 
 @assert_state_not_change
-def test_column_values_in_other_table(digimon_move_list, digimon_mon_list):
+def test_column_values_in_other_table(
+    digimon_move_list: TableExpr, digimon_mon_list: TableExpr
+) -> None:
     my_table = query(
         """
     select power from
@@ -473,7 +486,7 @@ def test_column_values_in_other_table(digimon_move_list, digimon_mon_list):
 
 
 @assert_state_not_change
-def test_limit(forest_fires):
+def test_limit(forest_fires: TableExpr) -> None:
     """
     Test limit clause
     :return:
@@ -484,7 +497,9 @@ def test_limit(forest_fires):
 
 
 @assert_state_not_change
-def test_join_with_overlapping_column_names(digimon_mon_list, digimon_move_list):
+def test_join_with_overlapping_column_names(
+    digimon_mon_list: TableExpr, digimon_move_list: TableExpr
+) -> None:
     query_text = """
     SELECT mon_list.attribute as attribute
     FROM digimon_mon_list as mon_list
@@ -506,20 +521,20 @@ def test_join_with_overlapping_column_names(digimon_mon_list, digimon_move_list)
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
-def get_columns(table: TableExpr):
+def get_columns(table: TableExpr) -> list:
     return table.get_columns(table.columns)
 
 
 @join_params
 @assert_state_not_change
 def test_join_more_than_2_tables(
-    multitable_join_main_table,
-    multitable_join_lookup_table,
-    multitable_join_relationship_table,
-    multitable_join_promotion_table,
+    multitable_join_main_table: TableExpr,
+    multitable_join_lookup_table: TableExpr,
+    multitable_join_relationship_table: TableExpr,
+    multitable_join_promotion_table: TableExpr,
     sql_join: str,
     ibis_join: str,
-):
+) -> None:
     query_text = f"""
     SELECT multi_main.id
     FROM multi_main
@@ -560,11 +575,11 @@ def test_join_more_than_2_tables(
 @assert_state_not_change
 @pytest.mark.skip("Need to implement this")
 def test_cross_join_more_than_2_tables(
-    multitable_join_main_table,
-    multitable_join_lookup_table,
-    multitable_join_relationship_table,
-    multitable_join_promotion_table,
-):
+    multitable_join_main_table: TableExpr,
+    multitable_join_lookup_table: TableExpr,
+    multitable_join_relationship_table: TableExpr,
+    multitable_join_promotion_table: TableExpr,
+) -> None:
     query_text = """
     SELECT multi_main.id
     FROM multi_main
@@ -592,11 +607,11 @@ def test_cross_join_more_than_2_tables(
 @assert_state_not_change
 @join_params
 def test_join_without_overlapping_columns(
-    multitable_join_main_table,
-    multitable_join_promotion_table_no_overlap,
+    multitable_join_main_table: TableExpr,
+    multitable_join_promotion_table_no_overlap: TableExpr,
     sql_join: str,
     ibis_join: str,
-):
+) -> None:
     my_table = query(
         f"""
     select id, promotion from multi_main {sql_join} join

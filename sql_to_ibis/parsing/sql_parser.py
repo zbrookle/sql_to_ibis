@@ -66,7 +66,7 @@ TYPE_TO_PANDAS_TYPE = {
 
 
 class TupleTree(Tree):
-    def __init__(self, data, children: Any, meta=None):
+    def __init__(self, data, children: Any, meta=None) -> None:
         super().__init__(data, children, meta)
 
 
@@ -96,7 +96,7 @@ class SQLTransformer(TransformerBaseClass):
         )
         self._alias_registry = AliasRegistry()
 
-    def add_column_to_column_to_table_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column: str, table):
         """
         Adds a column to the _column_to_table_name map
         :param column:
@@ -115,7 +115,7 @@ class SQLTransformer(TransformerBaseClass):
                 {original_table, table}
             )
 
-    def table(self, table_name, alias=""):
+    def table(self, table_name: str, alias: str = "") -> Table:
         """
         Check for existence of table with same name
         If not exists raise TableExprDoesNotExist
@@ -137,7 +137,7 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry.add_to_registry(alias, table)
         return table
 
-    def order_by_expression(self, rank_tree):
+    def order_by_expression(self, rank_tree: Tree):
         """
         Returns the column name for the order sql_object
         :param rank_tree: Tree containing order info
@@ -234,7 +234,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return comparison
 
-    def join_expression(self, *args):
+    def join_expression(self, *args) -> NestedJoin:
         # There will only ever be four args if a join is specified and three if a
         # join isn't specified
         if len(args) == 3:
@@ -327,7 +327,7 @@ class SQLTransformer(TransformerBaseClass):
             distinct=distinct,
         )
 
-    def cross_join(self, table1: Table, table2: Table):
+    def cross_join(self, table1: Table, table2: Table) -> NestedCrossJoin:
         """
         Returns the crossjoin between two dataframes
         :param table1: TableExpr1
@@ -537,10 +537,14 @@ class SQLTransformer(TransformerBaseClass):
                 how=join.join_type,
             )
 
-        def get_cross_table(join: CrossJoin, left_table, right_table) -> TableExpr:
+        def get_cross_table(
+            join: CrossJoin, left_table: TableExpr, right_table: TableExpr
+        ) -> TableExpr:
             return ibis.cross_join(left_table, right_table)
 
-        def rename_or_add_columns(table: Table, columns: TableWithColumnCollection):
+        def rename_or_add_columns(
+            table: Table, columns: TableWithColumnCollection
+        ) -> None:
             for column in table.column_names:
                 columns[column].append(
                     (table, table.get_table_expr().get_column(column))
@@ -549,7 +553,7 @@ class SQLTransformer(TransformerBaseClass):
         def resolve_table(
             table: TableOrJoinbase,
             columns: TableWithColumnCollection,
-        ):
+        ) -> TableExpr:
             if isinstance(table, NestedJoinBase):
                 left = resolve_table(table.left_table, columns)
                 right = resolve_table(table.right_table, columns)
@@ -654,7 +658,7 @@ class SQLTransformer(TransformerBaseClass):
             first_table = first_table[all_columns]
         return first_table
 
-    def _to_ibis_table(self, query_info: QueryInfo):
+    def _to_ibis_table(self, query_info: QueryInfo) -> TableExpr:
         """
         Returns the dataframe resulting from the SQL query
         :return:
@@ -717,7 +721,7 @@ class SQLTransformer(TransformerBaseClass):
 
         return new_table
 
-    def set_expr(self, query_info):
+    def set_expr(self, query_info: QueryInfo) -> TableExpr:
         """
         Return different sql_object with set relational operations performed
         :param query_info:
@@ -729,7 +733,7 @@ class SQLTransformer(TransformerBaseClass):
         self,
         expr1: TableExpr,
         expr2: TableExpr,
-    ):
+    ) -> TableExpr:
         """
         Return union distinct of two TableExpr
         :param expr1: Left TableExpr
@@ -742,7 +746,7 @@ class SQLTransformer(TransformerBaseClass):
         self,
         expr1: TableExpr,
         expr2: TableExpr,
-    ):
+    ) -> TableExpr:
         """
         Return union distinct of two TableExpr
         :param expr1: Left TableExpr
@@ -751,7 +755,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.union(expr2, distinct=True)
 
-    def intersect_distinct(self, expr1: TableExpr, expr2: TableExpr):
+    def intersect_distinct(self, expr1: TableExpr, expr2: TableExpr) -> TableExpr:
         """
         Return distinct intersection of two TableExpr
         :param expr1: Left TableExpr
@@ -760,7 +764,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.intersect(expr2)
 
-    def except_distinct(self, expr1: TableExpr, expr2: TableExpr):
+    def except_distinct(self, expr1: TableExpr, expr2: TableExpr) -> TableExpr:
         """
         Return distinct set difference of two TableExpr
         :param expr1: Left TableExpr
@@ -769,7 +773,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.difference(expr2).distinct()
 
-    def except_all(self, expr1: TableExpr, expr2: TableExpr):
+    def except_all(self, expr1: TableExpr, expr2: TableExpr) -> TableExpr:
         """
         Return set difference of two TableExpr
         :param expr1: Left TableExpr

@@ -2,15 +2,15 @@
 Test cases for panda to sql
 """
 
-
 import ibis
+from ibis.expr.types import TableExpr
 
 from sql_to_ibis import query
 from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff, assert_state_not_change
 
 
 @assert_state_not_change
-def test_using_math(forest_fires):
+def test_using_math(forest_fires: TableExpr) -> None:
     """
     Test the mathematical operations and order of operations
     :return:
@@ -26,7 +26,7 @@ def test_using_math(forest_fires):
 
 
 @assert_state_not_change
-def test_operations_between_columns_and_numbers(forest_fires):
+def test_operations_between_columns_and_numbers(forest_fires: TableExpr) -> None:
     """
     Tests operations between columns
     :return:
@@ -43,7 +43,7 @@ def test_operations_between_columns_and_numbers(forest_fires):
 
 
 @assert_state_not_change
-def test_math_order_of_operations_no_parens(avocado):
+def test_math_order_of_operations_no_parens(avocado: TableExpr) -> None:
     """
     Test math parentheses
     :return:
@@ -63,7 +63,7 @@ def test_math_order_of_operations_no_parens(avocado):
 
 
 @assert_state_not_change
-def test_math_order_of_operations_with_parens(avocado):
+def test_math_order_of_operations_with_parens(avocado: TableExpr) -> None:
     """
     Test math parentheses
     :return:

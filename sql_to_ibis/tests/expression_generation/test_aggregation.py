@@ -1,3 +1,5 @@
+from ibis.expr.types import TableExpr
+
 from sql_to_ibis import query
 from sql_to_ibis.tests.markers import ibis_not_implemented
 from sql_to_ibis.tests.utils import (
@@ -8,7 +10,7 @@ from sql_to_ibis.tests.utils import (
 
 
 @assert_state_not_change
-def test_group_by(forest_fires):
+def test_group_by(forest_fires: TableExpr) -> None:
     """
     Test group by constraint
     :return:
@@ -19,7 +21,7 @@ def test_group_by(forest_fires):
 
 
 @assert_state_not_change
-def test_avg(forest_fires):
+def test_avg(forest_fires: TableExpr) -> None:
     """
     Test the avg
     :return:
@@ -32,7 +34,7 @@ def test_avg(forest_fires):
 
 
 @assert_state_not_change
-def test_sum(forest_fires):
+def test_sum(forest_fires: TableExpr) -> None:
     """
     Test the sum
     :return:
@@ -45,7 +47,7 @@ def test_sum(forest_fires):
 
 
 @assert_state_not_change
-def test_max(forest_fires):
+def test_max(forest_fires: TableExpr) -> None:
     """
     Test the max
     :return:
@@ -58,7 +60,7 @@ def test_max(forest_fires):
 
 
 @assert_state_not_change
-def test_min(forest_fires):
+def test_min(forest_fires: TableExpr) -> None:
     """
     Test the min
     :return:
@@ -71,7 +73,7 @@ def test_min(forest_fires):
 
 
 @assert_state_not_change
-def test_count(forest_fires):
+def test_count(forest_fires: TableExpr) -> None:
     """
     Test the min
     :return:
@@ -84,7 +86,7 @@ def test_count(forest_fires):
 
 
 @assert_state_not_change
-def test_multiple_aggs(forest_fires):
+def test_multiple_aggs(forest_fires: TableExpr) -> None:
     """
     Test multiple aggregations
     :return:
@@ -105,7 +107,7 @@ def test_multiple_aggs(forest_fires):
 
 
 @assert_state_not_change
-def test_agg_w_groupby_no_select_group_by_column(forest_fires):
+def test_agg_w_groupby_no_select_group_by_column(forest_fires: TableExpr) -> None:
     """
     Test using aggregates and group by together
     :return:
@@ -123,7 +125,7 @@ def test_agg_w_groupby_no_select_group_by_column(forest_fires):
 
 
 @assert_state_not_change
-def test_agg_w_groupby_select_group_by_column(forest_fires):
+def test_agg_w_groupby_select_group_by_column(forest_fires: TableExpr) -> None:
     """
     Test using aggregates and group by together
     :return:
@@ -139,7 +141,9 @@ def test_agg_w_groupby_select_group_by_column(forest_fires):
 
 
 @assert_state_not_change
-def test_agg_w_groupby_select_group_by_column_different_casing(forest_fires):
+def test_agg_w_groupby_select_group_by_column_different_casing(
+    forest_fires: TableExpr,
+) -> None:
     """
     Test using aggregates and group by together
     :return:
@@ -156,7 +160,9 @@ def test_agg_w_groupby_select_group_by_column_different_casing(forest_fires):
 
 
 @assert_state_not_change
-def test_group_by_casing_with_selection(digimon_move_list, digimon_mon_list):
+def test_group_by_casing_with_selection(
+    digimon_move_list: TableExpr, digimon_mon_list: TableExpr
+) -> None:
     my_table = query(
         "select max(power) as power, type from digimon_move_list group by type"
     )
@@ -168,8 +174,8 @@ def test_group_by_casing_with_selection(digimon_move_list, digimon_mon_list):
 
 @assert_state_not_change
 def test_agg_group_by_different_casing_in_ibis_schema_group_by(
-    digimon_move_list, digimon_mon_list
-):
+    digimon_move_list: TableExpr, digimon_mon_list: TableExpr
+) -> None:
     my_table = query("select max(power) as power from digimon_move_list group by type")
     ibis_table = (
         digimon_move_list.group_by(digimon_move_list.Type.name("type"))
@@ -180,7 +186,7 @@ def test_agg_group_by_different_casing_in_ibis_schema_group_by(
 
 
 @assert_state_not_change
-def test_capitalized_agg_functions(digimon_move_list):
+def test_capitalized_agg_functions(digimon_move_list: TableExpr) -> None:
     my_table = query("select MAX(type), AVG(power), MiN(power) from DIGImON_move_LiST")
     ibis_table = digimon_move_list.aggregate(
         [
@@ -193,7 +199,7 @@ def test_capitalized_agg_functions(digimon_move_list):
 
 
 @assert_state_not_change
-def test_aggregates_in_subquery(digimon_move_list):
+def test_aggregates_in_subquery(digimon_move_list: TableExpr) -> None:
     my_table = query("select * from (select max(power) from digimon_move_list) test")
     ibis_table = digimon_move_list.aggregate(
         digimon_move_list.Power.max().name("_col0")
@@ -202,14 +208,16 @@ def test_aggregates_in_subquery(digimon_move_list):
 
 
 @assert_state_not_change
-def test_count_star(forest_fires):
+def test_count_star(forest_fires: TableExpr) -> None:
     my_table = query("select count(*) from forest_fires")
     ibis_table = forest_fires.aggregate([forest_fires.count().name("_col0")])
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
-def test_count_star_cross_join(digimon_move_list, digimon_mon_list):
+def test_count_star_cross_join(
+    digimon_move_list: TableExpr, digimon_mon_list: TableExpr
+) -> None:
     my_table = query(
         "select count(*) from digimon_move_list cross join digimon_mon_list"
     )
@@ -225,7 +233,7 @@ def test_count_star_cross_join(digimon_move_list, digimon_mon_list):
 
 @ibis_not_implemented
 @assert_state_not_change
-def test_group_by_having(digimon_move_list):
+def test_group_by_having(digimon_move_list: TableExpr) -> None:
     my_table = query(
         "select type from digimon_move_list group by type having avg(power) > 50"
     )
@@ -238,7 +246,7 @@ def test_group_by_having(digimon_move_list):
 
 
 @assert_state_not_change
-def test_count_distinct(digimon_move_list):
+def test_count_distinct(digimon_move_list: TableExpr) -> None:
     my_table = query("select count(distinct type) from digimon_move_list")
     ibis_table = digimon_move_list.aggregate(
         digimon_move_list.Type.nunique().name("_col0")

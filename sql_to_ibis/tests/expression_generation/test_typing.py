@@ -3,6 +3,7 @@ from typing import Callable
 
 from freezegun import freeze_time
 import ibis
+from ibis.expr.types import TableExpr
 import pytest
 
 from sql_to_ibis import query
@@ -10,7 +11,7 @@ from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff, assert_state_no
 
 
 @assert_state_not_change
-def test_type_conversion(forest_fires):
+def test_type_conversion(forest_fires: TableExpr) -> None:
     """
     Tests sql as statements
     :return:
@@ -44,7 +45,7 @@ def test_type_conversion(forest_fires):
 
 @assert_state_not_change
 @pytest.mark.parametrize("string", ["mar ", " mar", " mar ", "m ar", " ", ""])
-def test_string_spaces(forest_fires, string: str):
+def test_string_spaces(forest_fires: TableExpr, string: str) -> None:
     my_table = query(f"""select * from forest_fires where month = '{string}'""")
     ibis_table = forest_fires[forest_fires.month == string]
     assert_ibis_equal_show_diff(ibis_table, my_table)
@@ -58,14 +59,16 @@ def test_string_spaces(forest_fires, string: str):
         ("not", lambda ff_table: ff_table.temp != ibis.null()),
     ],
 )
-def test_null(forest_fires, query_null: str, ibis_bool_func: Callable):
+def test_null(
+    forest_fires: TableExpr, query_null: str, ibis_bool_func: Callable
+) -> None:
     my_table = query(f"select * from forest_fires where temp is {query_null} null")
     ibis_table = forest_fires[ibis_bool_func(forest_fires)]
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 
 @assert_state_not_change
-def test_set_string_value_as_column_value(forest_fires):
+def test_set_string_value_as_column_value(forest_fires: TableExpr) -> None:
     """
     Select a string like 'Yes' as a column value
     :return:
@@ -79,7 +82,7 @@ def test_set_string_value_as_column_value(forest_fires):
 
 
 @assert_state_not_change
-def test_datetime_cast(forest_fires):
+def test_datetime_cast(forest_fires: TableExpr) -> None:
     """
     Select casting a string as a date
     :return:
@@ -95,7 +98,7 @@ def test_datetime_cast(forest_fires):
 
 
 @assert_state_not_change
-def test_date_cast(forest_fires):
+def test_date_cast(forest_fires: TableExpr) -> None:
     """
     Select casting a string as a date
     :return:
@@ -111,7 +114,7 @@ def test_date_cast(forest_fires):
 
 
 @assert_state_not_change
-def test_timestamps(forest_fires):
+def test_timestamps(forest_fires: TableExpr) -> None:
     """
     Select now() as date
     :return:
@@ -133,7 +136,7 @@ def test_timestamps(forest_fires):
 
 
 @assert_state_not_change
-def test_sql_data_types(avocado):
+def test_sql_data_types(avocado: TableExpr) -> None:
     """
     Tests sql data types
     :return:

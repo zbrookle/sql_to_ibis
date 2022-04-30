@@ -2,6 +2,7 @@ from typing import List
 
 import ibis
 from ibis.expr.operations import Literal
+from ibis.expr.types import TableExpr
 import pytest
 
 from sql_to_ibis import query
@@ -9,7 +10,7 @@ from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff, assert_state_no
 
 
 @assert_state_not_change
-def test_where_clause(forest_fires):
+def test_where_clause(forest_fires: TableExpr) -> None:
     """
     Test where clause
     :return:
@@ -20,7 +21,7 @@ def test_where_clause(forest_fires):
 
 
 @assert_state_not_change
-def test_all_boolean_ops_clause(forest_fires):
+def test_all_boolean_ops_clause(forest_fires: TableExpr) -> None:
     """
     Test where clause
     :return:
@@ -44,7 +45,7 @@ def test_all_boolean_ops_clause(forest_fires):
 
 
 @assert_state_not_change
-def test_having_multiple_conditions(forest_fires):
+def test_having_multiple_conditions(forest_fires: TableExpr) -> None:
     """
     Test having clause
     :return:
@@ -61,7 +62,7 @@ def test_having_multiple_conditions(forest_fires):
 
 
 @assert_state_not_change
-def test_having_multiple_conditions_with_or(forest_fires):
+def test_having_multiple_conditions_with_or(forest_fires: TableExpr) -> None:
     """
     Test having clause
     :return:
@@ -81,7 +82,7 @@ def test_having_multiple_conditions_with_or(forest_fires):
 
 
 @assert_state_not_change
-def test_having_one_condition(forest_fires):
+def test_having_one_condition(forest_fires: TableExpr) -> None:
     """
     Test having clause
     :return:
@@ -95,7 +96,7 @@ def test_having_one_condition(forest_fires):
 
 
 @assert_state_not_change
-def test_having_with_group_by(forest_fires):
+def test_having_with_group_by(forest_fires: TableExpr) -> None:
     """
     Test having clause
     :return:
@@ -113,7 +114,7 @@ def test_having_with_group_by(forest_fires):
 
 
 @assert_state_not_change
-def test_between_operator(forest_fires):
+def test_between_operator(forest_fires: TableExpr) -> None:
     """
     Test using between operator
     :return:
@@ -145,7 +146,9 @@ in_list_params = pytest.mark.parametrize(
 
 @assert_state_not_change
 @in_list_params
-def test_in_operator(forest_fires, sql: str, ibis_expr_list: List[Literal]):
+def test_in_operator(
+    forest_fires: TableExpr, sql: str, ibis_expr_list: List[Literal]
+) -> None:
     """
     Test using in operator in a sql query
     :return:
@@ -160,7 +163,7 @@ def test_in_operator(forest_fires, sql: str, ibis_expr_list: List[Literal]):
 
 
 @assert_state_not_change
-def test_in_operator_expression_numerical(forest_fires):
+def test_in_operator_expression_numerical(forest_fires: TableExpr) -> None:
     """
     Test using in operator in a sql query
     :return:
@@ -176,7 +179,9 @@ def test_in_operator_expression_numerical(forest_fires):
 
 @assert_state_not_change
 @in_list_params
-def test_not_in_operator(forest_fires, sql: str, ibis_expr_list: List[Literal]):
+def test_not_in_operator(
+    forest_fires: TableExpr, sql: str, ibis_expr_list: List[Literal]
+) -> None:
     """
     Test using in operator in a sql query
     :return:
@@ -191,7 +196,7 @@ def test_not_in_operator(forest_fires, sql: str, ibis_expr_list: List[Literal]):
 
 
 @assert_state_not_change
-def test_case_statement_w_name(forest_fires):
+def test_case_statement_w_name(forest_fires: TableExpr) -> None:
     """
     Test using case statements
     :return:
@@ -217,7 +222,7 @@ def test_case_statement_w_name(forest_fires):
 
 
 @assert_state_not_change
-def test_case_statement_w_no_name(forest_fires):
+def test_case_statement_w_no_name(forest_fires: TableExpr) -> None:
     """
     Test using case statements
     :return:
@@ -240,7 +245,7 @@ def test_case_statement_w_no_name(forest_fires):
 
 
 @assert_state_not_change
-def test_case_statement_w_other_columns_as_result(forest_fires):
+def test_case_statement_w_other_columns_as_result(forest_fires: TableExpr) -> None:
     """
     Test using case statements
     :return:
@@ -263,7 +268,7 @@ def test_case_statement_w_other_columns_as_result(forest_fires):
 
 
 @assert_state_not_change
-def test_filter_on_non_selected_column(forest_fires):
+def test_filter_on_non_selected_column(forest_fires: TableExpr) -> None:
     my_table = query("select temp from forest_fires where month = 'mar'")
     ibis_table = forest_fires[forest_fires.month == "mar"].projection(
         [forest_fires.temp]
@@ -272,7 +277,7 @@ def test_filter_on_non_selected_column(forest_fires):
 
 
 @assert_state_not_change
-def test_boolean_order_of_operations_with_parens(forest_fires):
+def test_boolean_order_of_operations_with_parens(forest_fires: TableExpr) -> None:
     """
     Test boolean order of operations with parentheses
     :return:
@@ -292,7 +297,7 @@ def test_boolean_order_of_operations_with_parens(forest_fires):
 
 
 @assert_state_not_change
-def test_case_statement_with_same_conditions(forest_fires):
+def test_case_statement_with_same_conditions(forest_fires: TableExpr) -> None:
     """
     Test using case statements
     :return:
