@@ -224,12 +224,10 @@ class InternalTransformer(TransformerBaseClass):
             return ibis_column.nunique()
         raise UnsupportedColumnOperation(type(ibis_column), aggregation)
 
-    def sql_aggregation(self, agg_parts: list):
-        aggregation: Token = agg_parts[0]
-        column: Column = agg_parts[1]
-        window_parts: Optional[List[ColumnExpression]] = (
-            agg_parts[2] if len(agg_parts) > 2 else None
-        )
+    def sql_aggregation(
+        self, agg_parts: Tuple[Token, Column, Optional[List[ColumnExpression]]]
+    ) -> Value:
+        aggregation, column, window_parts = agg_parts
         ibis_aggregation = self.apply_ibis_aggregation(
             column, aggregation.value.lower()
         )
@@ -248,7 +246,7 @@ class InternalTransformer(TransformerBaseClass):
             typename=column.typename,
         )
 
-    def expression_mul(self, args: Tuple):
+    def expression_mul(self, args: Tuple[Value, Value]) -> Value:
         """
         Returns the product of two expressions
         :param args:
@@ -258,7 +256,7 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 * arg2
 
-    def expression_add(self, args: Tuple):
+    def expression_add(self, args: Tuple[Value, Value]) -> Value:
         """
         Returns the sum of two expressions
         :param args:
@@ -268,7 +266,7 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 + arg2
 
-    def expression_sub(self, args: Tuple):
+    def expression_sub(self, args: Tuple[Value, Value]) -> Value:
         """
         Returns the difference between two expressions
         :param args:
@@ -278,7 +276,7 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 - arg2
 
-    def expression_div(self, args):
+    def expression_div(self, args: Tuple[Value, Value]) -> Value:
         """
         Returns the difference between two expressions
         :param args:
@@ -288,7 +286,7 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 / arg2
 
-    def number(self, numerical_value):
+    def number(self, numerical_value) -> Number:
         """
         Return a number token_or_tree with a numeric value as a child
         :param numerical_value:
@@ -296,7 +294,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Number(num_eval(numerical_value[0]))
 
-    def string(self, string_token):
+    def string(self, string_token) -> String:
         """
         Return value of the token_or_tree associated with the string
         :param string_token:
@@ -315,7 +313,7 @@ class InternalTransformer(TransformerBaseClass):
         return date_list[0]
 
     @staticmethod
-    def int_token_list(token_list):
+    def int_token_list(token_list: List[Token]) -> List[int]:
         """
         Returns a list of integer from a list of tokens
         :param token_list:
@@ -356,7 +354,7 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("now()")
         return date_value
 
-    def date_today(self, _):
+    def date_today(self, _: Any) -> Literal:
         """
         Return current date
         :return:
@@ -365,7 +363,7 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("today()")
         return date_value
 
-    def not_equals(self, expressions: list):
+    def not_equals(self, expressions):
         """
         Compares two expressions for inequality
         :param expressions:
@@ -373,14 +371,14 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] != expressions[1])
 
-    def is_null(self, expressions: list):
+    def is_null(self, expressions):
         # raise Exception(type(expressions[0]))
         return Value(expressions[0]).is_null()
 
-    def is_not_null(self, expressions: list):
+    def is_not_null(self, expressions):
         return Value(expressions[0]).is_not_null()
 
-    def greater_than(self, expressions: list):
+    def greater_than(self, expressions):
         """
         Performs a greater than sql_object
         :param expressions:
@@ -388,7 +386,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] > expressions[1])
 
-    def greater_than_or_equal(self, expressions: list):
+    def greater_than_or_equal(self, expressions):
         """
         Performs a greater than or equal sql_object
         :param expressions:
@@ -396,7 +394,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] >= expressions[1])
 
-    def less_than(self, expressions: list):
+    def less_than(self, expressions):
         """
         Performs a less than sql_object
         :param expressions:
@@ -404,7 +402,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] < expressions[1])
 
-    def less_than_or_equal(self, expressions: list):
+    def less_than_or_equal(self, expressions):
         """
         Performs a less than or equal sql_object
         :param expressions:
@@ -412,7 +410,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] <= expressions[1])
 
-    def between(self, expressions: List[Value]):
+    def between(self, expressions: List[Value]) -> Value:
         """
         Performs a less than or equal and greater than or equal
         :param expressions:
@@ -455,7 +453,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return expression[0]
 
-    def equals(self, expressions: list):
+    def equals(self, expressions) -> Value:
         """
         Compares two expressions for equality
         :param expressions:
@@ -476,7 +474,7 @@ class InternalTransformer(TransformerBaseClass):
             truth_series_pair_values[0] & truth_series_pair_values[1],
         )
 
-    def bool_parentheses(self, bool_expression_in_list: list):
+    def bool_parentheses(self, bool_expression_in_list):
         return bool_expression_in_list[0]
 
     def bool_or(self, truth_series_pair):
@@ -496,7 +494,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return comparison[0]
 
-    def where_expr(self, where_value_list: List[Value]):
+    def where_expr(self, where_value_list: List[Value]) -> WhereExpression:
         """
         Return a where token_or_tree
         :param where_value_list:
@@ -504,7 +502,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return WhereExpression(where_value_list[0])
 
-    def alias_string(self, name: List[str]):
+    def alias_string(self, name: List[str]) -> AliasExpression:
         """
         Returns an alias token_or_tree with the name extracted
         :param name:
@@ -512,10 +510,14 @@ class InternalTransformer(TransformerBaseClass):
         """
         return AliasExpression(str(name[0]))
 
-    def cross_join_expression(self, cross_join_list: List[NestedCrossJoin]):
+    def cross_join_expression(
+        self, cross_join_list: List[NestedCrossJoin]
+    ) -> NestedCrossJoin:
         return cross_join_list[0]
 
-    def from_expression(self, expression: List[Union[Subquery, NestedJoinBase, Table]]):
+    def from_expression(
+        self, expression: List[Union[Subquery, NestedJoinBase, Table]]
+    ) -> FromExpression:
         """
         Return a from sql_object token_or_tree
         :param expression:
@@ -533,7 +535,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def case_expression(
         self, when_expressions: List[Union[Tuple[Value, Value], Value]]
-    ):
+    ) -> Expression:
         """
         Handles sql_to_ibis case expressions
         :param when_expressions:
@@ -568,7 +570,7 @@ class InternalTransformer(TransformerBaseClass):
     def order_desc(self, column_list: List[Column]) -> OrderByExpression:
         return OrderByExpression(column_list[0], False)
 
-    def partition_by(self, column_list: List[Column]):
+    def partition_by(self, column_list: List[Column]) -> PartitionByExpression:
         """
         Returns a partition token_or_tree containing the corresponding column
         :param column_list: List containing only one column
@@ -593,7 +595,7 @@ class InternalTransformer(TransformerBaseClass):
         self,
         column_clause_list_list: List[List[ColumnExpression]],
         rank_function: str,
-    ):
+    ) -> Expression:
         """
         :param column_clause_list_list:
         :param rank_function:
@@ -624,13 +626,13 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.rank(tokens, "dense_rank")
 
-    def coalesce_expression(self, tokens: List[Value]):
+    def coalesce_expression(self, tokens: List[Value]) -> Column:
         coalesce_args = [token.value for token in tokens]
         return Column(ibis.coalesce(*coalesce_args))
 
     def select_expression(
         self, expression_and_alias: Tuple[Value, Optional[AliasExpression]]
-    ):
+    ) -> Value:
         """
         Returns the appropriate object for the given sql_object
         :param expression_and_alias: An sql_object token_or_tree and
@@ -654,7 +656,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return args[0]
 
-    def group_by(self, columns: List[Column]):
+    def group_by(self, columns: List[Column]) -> GroupByColumn:
         """
         Returns a group token_or_tree
         :param columns: Column to group by
@@ -665,18 +667,17 @@ class InternalTransformer(TransformerBaseClass):
         group_by = GroupByColumn.from_column_type(column)
         return group_by
 
-    def as_type(self, column_and_type):
+    def as_type(self, column_and_type: Tuple[Column, Token]) -> Column:
         """
         Extracts token_or_tree type and returns tree object with sql_object and type
         :param column_and_type: Column object and type to cast as
         :return:
         """
-        column: Column = column_and_type[0]
-        typename: Token = column_and_type[1]
+        column, typename = column_and_type
         column.set_type(to_ibis_type(typename.value))
         return column
 
-    def literal_cast(self, value_and_type: list):
+    def literal_cast(self, value_and_type: Tuple[Value, str]) -> Value:
         """
         Cast variable as the given given_type for a literal
         :param value_and_type: Value and pandas dtype to be cast as
@@ -687,9 +688,8 @@ class InternalTransformer(TransformerBaseClass):
         new_value = new_type(value_wrapper.value.cast(to_ibis_type(given_type)))
         return new_value
 
-    def subquery_in(self, column_and_subquery):
-        column: Column = column_and_subquery[0]
-        subquery: Subquery = column_and_subquery[1]
+    def subquery_in(self, column_and_subquery: Tuple[Column, Subquery]) -> Value:
+        column, subquery = column_and_subquery
         subquery_table = self.get_table(subquery)
         if len(subquery_table.column_names) != 1:
             raise InvalidQueryException(
@@ -703,17 +703,17 @@ class InternalTransformer(TransformerBaseClass):
             )
         )
 
-    def get_table(self, table_or_alias_name) -> Table:
+    def get_table(self, table_or_alias_name: Union[Table, str]) -> Table:
         if isinstance(table_or_alias_name, Table):
             return table_or_alias_name
         try_get_table = self._table_map.get(table_or_alias_name)
         if try_get_table is not None:
             return try_get_table
-        if try_get_table is None and table_or_alias_name not in self._alias_registry:
+        if table_or_alias_name not in self._alias_registry:
             raise Exception(f"Table or alias '{table_or_alias_name}' not found")
         return self._alias_registry.get_registry_entry(table_or_alias_name)
 
-    def column_name(self, name_list: List[str]):
+    def column_name(self, name_list: List[str]) -> Column:
         """
         Returns a column token_or_tree with the name extracted
         :param name_list: List formatted name
@@ -736,23 +736,31 @@ class InternalTransformer(TransformerBaseClass):
             return None
         return cast(int, value)
 
-    def frame_preceding(self, preceding_specs: List[Union[Token, int]]):
+    def frame_preceding(self, preceding_specs: List[Union[Token, int]]) -> Preceding:
         return Preceding(self.__frame_extract(preceding_specs))
 
-    def frame_following(self, following_specs: List[Union[Token, int]]):
+    def frame_following(self, following_specs: List[Union[Token, int]]) -> Following:
         return Following(self.__frame_extract(following_specs))
 
-    def frame_bound(self, extent_expression_list: List[ExtentExpression]):
+    def frame_bound(
+        self, extent_expression_list: List[ExtentExpression]
+    ) -> Union[str, ExtentExpression]:
         if not extent_expression_list:
             return self._CURRENT_ROW
         return extent_expression_list[0]
 
-    def frame_between(self, extent_expressions: list):
+    def frame_between(
+        self,
+        extent_expressions: Tuple[Union[Literal, Preceding], Union[Literal, Following]],
+    ) -> List[Union[Literal, Preceding, Following]]:
+        preceding = extent_expressions[0]
+        following = extent_expressions[1]
         if extent_expressions[0] == self._CURRENT_ROW:
-            extent_expressions[0] = Preceding(0)
+            preceding = Preceding(0)
         if extent_expressions[1] == self._CURRENT_ROW:
-            extent_expressions[1] = Following(0)
-        return extent_expressions
+            following = Following(0)
+        # TODO: Switch this to a tuple (causing errors to do that currently)
+        return [preceding, following]
 
     def frame_extent(self, extent_list: List[ExtentExpression]):
         if isinstance(extent_list[0], list):
@@ -765,7 +773,7 @@ class InternalTransformer(TransformerBaseClass):
                 extents["preceding"] = extent
         return extents
 
-    def row_range_clause(self, clause: list):
+    def row_range_clause(self, clause) -> FrameExpression:
         rows_or_range_token: Token = clause[0]
         return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
 

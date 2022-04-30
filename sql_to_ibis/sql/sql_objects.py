@@ -21,14 +21,14 @@ from sql_to_ibis.sql.sql_value_objects import Table
 class AliasRegistry:
     registry: dict = field(default_factory=dict)
 
-    def add_to_registry(self, alias: str, table: Table):
+    def add_to_registry(self, alias: str, table: Table) -> None:
         assert alias not in self.registry
         self.registry[alias] = table
 
-    def get_registry_entry(self, item: str):
+    def get_registry_entry(self, item: str) -> Table:
         return self.registry[item]
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         return item in self.registry
 
 

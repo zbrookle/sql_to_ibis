@@ -1,6 +1,6 @@
-from typing import Tuple
+from typing import List, Tuple
 
-from ibis.expr.types import TableExpr
+from ibis.expr.types import AnyColumn, TableExpr
 import pytest
 
 from sql_to_ibis import query
@@ -118,7 +118,7 @@ def test_join_wo_specifying_table(
 
 @assert_state_not_change
 def test_cross_joins(
-    digimon_move_mon_join_columns,
+    digimon_move_mon_join_columns: List[AnyColumn],
     digimon_move_list: TableExpr,
     digimon_mon_list: TableExpr,
 ) -> None:

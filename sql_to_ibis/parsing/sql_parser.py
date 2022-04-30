@@ -1,14 +1,16 @@
 """
 Module containing all lark internal_transformer classes
 """
+from __future__ import annotations
+
 from collections import defaultdict
 import re
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import ibis
 from ibis.expr.operations import CrossJoin
 from ibis.expr.types import AnyColumn, TableExpr
-from lark import Meta, Token, Tree, v_args
+from lark import Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
     InvalidQueryException,
@@ -34,6 +36,9 @@ from sql_to_ibis.sql.sql_value_objects import (
     TableOrJoinbase,
     Value,
 )
+
+if TYPE_CHECKING:
+    from lark import Meta
 
 TableWithColumn = Tuple[Table, AnyColumn]
 TableWithColumnCollection = DefaultDict[str, List[TableWithColumn]]
@@ -67,7 +72,10 @@ TYPE_TO_PANDAS_TYPE = {
 
 class TupleTree(Tree):
     def __init__(
-        self, data: str, children: List[Union[str, Tree]], meta: Optional[Meta] = None
+        self,
+        data: str,
+        children: List[Union[str, Tree, Subquery]],
+        meta: Optional[Meta] = None,
     ) -> None:
         super().__init__(data, children, meta)
 
@@ -139,7 +147,7 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry.add_to_registry(alias, table)
         return table
 
-    def order_by_expression(self, rank_tree: Tree):
+    def order_by_expression(self, rank_tree: Tree) -> OrderByInfo:
         """
         Returns the column name for the order sql_object
         :param rank_tree: Tree containing order info
@@ -224,7 +232,7 @@ class SQLTransformer(TransformerBaseClass):
         full_name = ".".join([str(name) for name in names if name is not None])
         return Tree("column_name", [full_name])
 
-    def join(self, join_expression):
+    def join(self, join_expression: NestedJoin) -> NestedJoin:
         """
         Handle join tree
         :param join_expression:
@@ -232,7 +240,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return join_expression
 
-    def comparison_type(self, comparison):
+    def comparison_type(self, comparison: Tree) -> Tree:
         """
         Return the comparison expression
         :param comparison:
@@ -241,30 +249,10 @@ class SQLTransformer(TransformerBaseClass):
         return comparison
 
     def join_expression(self, *args: Union[Table, str, Tree]) -> NestedJoin:
-        # There will only ever be four args if a join is specified and three if a
-        # join isn't specified
-        types = ""
-        for arg in args:
-            if arg is None:
-                types += "None,"
-                continue
-            types += str(arg.__class__) + ","
-        print(types)
-        if len(args) == 3:
-            args_no_join: Tuple[Table, Table, Tree] = args
-            join_type = "inner"
-            table1 = args_no_join[0]
-            table2 = args_no_join[1]
-            join_condition = args_no_join[2]
-            return NestedJoin(
-                left_table=table1,
-                right_table=table2,
-                join_type=join_type,
-                join_condition=join_condition,
-            )
-        args_with_join: Tuple[Table, str, Table, Tree] = args
+        # There will only ever be four args
+        args_with_join: Tuple[Table, Optional[str], Table, Tree] = args
         table1 = args_with_join[0]
-        join_type = args_with_join[1]
+        join_type = args_with_join[1] if args_with_join[1] is not None else "inner"
         table2 = args_with_join[2]
         join_condition = args_with_join[3]
         if "outer" in join_type:
@@ -280,7 +268,7 @@ class SQLTransformer(TransformerBaseClass):
             join_condition=join_condition,
         )
 
-    def select(self, *select_expressions: Tuple[Tree]) -> QueryInfo:
+    def select(self, *select_expressions: Tree) -> QueryInfo:
         """
         Forms the final sequence of methods that will be executed
         :param select_expressions:
@@ -359,18 +347,20 @@ class SQLTransformer(TransformerBaseClass):
             right_table=table2,
         )
 
-    def from_item(self, item):
+    def from_item(self, item: Subquery) -> Subquery:
         return item
 
-    def _handle_count_star(self, aggregate: Aggregate, relation: TableExpr):
+    def _handle_count_star(
+        self, aggregate: Aggregate, relation: TableExpr
+    ) -> Aggregate:
         if isinstance(aggregate.value, CountStar):
             aggregate.value = relation.count()
         return aggregate
 
     def _get_aggregate_ibis_columns(
         self, aggregates: Dict[str, Aggregate], relation: TableExpr
-    ):
-        aggregate_ibis_columns = []
+    ) -> List[AnyColumn]:
+        aggregate_ibis_columns: List[AnyColumn] = []
         for aggregate_column_name in aggregates:
             aggregate_column = aggregates[aggregate_column_name]
             self._handle_count_star(aggregate_column, relation)
@@ -460,7 +450,7 @@ class SQLTransformer(TransformerBaseClass):
         ibis_table: TableExpr,
         where_expr: Tree,
         internal_transformer: InternalTransformer,
-    ):
+    ) -> TableExpr:
         """
         Returns frame with appropriately selected and named columns
         :param ibis_table: Ibis expression table to manipulate
@@ -475,7 +465,7 @@ class SQLTransformer(TransformerBaseClass):
             return ibis_table.filter(where_expression.value.get_value())
         return ibis_table
 
-    def subquery_in(self, column: Tree, subquery: Subquery):
+    def subquery_in(self, column: Tree, subquery: Subquery) -> TupleTree:
         return TupleTree("subquery_in", (column, subquery))
 
     def handle_selection(
@@ -492,16 +482,18 @@ class SQLTransformer(TransformerBaseClass):
         return ibis_table
 
     @staticmethod
-    def _columns_have_select_star(columns: List[Value]):
+    def _columns_have_select_star(columns: List[Value]) -> bool:
         for column in columns:
             if column.get_name() == "*":
                 return True
         return False
 
-    def _get_all_columns_rename_duplicates(self, tables: List[Table]):
+    def _get_all_columns_rename_duplicates(
+        self, tables: List[Table]
+    ) -> List[AnyColumn]:
         columns = {table: table.get_ibis_columns() for table in tables}
 
-        def set_dict_column_name(table: Table, col_name: str):
+        def set_dict_column_name(table: Table, col_name: str) -> None:
             index = table.column_names.index(col_name)
             columns[table][index] = columns[table][index].name(
                 f"{table.get_alias_else_name()}.{col_name}"
@@ -650,12 +642,14 @@ class SQLTransformer(TransformerBaseClass):
                     selection_statement_name
                 )
 
-    def get_table_value(self, table: Union[Table, NestedJoinBase, Subquery]):
-        assert isinstance(table, (Table, NestedJoinBase, Subquery))
+    def get_table_value(
+        self, table: Union[Table, NestedJoinBase, Subquery]
+    ) -> Optional[Union[TableExpr, NestedJoinBase]]:
         if isinstance(table, Table):
             return table.get_table_expr()
         if isinstance(table, NestedJoinBase):
             return table
+        return None
 
     def _get_relation(self, query_info: QueryInfo) -> TableExpr:
         tables = query_info.tables

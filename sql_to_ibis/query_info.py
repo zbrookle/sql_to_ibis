@@ -42,10 +42,10 @@ class QueryInfo:
         self,
         internal_transformer: InternalTransformer,
         select_expressions_no_boolean_clauses: Optional[List[Union[str, Tree]]] = None,
-        having_expr=None,
-        where_expr=None,
+        having_expr: Optional[Tree] = None,
+        where_expr: Optional[Tree] = None,
         distinct: bool = False,
-    ):
+    ) -> None:
         self.columns: List[Value] = []
         self.tables: List[Union[Table, NestedJoinBase]] = []
         self.all_names: List[str] = []
@@ -64,16 +64,18 @@ class QueryInfo:
             else []
         )
 
-    def add_table(self, table: Union[Table, NestedJoinBase]):
+    def add_table(self, table: Union[Table, NestedJoinBase]) -> None:
         self.tables.append(table)
 
-    def add_column(self, column: Value):
+    def add_column(self, column: Value) -> None:
         self.columns.append(column)
 
-    def add_order_by_info(self, order_by_info: OrderByInfo):
+    def add_order_by_info(self, order_by_info: OrderByInfo) -> None:
         self.order_by.append(order_by_info.get_tuple())
 
-    def __handle_token_or_tree(self, token_or_tree, item_pos: int):
+    def __handle_token_or_tree(
+        self, token_or_tree: Union[Value, FromExpression], item_pos: int
+    ) -> None:
         """
         Handles token and extracts necessary query information from it
         :param token_or_tree: Item being handled
@@ -83,12 +85,15 @@ class QueryInfo:
         if isinstance(token_or_tree, FromExpression):
             self.add_table(token_or_tree.value)
         else:
-            self.__handle_non_token_non_tree(token_or_tree, item_pos)
+            self.__handle_value(token_or_tree, item_pos)
 
-    def __handle_non_token_non_tree(self, token, token_pos: int):
+    def __handle_value(
+        self,
+        token: Value,
+        token_pos: int,
+    ) -> None:
         """
-        Handles non token_or_tree non tree items and extracts necessary query
-        information from it
+        Handles tokens of type Value
 
         :param token: Item being handled
         :param token_pos: Ordinal position of the item
@@ -109,16 +114,18 @@ class QueryInfo:
             Tree("select", self.select_expressions_no_boolean_clauses)
         ).children
 
-    def __handle_tokens_and_trees_in_select_expressions(self, select_expressions):
+    def __handle_tokens_and_trees_in_select_expressions(
+        self, select_expressions
+    ) -> None:
         for token_pos, token in enumerate(select_expressions):
             self.__handle_token_or_tree(token, token_pos)
 
-    def perform_transformation(self):
+    def perform_transformation(self) -> None:
         select_expressions = self.__get_internal_transformer_select_expression()
         self.__handle_tokens_and_trees_in_select_expressions(select_expressions)
         self.sanitize_order_by_clause()
 
-    def sanitize_order_by_clause(self):
+    def sanitize_order_by_clause(self) -> None:
         """
         Names in the order by clause must be cleansed based on info provided by the
         internal transformer
@@ -129,7 +136,7 @@ class QueryInfo:
             ascending = order_by_column_tuple[1]
             self.order_by[i] = (column.get_value(), ascending)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"Query Information\n"
             f"-----------------\n"

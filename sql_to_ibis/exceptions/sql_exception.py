@@ -3,18 +3,20 @@ Exceptions for SQL to Pandas
 """
 from typing import List
 
+from ibis.expr.types import AnyColumn
+
 
 class InvalidQueryException(Exception):
     """
     Raised when an invalid query is passed into a sql to pandas.
     """
 
-    def __init__(self, message):
+    def __init__(self, message: str):
         Exception.__init__(self, f"Invalid query!\n{message}")
 
 
 class NeedsAggOrGroupQueryException(InvalidQueryException):
-    def __init__(self, column):
+    def __init__(self, column: AnyColumn):
         super().__init__(
             f"For column '{column}' you must either group or provide an aggregation"
         )
@@ -25,7 +27,7 @@ class TableExprDoesNotExist(Exception):
     Raised when a DataFrame doesn't exist
     """
 
-    def __init__(self, table_name):
+    def __init__(self, table_name: str):
         Exception.__init__(self, f"Table {table_name} has not been defined")
 
 

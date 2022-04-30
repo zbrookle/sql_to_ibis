@@ -158,7 +158,7 @@ class TableInfo:
     ibis_table_name_map: Dict[str, str] = {}
     ibis_table_map: Dict[str, Table] = {}
 
-    def add_column_to_column_to_table_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column, table) -> None:
         if self.column_to_table_name.get(column) is None:
             self.column_to_table_name[column] = table
         elif isinstance(self.column_to_table_name[column], AmbiguousColumn):

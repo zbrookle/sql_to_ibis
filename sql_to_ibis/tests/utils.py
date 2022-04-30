@@ -144,12 +144,12 @@ def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr):
             raise AssertionError(msg)
 
 
-def _get_all_columns(table: TableExpr):
+def _get_all_columns(table: TableExpr) -> List[AnyColumn]:
     return table.get_columns(table.columns)
 
 
 def _rename_duplicates(
-    table: TableExpr, duplicates: Set[str], table_name: str, table_columns: list
+    table: TableExpr, duplicates: Set[str], table_name: str, table_columns
 ):
     for i, column in enumerate(table.columns):
         if column in duplicates:
@@ -159,7 +159,7 @@ def _rename_duplicates(
 
 def get_all_join_columns_handle_duplicates(
     left: TableExpr, right: TableExpr, left_name: str, right_name: str
-):
+) -> List[AnyColumn]:
     left_columns = _get_all_columns(left)
     right_columns = _get_all_columns(right)
     duplicates = set(left.columns).intersection(right.columns)

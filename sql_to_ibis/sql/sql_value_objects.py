@@ -18,16 +18,16 @@ class Table:
     name: str
     alias: str = ""
 
-    def __post_init__(self, value: TableExpr):
+    def __post_init__(self, value: TableExpr) -> None:
         self._value = value
 
-    def get_table_expr(self):
+    def get_table_expr(self) -> TableExpr:
         return self._value
 
     def get_ibis_columns(self) -> List[AnyColumn]:
         return self._value.get_columns(self.column_names)
 
-    def get_alias_else_name(self):
+    def get_alias_else_name(self) -> str:
         if self.alias:
             return self.alias
         return self.name
@@ -47,10 +47,10 @@ class Value:
     alias: str = ""
     typename: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.final_name = self.alias
 
-    def get_value_repr(self):
+    def get_value_repr(self) -> Union[AnyColumn, str]:
         string_type = str(type(self.value))
         ibis_repr = ""
         if isinstance(self.value, ValueExpr):
@@ -63,7 +63,7 @@ class Value:
             return "Ibis" + ibis_repr + "()"
         return self.value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         print_value = self.get_value_repr()
 
         display = (
@@ -75,25 +75,25 @@ class Value:
             display += f", type={self.typename}"
         return display
 
-    def __add__(self, other):
+    def __add__(self, other: ValueOrColumn) -> Expression:
         return Expression(
             value=self.value + self.get_other_value(other),
             alias=self.alias,
         )
 
-    def __sub__(self, other):
+    def __sub__(self, other: ValueOrColumn) -> Expression:
         return Expression(
             value=self.value - self.get_other_value(other),
             alias=self.alias,
         )
 
-    def __mul__(self, other):
+    def __mul__(self, other: ValueOrColumn) -> Expression:
         return Expression(
             value=self.value * self.get_other_value(other),
             alias=self.alias,
         )
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: ValueOrColumn) -> Expression:
         return Expression(
             value=self.value / self.get_other_value(other),
             alias=self.alias,
@@ -115,7 +115,7 @@ class Value:
             return self.alias
         return self.final_name
 
-    def get_value(self):
+    def get_value(self) -> AnyColumn:
         """
         Returns the value of the object
         :return:
@@ -123,7 +123,7 @@ class Value:
         return self.value
 
     @staticmethod
-    def get_other_value(other):
+    def get_other_value(other: ValueOrColumn) -> AnyColumn:
         """
         Return the appropriate value based on the type of other
         :param other:
@@ -133,7 +133,7 @@ class Value:
             return other.get_value()
         return other
 
-    def set_alias(self, alias):
+    def set_alias(self, alias: str) -> None:
         """
         Sets the alias and final name for the value object
         :param alias:
@@ -142,49 +142,52 @@ class Value:
         self.alias = alias
         self.final_name = alias
 
-    def set_type(self, type_name: str):
+    def set_type(self, type_name: str) -> None:
         self.value = self.value.cast(type_name)
 
-    def is_null(self):
+    def is_null(self) -> Value:
         return Value(self.value == ibis.null())
 
-    def is_not_null(self):
+    def is_not_null(self) -> Value:
         return Value(self.value != ibis.null())
 
-    def __gt__(self, other):
+    def __gt__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value > other.value
         return self.value > other
 
-    def __lt__(self, other):
+    def __lt__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value < other.value
         return self.value < other
 
-    def __ge__(self, other):
+    def __ge__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value >= other.value
         return self.value >= other
 
-    def __le__(self, other):
+    def __le__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value <= other.value
         return self.value <= other
 
-    def __ne__(self, other):
+    def __ne__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value != other.value
         return self.value != other
 
-    def __or__(self, other):
+    def __or__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value | other.value
         return self.value | other
 
-    def __and__(self, other):
+    def __and__(self, other: ValueOrColumn) -> bool:
         if isinstance(other, Value):
             return self.value & other.value
         return self.value & other
+
+
+ValueOrColumn = Union[Value, AnyColumn]
 
 
 @dataclass
@@ -195,22 +198,22 @@ class Literal(Value):
 
     literal_count: ClassVar[int] = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         if not self.alias:
             self.alias = f"_literal{self.literal_count}"
             type(self).literal_count += 1
         self.to_ibis_literal()
 
-    def to_ibis_literal(self):
+    def to_ibis_literal(self) -> None:
         if not isinstance(self.value, ValueExpr):
             self.value = ibis.literal(self.value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return super().__repr__() + ")"
 
     @classmethod
-    def reset_literal_count(cls):
+    def reset_literal_count(cls) -> None:
         cls.literal_count = 0
 
 
@@ -259,7 +262,7 @@ class DerivedColumn(Value):
     expression_count: ClassVar[int] = 0
     function: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.alias:
             self.final_name = self.alias
         else:
@@ -272,18 +275,18 @@ class DerivedColumn(Value):
             else:
                 self.final_name = str(self.value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         display = super().__repr__()
         if self.function:
             display += f", function={self.function}"
         return display + ")"
 
     @classmethod
-    def increment_expression_count(cls):
+    def increment_expression_count(cls) -> None:
         cls.expression_count += 1
 
     @classmethod
-    def reset_expression_count(cls):
+    def reset_expression_count(cls) -> None:
         cls.expression_count = 0
 
 
@@ -306,46 +309,46 @@ class Column(Value):
     value: AnyColumn = None
     name: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.alias:
             self.final_name = self.alias
         else:
             self.final_name = self.name
         self._table: Optional[Table] = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         display = Value.__repr__(self)
         display += f", name={self.name}"
         display += f", table={self._table}"
         return display + ")"
 
-    def __eq__(self, other):
+    def __eq__(self, other: ValueOrColumn) -> bool:
         other = self.get_other_value(other)
         return self.value == other
 
-    def __gt__(self, other):
+    def __gt__(self, other: ValueOrColumn) -> bool:
         other = self.get_other_value(other)
         return self.value > other
 
-    def __lt__(self, other):
+    def __lt__(self, other: ValueOrColumn) -> bool:
         other = self.get_other_value(other)
         return self.value < other
 
-    def __ge__(self, other):
+    def __ge__(self, other: ValueOrColumn) -> bool:
         other = self.get_other_value(other)
         return self.value >= other
 
-    def __le__(self, other):
+    def __le__(self, other: ValueOrColumn) -> bool:
         other = self.get_other_value(other)
         return self.value <= other
 
-    def get_table(self):
+    def get_table(self) -> Optional[Table]:
         return self._table
 
-    def set_table(self, table: Table):
+    def set_table(self, table: Table) -> None:
         self._table = table
 
-    def desc(self):
+    def desc(self) -> Column:
         self.value = ibis.desc(self.value)
         return self
 
@@ -361,7 +364,9 @@ class Aggregate(DerivedColumn):
     Store information about aggregations
     """
 
-    def __init__(self, value: Union[AnyScalar, CountStar], alias="", typename=""):
+    def __init__(
+        self, value: Union[AnyScalar, CountStar], alias: str = "", typename: str = ""
+    ):
         super().__init__(value, alias, typename)
 
 
@@ -370,7 +375,7 @@ class GroupByColumn(Column):
     group_by_name: str = ""
 
     @classmethod
-    def from_column_type(cls, column: Column):
+    def from_column_type(cls, column: Column) -> GroupByColumn:
         return cls(
             name=column.name,
             group_by_name=column.name,
@@ -379,7 +384,7 @@ class GroupByColumn(Column):
             value=column.value,
         )
 
-    def set_ibis_name_to_name(self):
+    def set_ibis_name_to_name(self) -> None:
         self.value = self.value.name(self.get_name())
 
 
@@ -389,7 +394,7 @@ class Subquery(Table):
     Wrapper for subqueries
     """
 
-    def __post_init__(self, value: TableExpr):
+    def __post_init__(self, value: TableExpr) -> None:
         self._value = value
         self.alias = self.name
 
