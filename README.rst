@@ -49,13 +49,13 @@ with the *query* function. In the example below, we create and query a pandas Da
 
 .. code-block:: python
 
-    import ibis.pandas.api
+    import ibis.pandas
     import pandas
     import sql_to_ibis
 
     df = pandas.DataFrame({"column1": [1, 2, 3], "column2": ["4", "5", "6"]})
-    ibis_table = ibis.pandas.api.from_dataframe(
-        df, name="my_table", client=ibis.pandas.api.PandasClient({})
+    ibis_table = ibis.pandas.Backend().from_dataframe(
+        df, name="my_table", client=ibis.pandas.connect({})
     )
     sql_to_ibis.register_temp_table(ibis_table, "my_table")
     sql_to_ibis.query(
@@ -252,7 +252,7 @@ Supported Data Types for cast expressions include:
 
 * VARCHAR, STRING
 * INT16, SMALLINT
-* INT32, INT
+* INT32, INT, INTEGER
 * INT64, BIGINT
 * FLOAT16
 * FLOAT32

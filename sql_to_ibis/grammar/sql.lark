@@ -56,8 +56,8 @@ row_range_clause: ( ROWS | RANGE ) frame_extent
 frame_extent: frame_between | frame_preceding
 frame_between: "BETWEEN"i frame_bound "AND"i frame_bound
 frame_bound: frame_preceding | frame_following | "CURRENT"i "ROW"i
-frame_preceding: UNBOUNDED PRECEDING | integer PRECEDING
-frame_following: UNBOUNDED FOLLOWING | integer FOLLOWING
+frame_preceding: UNBOUNDED PRECEDING | integer_ PRECEDING
+frame_following: UNBOUNDED FOLLOWING | integer_ FOLLOWING
 RANGE: "RANGE"i
 ROWS: "ROWS"i
 UNBOUNDED: "UNBOUNDED"i
@@ -86,6 +86,7 @@ column_name: [name "."] name
 SELECT_CONSTRAINT.9: "ALL"i | "DISTINCT"i
 TYPENAME:  "object"i
          | "varchar"i
+         | "integer"i
          | "int16"i
          | "smallint"i
          | "int32"i
@@ -106,8 +107,8 @@ TYPENAME:  "object"i
 AGGREGATION.8: ("sum("i | "avg("i | "min("i | "max("i | "count("i "distinct"i | "count("i)
 alias: name -> alias_string
 _window_name: name
-limit_count: integer -> limit_count
-skip_rows: integer
+limit_count: integer_ -> limit_count
+skip_rows: integer_
 bool_expression: bool_parentheses
                  | bool_expression "AND"i bool_parentheses -> bool_and
                  | bool_expression "OR"i bool_parentheses -> bool_or
@@ -138,7 +139,7 @@ boolean: "true"i -> true
 
 ?product: NUMBER
 
-integer: /[1-9][0-9]*/
+integer_: /[1-9][0-9]*/
 STAR: "*"
 window_definition:
 timestamp_expression: "NOW"i "(" ")" -> datetime_now
