@@ -9,6 +9,7 @@ from typing import (
     MutableMapping,
     Optional,
     Tuple,
+    TypedDict,
     Union,
     cast,
 )
@@ -35,6 +36,7 @@ from sql_to_ibis.parsing.aggregation_aliases import (
     NUMERIC_AGGREGATIONS,
     SUM_AGGREGATIONS,
 )
+from sql_to_ibis.sql.enums.rank_functions import RankFunction
 from sql_to_ibis.sql.sql_clause_objects import (
     AliasExpression,
     ColumnExpression,
@@ -45,6 +47,7 @@ from sql_to_ibis.sql.sql_clause_objects import (
     OrderByExpression,
     PartitionByExpression,
     Preceding,
+    ValueExpression,
     WhereExpression,
 )
 from sql_to_ibis.sql.sql_objects import AliasRegistry, AmbiguousColumn, Window
@@ -66,20 +69,26 @@ from sql_to_ibis.sql.sql_value_objects import (
     Value,
 )
 
+TableMap = MutableMapping[Union[str, AmbiguousColumn], Table]
 
-def num_eval(arg: Any) -> Union[int, float]:
+
+def num_eval(arg: Union[Token, float, int]) -> Union[int, float]:
     """
     Takes an argument that may be a string or number and outputs a number
     :param arg:
     :return:
     """
-    assert isinstance(arg, (Token, float, int))
-    if isinstance(arg, str):
+    if isinstance(arg, Token):
         return eval(arg)
     return arg
 
 
-class TransformerBaseClass(Transformer):
+class Extents(TypedDict):
+    following: Following
+    preceding: Preceding
+
+
+class TransformerBaseClass(Transformer[Any, Union[Value, ValueExpression, Tree]]):
     """
     Base class for transformers
     """
@@ -96,7 +105,7 @@ class TransformerBaseClass(Transformer):
     ) -> None:
         super().__init__(visit_tokens=False)
         self._table_name_map = table_name_map
-        self._table_map: MutableMapping[str, Table] = {}
+        self._table_map: TableMap = {}
         for name, table in table_map.items():
             if isinstance(table, Table):
                 self._table_map[name] = table
@@ -144,9 +153,7 @@ class InternalTransformer(TransformerBaseClass):
         self._remove_non_selected_tables_from_transformation()
         self._alias_registry = alias_registry
 
-    def set_column_value(
-        self, column: Column, table_name: Union[str, AmbiguousColumn] = ""
-    ) -> None:
+    def set_column_value(self, column: Column, table_name: str = "") -> None:
         """
         Sets the column value based on what it is in the table
         :param column:
@@ -159,16 +166,17 @@ class InternalTransformer(TransformerBaseClass):
         if column.name == "*":
             return
         lower_column_name = column.name.lower()
-        if not table_name:
+        derived_table_name: Union[str, AmbiguousColumn] = table_name
+        if not derived_table_name:
             if lower_column_name not in self._column_to_table_name:
                 raise ColumnNotFoundError(column.name, self._table_names_list)
-            table_name = self._column_to_table_name[column.name.lower()]
-        if isinstance(table_name, AmbiguousColumn):
-            raise AmbiguousColumnException(column.name, list(table_name.tables))
-        table = self.get_table(table_name)
+            derived_table_name = self._column_to_table_name[column.name.lower()]
+        if isinstance(derived_table_name, AmbiguousColumn):
+            raise AmbiguousColumnException(column.name, list(derived_table_name.tables))
+        table = self.get_table(derived_table_name)
         table_column_name_map = self._column_name_map[table.name]
         if lower_column_name not in table_column_name_map:
-            raise ColumnNotFoundError(column.name, [table_name])
+            raise ColumnNotFoundError(column.name, [derived_table_name])
         column_true_name = table_column_name_map[column.name.lower()]
         column.value = table.get_table_expr()[column_true_name]
         column.set_table(table)
@@ -193,7 +201,7 @@ class InternalTransformer(TransformerBaseClass):
                         set(present_tables)
                     )
 
-    def transform(self, tree: Tree):
+    def transform(self, tree: Tree) -> Union[Value, ValueExpression, Tree]:
         new_tree = TransformerBaseClass.transform(self, tree)
         if isinstance(new_tree, Token) and isinstance(new_tree.value, Value):
             new_tree.value = new_tree.value.value
@@ -288,7 +296,7 @@ class InternalTransformer(TransformerBaseClass):
         arg2 = args[1]
         return arg1 / arg2
 
-    def number(self, numerical_value) -> Number:
+    def number(self, numerical_value: Tuple[Token]) -> Number:
         """
         Return a number token_or_tree with a numeric value as a child
         :param numerical_value:
@@ -296,7 +304,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Number(num_eval(numerical_value[0]))
 
-    def string(self, string_token) -> String:
+    def string(self, string_token: Tuple[Token]) -> String:
         """
         Return value of the token_or_tree associated with the string
         :param string_token:
@@ -323,7 +331,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return [int(token.value) for token in token_list]
 
-    def date(self, date_list) -> List[int]:
+    def date(self, date_list: List[Token]) -> List[int]:
         """
         Returns list with correct date integers
         :param date_list:
@@ -331,7 +339,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.int_token_list(date_list)
 
-    def time(self, time_list) -> List[int]:
+    def time(self, time_list: List[Token]) -> List[int]:
         """
         Returns list with correct time integers
         :param time_list:
@@ -339,7 +347,9 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.int_token_list(time_list)
 
-    def custom_timestamp(self, datetime_list) -> Literal:
+    def custom_timestamp(
+        self, datetime_list: Tuple[Tuple[int, int, int], Tuple[int, int, int]]
+    ) -> Literal:
         """
         Return a custom time stamp based on user input
         :param datetime_list:
@@ -347,7 +357,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Literal(datetime(*(datetime_list[0] + datetime_list[1])))
 
-    def datetime_now(self, _) -> Literal:
+    def datetime_now(self, _: Any) -> Literal:
         """
         Return current date and time
         :return:
@@ -365,7 +375,7 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("today()")
         return date_value
 
-    def not_equals(self, expressions) -> Value:
+    def not_equals(self, expressions: Tuple[Value, Value]) -> Value:
         """
         Compares two expressions for inequality
         :param expressions:
@@ -373,13 +383,13 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] != expressions[1])
 
-    def is_null(self, expressions) -> Value:
+    def is_null(self, expressions: Tuple[Value]) -> Value:
         return Value(expressions[0]).is_null()
 
-    def is_not_null(self, expressions) -> Value:
+    def is_not_null(self, expressions: Tuple[Value]) -> Value:
         return Value(expressions[0]).is_not_null()
 
-    def greater_than(self, expressions) -> Value:
+    def greater_than(self, expressions: Tuple[Value, Value]) -> Value:
         """
         Performs a greater than sql_object
         :param expressions:
@@ -387,7 +397,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] > expressions[1])
 
-    def greater_than_or_equal(self, expressions) -> Value:
+    def greater_than_or_equal(self, expressions: Tuple[Value, Value]) -> Value:
         """
         Performs a greater than or equal sql_object
         :param expressions:
@@ -395,7 +405,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] >= expressions[1])
 
-    def less_than(self, expressions) -> Value:
+    def less_than(self, expressions: Tuple[Value, Value]) -> Value:
         """
         Performs a less than sql_object
         :param expressions:
@@ -403,7 +413,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] < expressions[1])
 
-    def less_than_or_equal(self, expressions) -> Value:
+    def less_than_or_equal(self, expressions: Tuple[Value, Value]) -> Value:
         """
         Performs a less than or equal sql_object
         :param expressions:
@@ -425,7 +435,7 @@ class InternalTransformer(TransformerBaseClass):
             )
         )
 
-    def _get_expression_values(self, expressions: List[Value]):
+    def _get_expression_values(self, expressions: List[Value]) -> List[AnyColumn]:
         return [expression.get_value() for expression in expressions]
 
     def in_expr(self, expressions: List[Value]) -> Value:
@@ -454,7 +464,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return expression[0]
 
-    def equals(self, expressions) -> Value:
+    def equals(self, expressions: Tuple[Value, Value]) -> Value:
         """
         Compares two expressions for equality
         :param expressions:
@@ -579,23 +589,20 @@ class InternalTransformer(TransformerBaseClass):
         """
         return PartitionByExpression(column_list[0])
 
-    def apply_rank_function(self, first_column: AnyColumn, rank_function: str):
+    def apply_rank_function(self, first_column: AnyColumn, rank_function: RankFunction):
         """
         :param first_column:
         :param rank_function:
         :return:
         """
-        assert isinstance(first_column, AnyColumn)
-        assert rank_function in {"rank", "dense_rank"}
-        if rank_function == "rank":
+        if rank_function == RankFunction.RANK:
             return first_column.rank()
-        if rank_function == "dense_rank":
-            return first_column.dense_rank()
+        return first_column.dense_rank()
 
     def rank(
         self,
         column_clause_list: List[ColumnExpression],
-        rank_function: str,
+        rank_function: RankFunction,
     ) -> Expression:
         """
         :param column_clause_list_list:
@@ -625,7 +632,9 @@ class InternalTransformer(TransformerBaseClass):
         :param tokens:
         :return:
         """
-        return self.rank(self._extract_column_expressions_for_rank(tokens), "rank")
+        return self.rank(
+            self._extract_column_expressions_for_rank(tokens), RankFunction.RANK
+        )
 
     def dense_rank_expression(
         self, tokens: List[List[Optional[ColumnExpression]]]
@@ -636,7 +645,7 @@ class InternalTransformer(TransformerBaseClass):
         :return:
         """
         return self.rank(
-            self._extract_column_expressions_for_rank(tokens), "dense_rank"
+            self._extract_column_expressions_for_rank(tokens), RankFunction.DENSE_RANK
         )
 
     def coalesce_expression(self, tokens: List[Value]) -> Column:
@@ -775,10 +784,10 @@ class InternalTransformer(TransformerBaseClass):
         # TODO: Switch this to a tuple (causing errors to do that currently)
         return [preceding, following]
 
-    def frame_extent(self, extent_list: List[ExtentExpression]):
+    def frame_extent(self, extent_list: List[ExtentExpression]) -> Extents:
         if isinstance(extent_list[0], list):
             extent_list = extent_list[0]
-        extents = {"following": Following(), "preceding": Preceding()}
+        extents = Extents(following=Following(), preceding=Preceding())
         for extent in extent_list:
             if isinstance(extent, Following):
                 extents["following"] = extent
@@ -786,16 +795,15 @@ class InternalTransformer(TransformerBaseClass):
                 extents["preceding"] = extent
         return extents
 
-    def row_range_clause(self, clause) -> FrameExpression:
-        rows_or_range_token: Token = clause[0]
-        return FrameExpression(rows_or_range_token.value.lower(), **clause[1])
+    def row_range_clause(self, clause: Tuple[Token, Extents]) -> FrameExpression:
+        return FrameExpression(clause[0].value.lower(), **clause[1])
 
 
 class InternalTransformerWithStarVal(InternalTransformer):
     def __init__(
         self,
         tables: List[TableOrJoinbase],
-        table_map: Mapping[str, Table],
+        table_map: TableMap,
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         table_name_map: Dict[str, str],
@@ -812,9 +820,7 @@ class InternalTransformerWithStarVal(InternalTransformer):
         )
         self._available_relations = available_relations
 
-    def set_column_value(
-        self, column: Column, table_name: Union[str, AmbiguousColumn] = ""
-    ) -> None:
+    def set_column_value(self, column: Column, table_name: str = "") -> None:
         if column.name == "*" and not table_name:
             if len(self._available_relations) > 1:
                 raise AmbiguousColumnException(column.name, self._table_names_list)
@@ -842,5 +848,7 @@ class InternalTransformerWithStarVal(InternalTransformer):
         self, column: Column, aggregation: str
     ) -> Union[CountStar, AnyScalar]:
         if aggregation in COUNT_AGGREGATIONS and column.name == "*":
-            return column.get_table().get_table_expr().count()
+            table = column.get_table()
+            assert table is not None
+            return table.get_table_expr().count()
         return super().apply_ibis_aggregation(column, aggregation)

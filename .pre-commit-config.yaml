@@ -12,7 +12,8 @@ repos:
     hooks:
       - id: black
         exclude: (ibis/_version|versioneer).py
-  - repo: git://github.com/pre-commit/pre-commit-hooks
+        additional_dependencies: ['click==8.0.4']
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.1.0
     hooks:
       - id: flake8

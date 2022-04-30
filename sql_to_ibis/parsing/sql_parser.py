@@ -81,14 +81,14 @@ TYPE_TO_PANDAS_TYPE = {
 }
 
 
-class TupleTree(Tree):
+class TupleTree(Tree[Subquery]):
     def __init__(
         self,
         data: str,
-        children: List[Union[str, Tree, Subquery]],
+        children: Tuple[Tree, Subquery],
         meta: Optional[Meta] = None,
     ) -> None:
-        super().__init__(data, children, meta)
+        super().__init__(data, list(children), meta)
 
 
 for TYPE in PANDAS_TYPE_PYTHON_TYPE_FUNCTION:
@@ -158,7 +158,7 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry.add_to_registry(alias, table)
         return table
 
-    def order_by_expression(self, rank_tree: Tree) -> OrderByInfo:
+    def order_by_expression(self, rank_tree: Tree[Tree[str]]) -> OrderByInfo:
         """
         Returns the column name for the order sql_object
         :param rank_tree: Tree containing order info
@@ -166,7 +166,10 @@ class SQLTransformer(TransformerBaseClass):
         """
         order_type = rank_tree.data
         ascending = order_type == "order_asc"
-        return OrderByInfo(rank_tree.children[0].children[0], ascending)
+        order_by_column_tree = rank_tree.children[0]
+        order_by_column_name = order_by_column_tree.children[0]
+        assert isinstance(order_by_column_name, str)
+        return OrderByInfo(order_by_column_name, ascending)
 
     def integer_(self, integer_token: Token) -> int:
         """
@@ -279,7 +282,7 @@ class SQLTransformer(TransformerBaseClass):
             join_condition=join_condition,
         )
 
-    def select(self, *select_expressions: Tree) -> QueryInfo:
+    def select(self, *select_expressions: Tree[NestedJoinBase]) -> QueryInfo:
         """
         Forms the final sequence of methods that will be executed
         :param select_expressions:
@@ -301,7 +304,8 @@ class SQLTransformer(TransformerBaseClass):
                         isinstance(table_object, Tree)
                         and table_object.data == "cross_join_expression"
                     ):
-                        cross_join: NestedCrossJoin = table_object.children[0]
+                        cross_join = table_object.children[0]
+                        assert isinstance(cross_join, NestedCrossJoin)
                         tables += [
                             cross_join.right_table,
                             cross_join.left_table,
@@ -381,7 +385,7 @@ class SQLTransformer(TransformerBaseClass):
 
     def _handle_having_expressions(
         self,
-        having_expr: Tree,
+        having_expr: Optional[Tree],
         internal_transformer: InternalTransformer,
         table: TableExpr,
         aggregates: Dict[str, Aggregate],
@@ -401,7 +405,7 @@ class SQLTransformer(TransformerBaseClass):
         aggregates: Dict[str, Aggregate],
         group_columns: List[GroupByColumn],
         table: TableExpr,
-        having_expr: Tree,
+        having_expr: Optional[Tree],
         internal_transformer: InternalTransformer,
         selected_columns: List[Value],
     ) -> TableExpr:
@@ -459,7 +463,7 @@ class SQLTransformer(TransformerBaseClass):
     def handle_filtering(
         self,
         ibis_table: TableExpr,
-        where_expr: Tree,
+        where_expr: Optional[Tree],
         internal_transformer: InternalTransformer,
     ) -> TableExpr:
         """
@@ -718,7 +722,6 @@ class SQLTransformer(TransformerBaseClass):
                 for column in query_info.columns
                 if column.get_name() in remaining_columns
             ]
-        # new_table = self.materialize_join_if_needed(relation, all_columns_pre_join)
         new_table = self.handle_filtering(
             relation,
             query_info.where_expr,
@@ -807,7 +810,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.difference(expr2)
 
-    def final(self, table):
+    def final(self, table: TableExpr) -> TableExpr:
         """
         Returns the final dataframe
         :param table:

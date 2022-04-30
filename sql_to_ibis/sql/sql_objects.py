@@ -22,6 +22,7 @@ class AliasRegistry:
     registry: Dict[str, Table] = field(default_factory=dict)
 
     def add_to_registry(self, alias: str, table: Table) -> None:
+        assert isinstance(alias, str)
         assert alias not in self.registry
         self.registry[alias] = table
 
