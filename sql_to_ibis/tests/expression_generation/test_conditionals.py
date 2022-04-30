@@ -30,14 +30,16 @@ def test_all_boolean_ops_clause(forest_fires):
         and area != 0 and dc < 100 and ffmc <= 90.1
         """
     )
-    ibis_table = forest_fires[
-        (forest_fires.month == "mar")
-        & (forest_fires.temp > 8.0)
-        & (forest_fires.rain >= 0)
-        & (forest_fires.area != ibis.literal(0))
-        & (forest_fires.DC < 100)
-        & (forest_fires.FFMC <= 90.1)
-    ]
+    ibis_table = forest_fires.filter(
+        [
+            forest_fires.month == "mar",
+            forest_fires.temp > 8.0,
+            forest_fires.rain >= 0,
+            forest_fires.area != 0,
+            forest_fires.DC < 100,
+            forest_fires.FFMC <= 90.1,
+        ]
+    )
     assert_ibis_equal_show_diff(ibis_table, my_table)
 
 

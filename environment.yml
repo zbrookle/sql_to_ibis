@@ -4,6 +4,7 @@ channels:
 dependencies:
   # required
   - lark-parser=0.8.5
+  - ibis-framework=2.1.1
 
   # Test requirements
   - flake8
@@ -17,5 +18,4 @@ dependencies:
 
   - pip
   - pip:
-      - ibis-framework==1.4.0
       - black

@@ -1,4 +1,6 @@
 import ibis
+from ibis.backends.pandas import Backend, BasePandasBackend
+from ibis.expr.types import TableExpr
 from pandas import read_csv
 from pandas.core.frame import DataFrame
 import pytest
@@ -19,51 +21,47 @@ scope_fixture = pytest.fixture(scope="session")
 
 @scope_fixture
 def pandas_client():
-    return ibis.pandas.PandasClient({})
+    return ibis.pandas.connect({})
 
 
 @scope_fixture
-def digimon_mon_list(pandas_client):
+def digimon_mon_list(pandas_client: BasePandasBackend) -> TableExpr:
     frame = read_csv(DATA_PATH / "DigiDB_digimonlist.csv")
     frame["mon_attribute"] = frame["Attribute"]
-    return ibis.pandas.from_dataframe(
-        frame,
-        "DIGIMON_MON_LIST",
-        pandas_client,
-    )
+    return Backend().from_dataframe(frame, "DIGIMON_MON_LIST", pandas_client)
 
 
 @scope_fixture
-def digimon_move_list(pandas_client):
+def digimon_move_list(pandas_client: BasePandasBackend) -> TableExpr:
     frame = read_csv(DATA_PATH / "DigiDB_movelist.csv")
     frame["move_attribute"] = frame["Attribute"]
-    return ibis.pandas.from_dataframe(frame, "DIGIMON_MOVE_LIST", pandas_client)
+    return Backend().from_dataframe(frame, "DIGIMON_MOVE_LIST", pandas_client)
 
 
 @scope_fixture
-def forest_fires(pandas_client):
-    return ibis.pandas.from_dataframe(
+def forest_fires(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         read_csv(DATA_PATH / "forestfires.csv"), "FOREST_FIRES", pandas_client
     )
 
 
 @scope_fixture
-def avocado(pandas_client):
-    return ibis.pandas.from_dataframe(
+def avocado(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         read_csv(DATA_PATH / "avocado.csv"), "AVOCADO", pandas_client
     )
 
 
 @scope_fixture
-def time_data(pandas_client):
-    return ibis.pandas.from_dataframe(
+def time_data(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         read_csv(DATA_PATH / "time_data.csv"), "TIME_DATA", pandas_client
     )
 
 
 @scope_fixture
-def multitable_join_main_table(pandas_client):
-    return ibis.pandas.from_dataframe(
+def multitable_join_main_table(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         DataFrame(
             {
                 "id": [0, 1, 2, 3, 4],
@@ -78,8 +76,8 @@ def multitable_join_main_table(pandas_client):
 
 
 @scope_fixture
-def multitable_join_lookup_table(pandas_client):
-    return ibis.pandas.from_dataframe(
+def multitable_join_lookup_table(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         DataFrame(
             {
                 "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -92,8 +90,8 @@ def multitable_join_lookup_table(pandas_client):
 
 
 @scope_fixture
-def multitable_join_relationship_table(pandas_client):
-    return ibis.pandas.from_dataframe(
+def multitable_join_relationship_table(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         DataFrame({"id": [0, 1, 2], "relation": ["rel1", "rel2", "rel3"]}),
         MULTI_RELATIONSHIP,
         pandas_client,
@@ -101,8 +99,8 @@ def multitable_join_relationship_table(pandas_client):
 
 
 @scope_fixture
-def multitable_join_promotion_table(pandas_client):
-    return ibis.pandas.from_dataframe(
+def multitable_join_promotion_table(pandas_client: BasePandasBackend) -> TableExpr:
+    return Backend().from_dataframe(
         DataFrame({"id": [0, 1, 2], "promotion": ["none", "special", "extra special"]}),
         MULTI_PROMOTION,
         pandas_client,
@@ -110,8 +108,10 @@ def multitable_join_promotion_table(pandas_client):
 
 
 @scope_fixture
-def multitable_join_promotion_table_no_overlap(pandas_client):
-    return ibis.pandas.from_dataframe(
+def multitable_join_promotion_table_no_overlap(
+    pandas_client: BasePandasBackend,
+) -> TableExpr:
+    return Backend().from_dataframe(
         DataFrame(
             {"other_id": [0, 1, 2], "promotion": ["none", "special", "extra special"]}
         ),
