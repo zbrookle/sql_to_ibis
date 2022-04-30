@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
 import re
-from typing import Callable, ClassVar, Dict, List, Optional, Union
+from typing import Callable, ClassVar, Dict, Generic, List, Optional, TypeVar, Union
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
@@ -37,8 +37,11 @@ class Table:
         return self._value.columns
 
 
+_TableType = TypeVar("_TableType")
+
+
 @dataclass
-class Value:
+class Value(Generic[_TableType]):
     """
     Parent class for expression_count and columns
     """
@@ -99,7 +102,7 @@ class Value:
             alias=self.alias,
         )
 
-    def get_table(self):
+    def get_table(self) -> _TableType:
         """
         Returns the table of the current value
         :return:

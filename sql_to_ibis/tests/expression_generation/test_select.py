@@ -1,5 +1,7 @@
+from typing import List
+
 import ibis
-from ibis.expr.types import TableExpr
+from ibis.expr.types import AnyColumn, TableExpr
 
 from sql_to_ibis import query
 from sql_to_ibis.tests.utils import (
@@ -47,7 +49,7 @@ def test_select_specific_fields(forest_fires: TableExpr) -> None:
 
 @assert_state_not_change
 def test_select_star_from_multiple_tables(
-    digimon_move_mon_join_columns: list,
+    digimon_move_mon_join_columns: List[AnyColumn],
     digimon_move_list: TableExpr,
     digimon_mon_list: TableExpr,
 ) -> None:

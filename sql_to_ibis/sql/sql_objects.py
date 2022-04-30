@@ -19,7 +19,7 @@ from sql_to_ibis.sql.sql_value_objects import Table
 
 @dataclass
 class AliasRegistry:
-    registry: dict = field(default_factory=dict)
+    registry: Dict[str, Table] = field(default_factory=dict)
 
     def add_to_registry(self, alias: str, table: Table) -> None:
         assert alias not in self.registry
@@ -28,7 +28,7 @@ class AliasRegistry:
     def get_registry_entry(self, item: str) -> Table:
         return self.registry[item]
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: str) -> bool:
         return item in self.registry
 
 
@@ -61,7 +61,7 @@ class Window:
         "rows": ibis.window,
     }
 
-    def __post_init__(self, window_part_list) -> None:
+    def __post_init__(self, window_part_list: List[ColumnExpression]) -> None:
         self.partition: List[AnyColumn] = [
             clause.column_value
             for clause in window_part_list
@@ -76,7 +76,9 @@ class Window:
             window_part_list
         )
 
-    def __get_frame_expression(self, window_part_list: list) -> FrameExpression:
+    def __get_frame_expression(
+        self, window_part_list: List[ColumnExpression]
+    ) -> FrameExpression:
         filtered_expressions = [
             clause for clause in window_part_list if isinstance(clause, FrameExpression)
         ]

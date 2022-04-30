@@ -44,7 +44,7 @@ def test_subquery(forest_fires: TableExpr) -> None:
 @join_params
 @assert_state_not_change
 def test_joins(
-    digimon_move_mon_join_columns: list,
+    digimon_move_mon_join_columns: List[AnyColumn],
     sql_join: str,
     ibis_join: str,
     digimon_move_list: TableExpr,
@@ -91,7 +91,7 @@ def test_join_specify_selection(
 @join_params
 @assert_state_not_change
 def test_join_wo_specifying_table(
-    digimon_move_mon_join_columns: list,
+    digimon_move_mon_join_columns: List[AnyColumn],
     sql_join: str,
     ibis_join: str,
     digimon_move_list: TableExpr,

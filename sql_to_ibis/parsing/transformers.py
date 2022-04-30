@@ -594,7 +594,7 @@ class InternalTransformer(TransformerBaseClass):
 
     def rank(
         self,
-        column_clause_list_list: List[List[ColumnExpression]],
+        column_clause_list: List[ColumnExpression],
         rank_function: str,
     ) -> Expression:
         """
@@ -602,7 +602,6 @@ class InternalTransformer(TransformerBaseClass):
         :param rank_function:
         :return:
         """
-        column_clause_list = column_clause_list_list[0]
         first_column = column_clause_list[0].column.get_value()
         window = Window(column_clause_list, first_column)
         return Expression(
@@ -611,21 +610,34 @@ class InternalTransformer(TransformerBaseClass):
             )
         )
 
-    def rank_expression(self, tokens: List[List[ColumnExpression]]) -> Expression:
+    @staticmethod
+    def _extract_column_expressions_for_rank(
+        tokens: List[List[Optional[ColumnExpression]]],
+    ) -> List[ColumnExpression]:
+        expressions = tokens[0]
+        return [expression for expression in expressions if expression is not None]
+
+    def rank_expression(
+        self, tokens: List[List[Optional[ColumnExpression]]]
+    ) -> Expression:
         """
         Handles rank expressions
         :param tokens:
         :return:
         """
-        return self.rank(tokens, "rank")
+        return self.rank(self._extract_column_expressions_for_rank(tokens), "rank")
 
-    def dense_rank_expression(self, tokens: List[List[ColumnExpression]]) -> Expression:
+    def dense_rank_expression(
+        self, tokens: List[List[Optional[ColumnExpression]]]
+    ) -> Expression:
         """
         Handles dense_rank_expressions
         :param tokens:
         :return:
         """
-        return self.rank(tokens, "dense_rank")
+        return self.rank(
+            self._extract_column_expressions_for_rank(tokens), "dense_rank"
+        )
 
     def coalesce_expression(self, tokens: List[Value]) -> Column:
         coalesce_args = [token.value for token in tokens]

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional, Union
 
+from ibis.expr.types import AnyColumn
+
 from sql_to_ibis.sql.sql_value_objects import (
     Column,
     NestedJoinBase,
@@ -30,7 +32,7 @@ class ColumnExpression:
     column: Column
 
     @property
-    def column_value(self):
+    def column_value(self) -> AnyColumn:
         return self.column.get_value()
 
 
@@ -39,7 +41,7 @@ class OrderByExpression(ColumnExpression):
     ascending: bool = True
 
     @property
-    def column_value(self):
+    def column_value(self) -> AnyColumn:
         column = self.column if self.ascending else self.column.desc()
         return column.get_value()
 
