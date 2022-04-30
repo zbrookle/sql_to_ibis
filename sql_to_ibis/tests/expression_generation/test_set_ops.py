@@ -219,7 +219,7 @@ def test_union_all(forest_fires):
 
 @assert_state_not_change
 @pytest.mark.parametrize("set_op", ["intersect", "intersect distinct"])
-def test_intersect_distinct(forest_fires, set_op: str):
+def test_intersect_distinct(forest_fires: TableExpr, set_op: str):
     """
     Test intersect in queries
     :return:
