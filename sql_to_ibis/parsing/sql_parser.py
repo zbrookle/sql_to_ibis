@@ -55,6 +55,7 @@ PANDAS_TYPE_PYTHON_TYPE_FUNCTION = {
 
 TYPE_TO_PANDAS_TYPE = {
     "varchar": "string",
+    "integer": "int32",
     "int": "int32",
     "bigint": "int64",
     "float": "float64",
@@ -147,7 +148,7 @@ class SQLTransformer(TransformerBaseClass):
         ascending = order_type == "order_asc"
         return OrderByInfo(rank_tree.children[0].children[0], ascending)
 
-    def integer(self, integer_token):
+    def integer_(self, integer_token):
         """
         Returns the integer value
         :param integer_token:
