@@ -20,7 +20,7 @@ TYPE_TO_SQL_TYPE = {
 }
 
 
-def to_ibis_type(given_type: str):
+def to_ibis_type(given_type: str) -> str:
     """
     Returns the corresponding ibis dtype
     :return:

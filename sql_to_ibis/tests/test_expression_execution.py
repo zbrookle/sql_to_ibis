@@ -15,7 +15,7 @@ def test_select_star_join_execution(
     digimon_mon_list: TableExpr,
     digimon_move_list: TableExpr,
     digimon_move_mon_join_columns,
-):
+) -> None:
     my_frame = query(
         f"""select * from digimon_mon_list {sql_join} join
             digimon_move_list
@@ -29,7 +29,7 @@ def test_select_star_join_execution(
     assert_frame_equal(ibis_frame, my_frame)
 
 
-def test_agg_with_group_by_with_select_groupby_execution(forest_fires):
+def test_agg_with_group_by_with_select_groupby_execution(forest_fires) -> None:
     my_frame = query(
         "select day, month, min(temp), max(temp) from forest_fires group by day, month"
     ).execute()
@@ -46,7 +46,7 @@ def test_agg_with_group_by_with_select_groupby_execution(forest_fires):
     assert_frame_equal(ibis_frame, my_frame)
 
 
-def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
+def test_agg_with_group_by_without_select_groupby_execution(forest_fires) -> None:
     my_frame = query(
         "select min(temp), max(temp) from forest_fires group by day, month"
     ).execute()
@@ -64,7 +64,7 @@ def test_agg_with_group_by_without_select_groupby_execution(forest_fires):
     assert_frame_equal(ibis_frame, my_frame)
 
 
-def test_select_columns_from_two_tables_with_same_column_name(forest_fires):
+def test_select_columns_from_two_tables_with_same_column_name(forest_fires) -> None:
     """
     Test selecting tables
     :return:
@@ -81,7 +81,7 @@ def test_select_columns_from_two_tables_with_same_column_name(forest_fires):
 
 def test_select_star_from_multiple_tables(
     digimon_move_list, digimon_mon_list, digimon_move_mon_join_columns
-):
+) -> None:
     """
     Test selecting from two different tables
     :return:
@@ -114,8 +114,8 @@ def test_select_star_from_multiple_tables(
     ],
 )
 def test_joining_two_subqueries_with_overlapping_columns_different_tables(
-    sql, digimon_move_list, digimon_mon_list
-):
+    sql: str, digimon_move_list, digimon_mon_list
+) -> None:
     my_table = query(sql).execute()
     subquery1 = digimon_move_list[
         [
@@ -148,7 +148,7 @@ def test_joining_two_subqueries_with_overlapping_columns_different_tables(
     assert_frame_equal(ibis_table, my_table)
 
 
-def test_window_function(time_data):
+def test_window_function(time_data) -> None:
     my_table = query(
         """SELECT count,
        duration_seconds,
@@ -178,7 +178,7 @@ def test_window_function(time_data):
     assert_frame_equal(ibis_table, my_table)
 
 
-def test_filter_on_non_selected_column(forest_fires):
+def test_filter_on_non_selected_column(forest_fires) -> None:
     my_table = query("select temp from forest_fires where month = 'mar'").execute()
     ibis_table = (
         forest_fires.projection([forest_fires.temp, forest_fires.month])[
@@ -191,7 +191,7 @@ def test_filter_on_non_selected_column(forest_fires):
 
 
 @pytest.mark.skip("Failure is coming from ibis")
-def test_order_by_not_select_star(forest_fires):
+def test_order_by_not_select_star(forest_fires) -> None:
     """
     Test case sensitivity in order by clause
     """

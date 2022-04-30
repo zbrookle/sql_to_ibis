@@ -366,7 +366,7 @@ class Aggregate(DerivedColumn):
 
     def __init__(
         self, value: Union[AnyScalar, CountStar], alias: str = "", typename: str = ""
-    ):
+    ) -> None:
         super().__init__(value, alias, typename)
 
 

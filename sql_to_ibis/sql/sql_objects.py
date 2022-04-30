@@ -43,10 +43,10 @@ class AmbiguousColumn:
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, AmbiguousColumn) and self.tables == other.tables
 
-    def add_table(self, table):
+    def add_table(self, table: str) -> None:
         self.tables.add(table)
 
-    def remove_table(self, table: str):
+    def remove_table(self, table: str) -> None:
         if len(self.tables) <= 1:
             raise Exception("Ambiguous column table set cannot be empty!")
         self.tables.remove(table)
@@ -61,7 +61,7 @@ class Window:
         "rows": ibis.window,
     }
 
-    def __post_init__(self, window_part_list):
+    def __post_init__(self, window_part_list) -> None:
         self.partition: List[AnyColumn] = [
             clause.column_value
             for clause in window_part_list

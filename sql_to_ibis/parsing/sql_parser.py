@@ -5,7 +5,17 @@ from __future__ import annotations
 
 from collections import defaultdict
 import re
-from typing import TYPE_CHECKING, DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    DefaultDict,
+    Dict,
+    List,
+    Optional,
+    Pattern,
+    Set,
+    Tuple,
+    Union,
+)
 
 import ibis
 from ibis.expr.operations import CrossJoin
@@ -43,7 +53,7 @@ if TYPE_CHECKING:
 TableWithColumn = Tuple[Table, AnyColumn]
 TableWithColumnCollection = DefaultDict[str, List[TableWithColumn]]
 
-GET_TABLE_REGEX = re.compile(
+GET_TABLE_REGEX: Pattern[str] = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
 )
 PANDAS_TYPE_PYTHON_TYPE_FUNCTION = {
@@ -96,7 +106,7 @@ class SQLTransformer(TransformerBaseClass):
         table_map: dict,
         column_name_map: dict,
         column_to_table_name: dict,
-    ):
+    ) -> None:
         super().__init__(
             table_name_map,
             table_map,
@@ -626,7 +636,7 @@ class SQLTransformer(TransformerBaseClass):
             return result[all_columns]
         return result
 
-    def _set_casing_for_groupby_names(self, query_info: QueryInfo):
+    def _set_casing_for_groupby_names(self, query_info: QueryInfo) -> None:
         lower_case_to_true_column_name = {
             column.get_name().lower(): column.get_name()
             for column in query_info.columns

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from typing import (
     Any,
@@ -125,7 +127,7 @@ class InternalTransformer(TransformerBaseClass):
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         table_name_map: Dict[str, str],
         alias_registry: AliasRegistry,
-    ):
+    ) -> None:
         super().__init__(
             table_name_map=table_name_map,
             table_map=table_map,
@@ -321,7 +323,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return [int(token.value) for token in token_list]
 
-    def date(self, date_list):
+    def date(self, date_list) -> List[int]:
         """
         Returns list with correct date integers
         :param date_list:
@@ -329,7 +331,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.int_token_list(date_list)
 
-    def time(self, time_list):
+    def time(self, time_list) -> List[int]:
         """
         Returns list with correct time integers
         :param time_list:
@@ -337,7 +339,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.int_token_list(time_list)
 
-    def custom_timestamp(self, datetime_list):
+    def custom_timestamp(self, datetime_list) -> Literal:
         """
         Return a custom time stamp based on user input
         :param datetime_list:
@@ -345,7 +347,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Literal(datetime(*(datetime_list[0] + datetime_list[1])))
 
-    def datetime_now(self, _):
+    def datetime_now(self, _) -> Literal:
         """
         Return current date and time
         :return:
@@ -363,7 +365,7 @@ class InternalTransformer(TransformerBaseClass):
         date_value.set_alias("today()")
         return date_value
 
-    def not_equals(self, expressions):
+    def not_equals(self, expressions) -> Value:
         """
         Compares two expressions for inequality
         :param expressions:
@@ -371,14 +373,13 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] != expressions[1])
 
-    def is_null(self, expressions):
-        # raise Exception(type(expressions[0]))
+    def is_null(self, expressions) -> Value:
         return Value(expressions[0]).is_null()
 
-    def is_not_null(self, expressions):
+    def is_not_null(self, expressions) -> Value:
         return Value(expressions[0]).is_not_null()
 
-    def greater_than(self, expressions):
+    def greater_than(self, expressions) -> Value:
         """
         Performs a greater than sql_object
         :param expressions:
@@ -386,7 +387,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] > expressions[1])
 
-    def greater_than_or_equal(self, expressions):
+    def greater_than_or_equal(self, expressions) -> Value:
         """
         Performs a greater than or equal sql_object
         :param expressions:
@@ -394,7 +395,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] >= expressions[1])
 
-    def less_than(self, expressions):
+    def less_than(self, expressions) -> Value:
         """
         Performs a less than sql_object
         :param expressions:
@@ -402,7 +403,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return Value(expressions[0] < expressions[1])
 
-    def less_than_or_equal(self, expressions):
+    def less_than_or_equal(self, expressions) -> Value:
         """
         Performs a less than or equal sql_object
         :param expressions:
@@ -427,7 +428,7 @@ class InternalTransformer(TransformerBaseClass):
     def _get_expression_values(self, expressions: List[Value]):
         return [expression.get_value() for expression in expressions]
 
-    def in_expr(self, expressions: List[Value]):
+    def in_expr(self, expressions: List[Value]) -> Value:
         """
         Evaluate in sql_object
         :param expressions:
@@ -436,7 +437,7 @@ class InternalTransformer(TransformerBaseClass):
         in_list = self._get_expression_values(expressions[1:])
         return Value(expressions[0].value.isin(in_list))
 
-    def not_in_expr(self, expressions: List[Value]):
+    def not_in_expr(self, expressions: List[Value]) -> Value:
         """
         Negate in expr
         :param expressions:
@@ -477,7 +478,7 @@ class InternalTransformer(TransformerBaseClass):
     def bool_parentheses(self, bool_expression_in_list):
         return bool_expression_in_list[0]
 
-    def bool_or(self, truth_series_pair):
+    def bool_or(self, truth_series_pair) -> Value:
         """
         Return the truth value of the series pair
         :param truth_series_pair:
@@ -610,7 +611,7 @@ class InternalTransformer(TransformerBaseClass):
             )
         )
 
-    def rank_expression(self, tokens):
+    def rank_expression(self, tokens: List[List[ColumnExpression]]) -> Expression:
         """
         Handles rank expressions
         :param tokens:
@@ -618,7 +619,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return self.rank(tokens, "rank")
 
-    def dense_rank_expression(self, tokens):
+    def dense_rank_expression(self, tokens: List[List[ColumnExpression]]) -> Expression:
         """
         Handles dense_rank_expressions
         :param tokens:
@@ -788,7 +789,7 @@ class InternalTransformerWithStarVal(InternalTransformer):
         table_name_map: Dict[str, str],
         alias_registry: AliasRegistry,
         available_relations: List[TableExpr],
-    ):
+    ) -> None:
         super().__init__(
             tables=tables,
             table_name_map=table_name_map,
@@ -814,7 +815,7 @@ class InternalTransformerWithStarVal(InternalTransformer):
         cls,
         internal_transformer: InternalTransformer,
         available_relations: List[TableExpr],
-    ):
+    ) -> InternalTransformerWithStarVal:
         return cls(
             internal_transformer._tables,
             internal_transformer._table_map,

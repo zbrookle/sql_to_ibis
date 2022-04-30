@@ -19,7 +19,7 @@ import pytest
 from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal
 from sql_to_ibis.sql_select_query import TableInfo
 
-DATA_PATH = Path(__file__).parent.parent / "data"
+DATA_PATH: Path = Path(__file__).parent.parent / "data"
 MULTI_MAIN = "MULTI_MAIN"
 MULTI_LOOKUP = "MULTI_LOOKUP"
 MULTI_RELATIONSHIP = "MULTI_RELATIONSHIP"
@@ -114,7 +114,7 @@ def assert_state_not_change(func: Callable):
     return new_func
 
 
-def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr):
+def assert_ibis_equal_show_diff(obj1: TableExpr, obj2: TableExpr) -> None:
     if not isinstance(obj1, (TableExpr, GroupedTableExpr)):
         raise AssertionError(f"{obj1} is not of type TableExpr")
     if not isinstance(obj2, (TableExpr, GroupedTableExpr)):
@@ -182,7 +182,7 @@ def _rename_duplicate_columns(
     table: TableExpr,
     table_name: str,
     column_collection: ColumnCollection,
-):
+) -> None:
     for column_name in table.columns:
         column = table.get_column(column_name)
         column_collection[column_name].append((table_name, column))

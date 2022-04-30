@@ -31,7 +31,7 @@ from sql_to_ibis.tests.utils import assert_state_not_change
     ],
 )
 @assert_state_not_change
-def test_invalid_queries(sql):
+def test_invalid_queries(sql: str) -> None:
     with pytest.raises(InvalidQueryException):
         query(sql)
     sql_to_ibis.sql.sql_value_objects.DerivedColumn.reset_expression_count()
@@ -48,13 +48,13 @@ def test_invalid_queries(sql):
         "select forest_fires.not_here from forest_fires",
     ],
 )
-def test_raise_error_for_choosing_column_not_in_table(sql: str):
+def test_raise_error_for_choosing_column_not_in_table(sql: str) -> None:
     with pytest.raises(ColumnNotFoundError):
         query(sql)
 
 
 @assert_state_not_change
-def test_for_non_existent_table():
+def test_for_non_existent_table() -> None:
     """
     Check that exception is raised if table does not exist
     :return:
@@ -64,12 +64,12 @@ def test_for_non_existent_table():
 
 
 @assert_state_not_change
-def test_ambiguous_column():
+def test_ambiguous_column() -> None:
     with pytest.raises(AmbiguousColumnException):
         query("select type from digimon_move_list, digimon_mon_list")
 
 
 @assert_state_not_change
-def test_unsupported_operation_exception():
+def test_unsupported_operation_exception() -> None:
     with pytest.raises(UnsupportedColumnOperation):
         query("select sum(month) from forest_fires")
