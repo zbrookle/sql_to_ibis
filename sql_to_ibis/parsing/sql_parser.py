@@ -48,7 +48,7 @@ from sql_to_ibis.sql.sql_value_objects import (
 )
 
 if TYPE_CHECKING:
-    from lark import Meta
+    from lark.tree import Meta
 
 TableWithColumn = Tuple[Table, AnyColumn]
 TableWithColumnCollection = DefaultDict[str, List[TableWithColumn]]

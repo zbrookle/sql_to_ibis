@@ -122,7 +122,7 @@ class SqlToTable:
         self.ast = self.parse_sql()
         self.ibis_expr = self.ast
 
-    def parse_sql(self):
+    def parse_sql(self) -> TableExpr:
         try:
             tree = self.parser.parse(self.sql)
 
@@ -158,7 +158,7 @@ class TableInfo:
     ibis_table_name_map: Dict[str, str] = {}
     ibis_table_map: Dict[str, Table] = {}
 
-    def add_column_to_column_to_table_name_map(self, column: str, table) -> None:
+    def add_column_to_column_to_table_name_map(self, column: str, table: str) -> None:
         if self.column_to_table_name.get(column) is None:
             self.column_to_table_name[column] = table
         elif isinstance(self.column_to_table_name[column], AmbiguousColumn):
@@ -167,7 +167,7 @@ class TableInfo:
             original_table = self.column_to_table_name[column]
             self.column_to_table_name[column] = AmbiguousColumn({original_table, table})
 
-    def register_temporary_table(self, ibis_table, table_name: str) -> None:
+    def register_temporary_table(self, ibis_table: TableExpr, table_name: str) -> None:
         if table_name.lower() in self.ibis_table_name_map:
             raise Exception(
                 f"A table {table_name.lower()} has already been registered. Keep in "

@@ -16,7 +16,14 @@ from typing import (
 
 import ibis
 from ibis.expr.api import NumericColumn
-from ibis.expr.types import AnyColumn, AnyScalar, BooleanValue, NumericScalar, TableExpr
+from ibis.expr.types import (
+    AnyColumn,
+    AnyScalar,
+    BooleanValue,
+    IntegerColumn,
+    NumericScalar,
+    TableExpr,
+)
 from ibis.expr.window import Window as IbisWindow
 from lark import Token, Transformer, Tree
 
@@ -485,25 +492,16 @@ class InternalTransformer(TransformerBaseClass):
             truth_series_pair_values[0] & truth_series_pair_values[1],
         )
 
-    def bool_parentheses(self, bool_expression_in_list):
+    def bool_parentheses(self, bool_expression_in_list: List[Value]) -> Value:
         return bool_expression_in_list[0]
 
-    def bool_or(self, truth_series_pair) -> Value:
+    def bool_or(self, truth_series_pair: Tuple[Value, Value]) -> Value:
         """
         Return the truth value of the series pair
         :param truth_series_pair:
         :return:
         """
         return Value(truth_series_pair[0] | truth_series_pair[1])
-
-    def comparison_type(self, comparison):
-        """
-        Return the comparison
-
-        :param comparison:
-        :return:
-        """
-        return comparison[0]
 
     def where_expr(self, where_value_list: List[Value]) -> WhereExpression:
         """
@@ -536,7 +534,7 @@ class InternalTransformer(TransformerBaseClass):
         """
         return FromExpression(expression[0])
 
-    def when_then(self, when_then_values):
+    def when_then(self, when_then_values: List[Value]) -> Tuple[Value, Value]:
         """
         When / then sql_object
         :param when_then_values:
@@ -567,7 +565,14 @@ class InternalTransformer(TransformerBaseClass):
 
         return Expression(value=case_expression)
 
-    def window_form(self, form):
+    def window_form(
+        self,
+        form: List[
+            Optional[Union[PartitionByExpression, OrderByExpression, FrameExpression]]
+        ],
+    ) -> List[
+        Optional[Union[PartitionByExpression, OrderByExpression, FrameExpression]]
+    ]:
         """
         Returns the window form
         :param form:
@@ -589,7 +594,9 @@ class InternalTransformer(TransformerBaseClass):
         """
         return PartitionByExpression(column_list[0])
 
-    def apply_rank_function(self, first_column: AnyColumn, rank_function: RankFunction):
+    def apply_rank_function(
+        self, first_column: AnyColumn, rank_function: RankFunction
+    ) -> IntegerColumn:
         """
         :param first_column:
         :param rank_function:
