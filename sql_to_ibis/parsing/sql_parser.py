@@ -3,12 +3,12 @@ Module containing all lark internal_transformer classes
 """
 from collections import defaultdict
 import re
-from typing import Any, DefaultDict, Dict, List, Set, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import ibis
 from ibis.expr.operations import CrossJoin
 from ibis.expr.types import AnyColumn, TableExpr
-from lark import Token, Tree, v_args
+from lark import Meta, Token, Tree, v_args
 
 from sql_to_ibis.exceptions.sql_exception import (
     InvalidQueryException,
@@ -66,7 +66,9 @@ TYPE_TO_PANDAS_TYPE = {
 
 
 class TupleTree(Tree):
-    def __init__(self, data, children: Any, meta=None) -> None:
+    def __init__(
+        self, data: str, children: List[Union[str, Tree]], meta: Optional[Meta] = None
+    ) -> None:
         super().__init__(data, children, meta)
 
 
@@ -96,7 +98,7 @@ class SQLTransformer(TransformerBaseClass):
         )
         self._alias_registry = AliasRegistry()
 
-    def add_column_to_column_to_table_name_map(self, column: str, table):
+    def add_column_to_column_to_table_name_map(self, column: str, table: str) -> None:
         """
         Adds a column to the _column_to_table_name map
         :param column:
@@ -147,7 +149,7 @@ class SQLTransformer(TransformerBaseClass):
         ascending = order_type == "order_asc"
         return OrderByInfo(rank_tree.children[0].children[0], ascending)
 
-    def integer(self, integer_token):
+    def integer(self, integer_token: Token) -> int:
         """
         Returns the integer value
         :param integer_token:
@@ -156,7 +158,7 @@ class SQLTransformer(TransformerBaseClass):
         integer_value = int(integer_token.value)
         return integer_value
 
-    def limit_count(self, limit_count_value):
+    def limit_count(self, limit_count_value: int) -> LimitExpression:
         """
         Returns a limit token_or_tree
         :param limit_count_value:
@@ -164,7 +166,9 @@ class SQLTransformer(TransformerBaseClass):
         """
         return LimitExpression(limit_count_value)
 
-    def query_expr(self, query_info: QueryInfo, *args):
+    def query_expr(
+        self, query_info: QueryInfo, *args: List[Union[OrderByInfo, LimitExpression]]
+    ) -> QueryInfo:
         """
         Handles the full query, including order and set operations such as union
         :param query_info: Map of all query information
@@ -193,7 +197,9 @@ class SQLTransformer(TransformerBaseClass):
         info.add_column(Column(name="*"))
         return info
 
-    def subquery(self, query_object: Union[QueryInfo, NestedJoinBase], alias: Tree):
+    def subquery(
+        self, query_object: Union[QueryInfo, NestedJoinBase], alias: Tree
+    ) -> Subquery:
         """
         Handle subqueries amd return a subquery object
         :param query_object:
@@ -365,7 +371,7 @@ class SQLTransformer(TransformerBaseClass):
         table: TableExpr,
         aggregates: Dict[str, Aggregate],
         group_column_names: List[str],
-    ):
+    ) -> Optional[Token]:
         having = None
         if having_expr:
             having = internal_transformer.transform(having_expr.children[0]).value
@@ -383,7 +389,7 @@ class SQLTransformer(TransformerBaseClass):
         having_expr: Tree,
         internal_transformer: InternalTransformer,
         selected_columns: List[Value],
-    ):
+    ) -> TableExpr:
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
