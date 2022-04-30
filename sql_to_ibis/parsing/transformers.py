@@ -90,7 +90,7 @@ class TransformerBaseClass(Transformer):
         table_map: Mapping[str, TableOrJoinbase],
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
-        _temp_dataframes_dict=None,
+        _temp_dataframes_dict: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(visit_tokens=False)
         self._table_name_map = table_name_map

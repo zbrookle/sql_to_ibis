@@ -220,8 +220,8 @@ class SQLTransformer(TransformerBaseClass):
             self._column_name_map[alias_name][column.lower()] = column
         return subquery
 
-    def column_name(self, *names):
-        full_name = ".".join([str(name) for name in names])
+    def column_name(self, *names: Optional[str]) -> Tree:
+        full_name = ".".join([str(name) for name in names if name is not None])
         return Tree("column_name", [full_name])
 
     def join(self, join_expression):
@@ -240,25 +240,39 @@ class SQLTransformer(TransformerBaseClass):
         """
         return comparison
 
-    def join_expression(self, *args) -> NestedJoin:
+    def join_expression(self, *args: Union[Table, str, Tree]) -> NestedJoin:
         # There will only ever be four args if a join is specified and three if a
         # join isn't specified
+        types = ""
+        for arg in args:
+            if arg is None:
+                types += "None,"
+                continue
+            types += str(arg.__class__) + ","
+        print(types)
         if len(args) == 3:
+            args_no_join: Tuple[Table, Table, Tree] = args
             join_type = "inner"
-            table1 = args[0]
-            table2 = args[1]
-            join_condition = args[2]
-        else:
-            table1 = args[0]
-            join_type = args[1]
-            table2 = args[2]
-            join_condition = args[3]
-            if "outer" in join_type:
-                match = re.match(r"(?P<type>.*)\souter", join_type)
-                if match:
-                    join_type = match.group("type")
-            if join_type in {"full", "cross"}:
-                join_type = "outer"
+            table1 = args_no_join[0]
+            table2 = args_no_join[1]
+            join_condition = args_no_join[2]
+            return NestedJoin(
+                left_table=table1,
+                right_table=table2,
+                join_type=join_type,
+                join_condition=join_condition,
+            )
+        args_with_join: Tuple[Table, str, Table, Tree] = args
+        table1 = args_with_join[0]
+        join_type = args_with_join[1]
+        table2 = args_with_join[2]
+        join_condition = args_with_join[3]
+        if "outer" in join_type:
+            match = re.match(r"(?P<type>.*)\souter", join_type)
+            if match:
+                join_type = match.group("type")
+        if join_type in {"full", "cross"}:
+            join_type = "outer"
         return NestedJoin(
             left_table=table1,
             right_table=table2,
