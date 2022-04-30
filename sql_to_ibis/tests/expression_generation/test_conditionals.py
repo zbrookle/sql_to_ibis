@@ -312,3 +312,25 @@ def test_case_statement_with_same_conditions(forest_fires):
         .name("_col0")
     )
     assert_ibis_equal_show_diff(ibis_table, my_table)
+
+
+def test_support_extraneous_parens_in_where(forest_fires):
+    """
+    Test scenario where there are nested parens in where clause
+    :return:
+    """
+    my_table = query(
+        """
+        select *
+        from forest_fires
+        where
+        (wind > 5 and (month = 'Test' or wind = 2))
+        """
+    )
+    ibis_table = forest_fires.filter(
+        [
+            forest_fires.wind > 5,
+            (forest_fires.month == "Test" | forest_fires.wind == 2),
+        ]
+    )
+    assert_ibis_equal_show_diff(ibis_table, my_table)
