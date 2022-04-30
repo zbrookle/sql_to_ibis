@@ -6,6 +6,7 @@ GIVEN_TYPE_TO_IBIS = {
     "datetime": "timestamp",
     "smallint": "int16",
     "int": "int32",
+    "integer": "int32",
     "bigint": "int64",
 }
 
