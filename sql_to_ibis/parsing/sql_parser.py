@@ -149,8 +149,10 @@ class SQLTransformer(TransformerBaseClass):
         true_name = self._table_name_map[table_name]
         if isinstance(alias, Tree) and alias.data == "alias_string":
             alias = str(alias.children[0])
+        table_value_from_map = self._table_map[true_name]
+        assert isinstance(table_value_from_map, Table)
         table = Table(
-            value=self._table_map[true_name].get_table_expr(),
+            value=table_value_from_map.get_table_expr(),
             name=true_name,
             alias=alias,
         )
@@ -262,13 +264,17 @@ class SQLTransformer(TransformerBaseClass):
         """
         return comparison
 
-    def join_expression(self, *args: Union[Table, str, Tree]) -> NestedJoin:
+    def join_expression(self, *args: Union[NestedJoin, Table, str, Tree]) -> NestedJoin:
         # There will only ever be four args
-        args_with_join: Tuple[Table, Optional[str], Table, Tree] = args
-        table1 = args_with_join[0]
-        join_type = args_with_join[1] if args_with_join[1] is not None else "inner"
-        table2 = args_with_join[2]
-        join_condition = args_with_join[3]
+        # args_with_join: Tuple[Table, Optional[str], Table, Tree] = args
+        table1 = args[0]
+        assert isinstance(table1, (Table, NestedJoin))
+        join_type = args[1] if args[1] is not None else "inner"
+        assert isinstance(join_type, str)
+        table2 = args[2]
+        assert isinstance(table2, Table)
+        join_condition = args[3]
+        assert isinstance(join_condition, Tree)
         if "outer" in join_type:
             match = re.match(r"(?P<type>.*)\souter", join_type)
             if match:
@@ -390,10 +396,12 @@ class SQLTransformer(TransformerBaseClass):
         table: TableExpr,
         aggregates: Dict[str, Aggregate],
         group_column_names: List[str],
-    ) -> Optional[Token]:
+    ) -> Optional[AnyColumn]:
         having = None
         if having_expr:
-            having = internal_transformer.transform(having_expr.children[0]).value
+            transform_result = internal_transformer.transform(having_expr.children[0])
+            assert isinstance(transform_result, Value)
+            having = transform_result.value
         if having is not None and not aggregates:
             for column in table.columns:
                 if column not in group_column_names:
@@ -474,9 +482,8 @@ class SQLTransformer(TransformerBaseClass):
         :return: Filtered TableExpr
         """
         if where_expr is not None:
-            where_expression: WhereExpression = internal_transformer.transform(
-                where_expr
-            )
+            where_expression = internal_transformer.transform(where_expr)
+            assert isinstance(where_expression, WhereExpression)
             return ibis_table.filter(where_expression.value.get_value())
         return ibis_table
 
@@ -555,9 +562,8 @@ class SQLTransformer(TransformerBaseClass):
         def get_join_table(
             join: NestedJoin, left_table: TableExpr, right_table: TableExpr
         ) -> TableExpr:
-            compiled_condition: Value = internal_transformer.transform(
-                join.join_condition
-            )
+            compiled_condition = internal_transformer.transform(join.join_condition)
+            assert isinstance(compiled_condition, Value)
             return left_table.join(
                 right_table,
                 predicates=compiled_condition.get_value(),
@@ -606,9 +612,8 @@ class SQLTransformer(TransformerBaseClass):
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
         if isinstance(join, NestedJoin):
-            compiled_condition: Value = internal_transformer.transform(
-                join.join_condition
-            )
+            compiled_condition = internal_transformer.transform(join.join_condition)
+            assert isinstance(compiled_condition, Value)
             result = left_ibis_table.join(
                 right_ibis_table,
                 predicates=compiled_condition.get_value(),

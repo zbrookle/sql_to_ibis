@@ -1,12 +1,15 @@
-from typing import List, Set
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, Set
 
 from ibis.expr.types import AnyColumn
 
-# from sql_to_ibis.sql.sql_value_objects import TableOrJoinbase
+if TYPE_CHECKING:
+    from sql_to_ibis.sql.sql_value_objects import Table
 
 
 def rename_duplicates(
-    table,  # TODO Come back here and fix the type (Right now it's a circular)
+    table: Table,
     duplicates: Set[str],
     table_name: str,
     table_columns: List[AnyColumn],

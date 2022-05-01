@@ -5,11 +5,11 @@ from typing import (
     Any,
     Dict,
     List,
-    Mapping,
     MutableMapping,
     Optional,
     Tuple,
     TypedDict,
+    TypeVar,
     Union,
     cast,
 )
@@ -76,7 +76,7 @@ from sql_to_ibis.sql.sql_value_objects import (
     Value,
 )
 
-TableMap = MutableMapping[Union[str, AmbiguousColumn], Table]
+TableMap = MutableMapping[Union[str, AmbiguousColumn], TableOrJoinbase]
 
 
 def num_eval(arg: Union[Token, float, int]) -> Union[int, float]:
@@ -95,7 +95,11 @@ class Extents(TypedDict):
     preceding: Preceding
 
 
-class TransformerBaseClass(Transformer[Any, Union[Value, ValueExpression, Tree]]):
+TransformerBaseLeaf = TypeVar("TransformerBaseLeaf")
+TransformerBaseReturn = TypeVar("TransformerBaseReturn")
+
+
+class TransformerBaseClass(Transformer[TransformerBaseLeaf, TransformerBaseReturn]):
     """
     Base class for transformers
     """
@@ -105,7 +109,7 @@ class TransformerBaseClass(Transformer[Any, Union[Value, ValueExpression, Tree]]
     def __init__(
         self,
         table_name_map: Dict[str, str],
-        table_map: Mapping[str, TableOrJoinbase],
+        table_map: TableMap,
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         _temp_dataframes_dict: Optional[Dict[str, Any]] = None,
@@ -138,7 +142,7 @@ class InternalTransformer(TransformerBaseClass):
     def __init__(
         self,
         tables: List[TableOrJoinbase],
-        table_map: Mapping[str, TableOrJoinbase],
+        table_map: TableMap,
         column_name_map: Dict[str, Dict[str, str]],
         column_to_table_name: Dict[str, Union[str, AmbiguousColumn]],
         table_name_map: Dict[str, str],
@@ -677,14 +681,6 @@ class InternalTransformer(TransformerBaseClass):
             expression.set_alias(alias_expression.alias)
         return expression
 
-    def join(self, *args):
-        """
-        Extracts the join sql_object
-        :param args: Arguments that are passed to the join
-        :return: join sql_object
-        """
-        return args[0]
-
     def group_by(self, columns: List[Column]) -> GroupByColumn:
         """
         Returns a group token_or_tree
@@ -737,6 +733,7 @@ class InternalTransformer(TransformerBaseClass):
             return table_or_alias_name
         try_get_table = self._table_map.get(table_or_alias_name)
         if try_get_table is not None:
+            assert isinstance(try_get_table, Table)
             return try_get_table
         if table_or_alias_name not in self._alias_registry:
             raise Exception(f"Table or alias '{table_or_alias_name}' not found")

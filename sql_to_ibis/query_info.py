@@ -109,13 +109,21 @@ class QueryInfo:
         elif isinstance(token, Aggregate):
             self.aggregates[token.final_name] = token
 
-    def __get_internal_transformer_select_expression(self):
-        return self.internal_transformer.transform(
+    def __get_internal_transformer_select_expression(
+        self,
+    ) -> List[Union[Value, FromExpression]]:
+        transform_result = self.internal_transformer.transform(
             Tree("select", self.select_expressions_no_boolean_clauses)
-        ).children
+        )
+        assert isinstance(transform_result, Tree)
+        children: List[Union[Value, FromExpression]] = []
+        for child in transform_result.children:
+            assert isinstance(child, (Value, FromExpression))
+            children.append(child)
+        return children
 
     def __handle_tokens_and_trees_in_select_expressions(
-        self, select_expressions
+        self, select_expressions: List[Union[Value, FromExpression]]
     ) -> None:
         for token_pos, token in enumerate(select_expressions):
             self.__handle_token_or_tree(token, token_pos)

@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
 import re
-from typing import Callable, ClassVar, Dict, Generic, List, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    ClassVar,
+    Generic,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import ibis
 from ibis.expr.types import AnyColumn, AnyScalar, TableExpr, ValueExpr
@@ -10,6 +19,9 @@ from lark import Tree
 from pandas import Series
 
 from sql_to_ibis.sql.column_utils import rename_duplicates
+
+if TYPE_CHECKING:
+    from sql_to_ibis.parsing.transformers import TableMap
 
 
 @dataclass(unsafe_hash=True)
@@ -411,7 +423,7 @@ class StrictJoinBase:
 
 @dataclass
 class NestedJoinBase:
-    left_table: Table
+    left_table: TableOrJoinbase
     right_table: Table
     join_type: str
 
@@ -421,6 +433,7 @@ class NestedJoinBase:
         left_columns = left.get_ibis_columns()
         right_columns = right.get_ibis_columns()
         duplicates = set(left.column_names).intersection(right.column_names)
+        assert isinstance(self.left_table, Table)
         left_columns = rename_duplicates(
             left, duplicates, self.left_table.name, left_columns
         )
@@ -432,7 +445,8 @@ class NestedJoinBase:
     def get_tables(self) -> List[TableOrJoinbase]:
         return [self.left_table, self.right_table]
 
-    def get_table_map(self) -> Dict[str, TableOrJoinbase]:
+    def get_table_map(self) -> TableMap:
+        assert isinstance(self.left_table, Table)
         return {
             self.left_table.get_alias_else_name(): self.left_table,
             self.right_table.get_alias_else_name(): self.right_table,
