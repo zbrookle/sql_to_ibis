@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   # required
-  - lark-parser=0.8.5
+  - lark=1.1.2
   - ibis-framework=2.1.1
 
   # Test requirements

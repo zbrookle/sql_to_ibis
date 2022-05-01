@@ -4,7 +4,7 @@ from sql_to_ibis.sql_select_query import TableInfo
 from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff
 
 
-def test_add_remove_temp_table(digimon_mon_list):
+def test_add_remove_temp_table(digimon_mon_list) -> None:
     """
     Tests registering and removing temp tables
     :return:

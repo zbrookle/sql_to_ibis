@@ -1,6 +1,8 @@
+from typing import List
+
 import ibis
 from ibis.backends.pandas import Backend, BasePandasBackend
-from ibis.expr.types import TableExpr
+from ibis.expr.types import AnyColumn, TableExpr
 from pandas import read_csv
 from pandas.core.frame import DataFrame
 import pytest
@@ -153,7 +155,9 @@ def register_temp_tables(
 
 
 @pytest.fixture
-def digimon_move_mon_join_columns(digimon_mon_list, digimon_move_list):
+def digimon_move_mon_join_columns(
+    digimon_mon_list: TableExpr, digimon_move_list: TableExpr
+) -> List[AnyColumn]:
     return get_all_join_columns_handle_duplicates(
         digimon_mon_list, digimon_move_list, "DIGIMON_MON_LIST", "DIGIMON_MOVE_LIST"
     )

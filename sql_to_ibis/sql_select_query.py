@@ -15,13 +15,13 @@ from sql_to_ibis.parsing.sql_parser import SQLTransformer
 from sql_to_ibis.sql.sql_objects import AmbiguousColumn
 from sql_to_ibis.sql.sql_value_objects import Table
 
-_ROOT = Path(__file__).parent
+_ROOT: Path = Path(__file__).parent
 GRAMMAR_PATH = os.path.join(_ROOT, "grammar", "sql.lark")
 with open(file=GRAMMAR_PATH) as sql_grammar_file:
-    _GRAMMAR_TEXT = sql_grammar_file.read()
+    _GRAMMAR_TEXT: str = sql_grammar_file.read()
 
 
-def register_temp_table(table: TableExpr, table_name: str):
+def register_temp_table(table: TableExpr, table_name: str) -> None:
     """
     Registers related metadata from a :class: ~`ibis.expr.types.TableExpr` for use with
     SQL
@@ -54,7 +54,7 @@ def register_temp_table(table: TableExpr, table_name: str):
     table_info.register_temporary_table(table, table_name)
 
 
-def remove_temp_table(table_name: str):
+def remove_temp_table(table_name: str) -> None:
     """
     Removes all registered metadata related to a table name
 
@@ -116,13 +116,13 @@ def query(sql: str) -> TableExpr:
 class SqlToTable:
     parser = Lark(_GRAMMAR_TEXT, parser="lalr")
 
-    def __init__(self, sql: str):
+    def __init__(self, sql: str) -> None:
         self.sql = sql
 
         self.ast = self.parse_sql()
         self.ibis_expr = self.ast
 
-    def parse_sql(self):
+    def parse_sql(self) -> TableExpr:
         try:
             tree = self.parser.parse(self.sql)
 
@@ -158,7 +158,7 @@ class TableInfo:
     ibis_table_name_map: Dict[str, str] = {}
     ibis_table_map: Dict[str, Table] = {}
 
-    def add_column_to_column_to_table_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column: str, table: str) -> None:
         if self.column_to_table_name.get(column) is None:
             self.column_to_table_name[column] = table
         elif isinstance(self.column_to_table_name[column], AmbiguousColumn):
@@ -167,7 +167,7 @@ class TableInfo:
             original_table = self.column_to_table_name[column]
             self.column_to_table_name[column] = AmbiguousColumn({original_table, table})
 
-    def register_temporary_table(self, ibis_table, table_name: str):
+    def register_temporary_table(self, ibis_table: TableExpr, table_name: str) -> None:
         if table_name.lower() in self.ibis_table_name_map:
             raise Exception(
                 f"A table {table_name.lower()} has already been registered. Keep in "
@@ -182,7 +182,7 @@ class TableInfo:
             self.column_name_map[table_name][lower_column] = column
             self.add_column_to_column_to_table_name_map(lower_column, table_name)
 
-    def remove_temp_table(self, table_name: str):
+    def remove_temp_table(self, table_name: str) -> None:
         if table_name.lower() not in self.ibis_table_name_map:
             raise Exception(f"Table {table_name.lower()} is not registered")
         real_table_name = self.ibis_table_name_map[table_name.lower()]

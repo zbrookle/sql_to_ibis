@@ -1,3 +1,5 @@
+from typing import Dict, Optional, Tuple
+
 import ibis
 from ibis.expr.types import TableExpr
 import pytest
@@ -8,7 +10,7 @@ from sql_to_ibis.tests.utils import assert_ibis_equal_show_diff, assert_state_no
 
 # TODO Ibis is showing window as object in string representation
 @assert_state_not_change
-def test_rank_statement_one_column(forest_fires):
+def test_rank_statement_one_column(forest_fires: TableExpr) -> None:
     """
     Test rank statement
     :return:
@@ -31,7 +33,7 @@ def test_rank_statement_one_column(forest_fires):
 
 
 @assert_state_not_change
-def test_rank_statement_many_columns(forest_fires):
+def test_rank_statement_many_columns(forest_fires: TableExpr) -> None:
     """
     Test rank statement
     :return:
@@ -65,7 +67,7 @@ def test_rank_statement_many_columns(forest_fires):
 
 
 @assert_state_not_change
-def test_dense_rank_statement_many_columns(forest_fires):
+def test_dense_rank_statement_many_columns(forest_fires: TableExpr) -> None:
     """
     Test dense_rank statement
     :return:
@@ -100,7 +102,7 @@ def test_dense_rank_statement_many_columns(forest_fires):
 
 
 @assert_state_not_change
-def test_rank_over_partition_by(forest_fires):
+def test_rank_over_partition_by(forest_fires: TableExpr) -> None:
     """
     Test rank partition by statement
     :return:
@@ -137,7 +139,7 @@ def test_rank_over_partition_by(forest_fires):
 
 
 @assert_state_not_change
-def test_partition_by_multiple_columns(forest_fires):
+def test_partition_by_multiple_columns(forest_fires: TableExpr) -> None:
     """
     Test rank partition by statement
     :return:
@@ -170,7 +172,7 @@ def test_partition_by_multiple_columns(forest_fires):
 
 
 @assert_state_not_change
-def test_dense_rank_over_partition_by(forest_fires):
+def test_dense_rank_over_partition_by(forest_fires: TableExpr) -> None:
     """
     Test rank partition by statement
     :return:
@@ -207,7 +209,7 @@ def test_dense_rank_over_partition_by(forest_fires):
 
 
 @assert_state_not_change
-def test_window_function_partition(time_data):
+def test_window_function_partition(time_data: TableExpr) -> None:
     my_table = query(
         """SELECT count,
        duration_seconds,
@@ -238,7 +240,7 @@ def test_window_function_partition(time_data):
 
 
 @assert_state_not_change
-def test_window_function_partition_order_by(time_data):
+def test_window_function_partition_order_by(time_data: TableExpr) -> None:
     my_table = query(
         """SELECT count,
        duration_seconds,
@@ -303,7 +305,11 @@ window_frame_params = pytest.mark.parametrize(
 
 @assert_state_not_change
 @window_frame_params
-def test_window_rows(time_data, sql_window, window_args):
+def test_window_rows(
+    time_data: TableExpr,
+    sql_window: str,
+    window_args: Tuple[str, Dict[str, Optional[int]]],
+) -> None:
     my_table = query(
         f"""SELECT count,
        duration_seconds,
@@ -325,7 +331,11 @@ def test_window_rows(time_data, sql_window, window_args):
 
 @assert_state_not_change
 @window_frame_params
-def test_window_range(time_data, sql_window, window_args):
+def test_window_range(
+    time_data: TableExpr,
+    sql_window: str,
+    window_args: Tuple[str, Dict[str, Optional[int]]],
+) -> None:
     my_table = query(
         f"""SELECT count,
        duration_seconds,
@@ -346,7 +356,7 @@ def test_window_range(time_data, sql_window, window_args):
 
 
 @assert_state_not_change
-def test_order_by(forest_fires):
+def test_order_by(forest_fires: TableExpr) -> None:
     """
     Test order by clause
     :return:
@@ -359,7 +369,7 @@ def test_order_by(forest_fires):
 
 
 @assert_state_not_change
-def test_order_by_case_insensitive(forest_fires):
+def test_order_by_case_insensitive(forest_fires: TableExpr) -> None:
     """
     Test case sensitivity in order by clause
     """

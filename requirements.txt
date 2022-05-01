@@ -1,3 +1,2 @@
 ibis-framework==2.1.1
-lark-parser==0.8.5
-# TODO Upgrade lark-parser once mypy fixes are released
+lark==1.1.2

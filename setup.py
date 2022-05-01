@@ -1,6 +1,6 @@
-from distutils.core import setup
 from pathlib import Path
 
+from distutils.core import setup
 from setuptools import find_packages
 
 import versioneer
@@ -23,8 +23,8 @@ setup(
     maintainer="Zach Brookler",
     maintainer_email="zachb1996@yahoo.com",
     description="A package for converting sql into ibis expressions",
-    python_requires=">=3.7.0",
-    install_requires=["lark-parser==0.8.5", "ibis-framework==1.4.0"],
+    python_requires=">=3.8.0",
+    install_requires=["lark-parser==1.1.2", "ibis-framework==2.1.1"],
     project_urls={
         "Source Code": "https://github.com/zbrookle/sql_to_ibis",
         "Documentation": "https://github.com/zbrookle/sql_to_ibis",

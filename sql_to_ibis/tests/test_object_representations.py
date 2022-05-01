@@ -3,7 +3,7 @@ import ibis
 from sql_to_ibis.sql.sql_value_objects import DerivedColumn, Literal, Value
 
 
-def test_value_repr(time_data):
+def test_value_repr(time_data) -> None:
     value = Value(time_data.team, alias="my_team", typename="string")
     assert (
         repr(value) == "Value(final_name=my_team, value=IbisStringColumn(), "
@@ -11,7 +11,7 @@ def test_value_repr(time_data):
     )
 
 
-def test_derived_column(time_data):
+def test_derived_column(time_data) -> None:
     column = DerivedColumn(time_data.team, typename="string", function="sum")
 
     assert (
@@ -32,7 +32,7 @@ team = Column[string*] 'team' from table
     )
 
 
-def test_literal_column():
+def test_literal_column() -> None:
     column = Literal(ibis.literal(10), "my_int", "integer")
     assert (
         repr(column)

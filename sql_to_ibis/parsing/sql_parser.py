@@ -1,9 +1,21 @@
 """
 Module containing all lark internal_transformer classes
 """
+from __future__ import annotations
+
 from collections import defaultdict
 import re
-from typing import Any, DefaultDict, Dict, List, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    DefaultDict,
+    Dict,
+    List,
+    Optional,
+    Pattern,
+    Set,
+    Tuple,
+    Union,
+)
 
 import ibis
 from ibis.expr.operations import CrossJoin
@@ -35,10 +47,13 @@ from sql_to_ibis.sql.sql_value_objects import (
     Value,
 )
 
+if TYPE_CHECKING:
+    from lark.tree import Meta
+
 TableWithColumn = Tuple[Table, AnyColumn]
 TableWithColumnCollection = DefaultDict[str, List[TableWithColumn]]
 
-GET_TABLE_REGEX = re.compile(
+GET_TABLE_REGEX: Pattern[str] = re.compile(
     r"^(?P<table>[a-z_]\w*)\.(?P<column>[a-z_]\w*)$", re.IGNORECASE
 )
 PANDAS_TYPE_PYTHON_TYPE_FUNCTION = {
@@ -66,9 +81,14 @@ TYPE_TO_PANDAS_TYPE = {
 }
 
 
-class TupleTree(Tree):
-    def __init__(self, data, children: Any, meta=None):
-        super().__init__(data, children, meta)
+class TupleTree(Tree[Subquery]):
+    def __init__(
+        self,
+        data: str,
+        children: Tuple[Tree, Subquery],
+        meta: Optional[Meta] = None,
+    ) -> None:
+        super().__init__(data, list(children), meta)
 
 
 for TYPE in PANDAS_TYPE_PYTHON_TYPE_FUNCTION:
@@ -87,7 +107,7 @@ class SQLTransformer(TransformerBaseClass):
         table_map: dict,
         column_name_map: dict,
         column_to_table_name: dict,
-    ):
+    ) -> None:
         super().__init__(
             table_name_map,
             table_map,
@@ -97,7 +117,7 @@ class SQLTransformer(TransformerBaseClass):
         )
         self._alias_registry = AliasRegistry()
 
-    def add_column_to_column_to_table_name_map(self, column, table):
+    def add_column_to_column_to_table_name_map(self, column: str, table: str) -> None:
         """
         Adds a column to the _column_to_table_name map
         :param column:
@@ -116,7 +136,7 @@ class SQLTransformer(TransformerBaseClass):
                 {original_table, table}
             )
 
-    def table(self, table_name, alias=""):
+    def table(self, table_name: str, alias: str = "") -> Table:
         """
         Check for existence of table with same name
         If not exists raise TableExprDoesNotExist
@@ -129,8 +149,10 @@ class SQLTransformer(TransformerBaseClass):
         true_name = self._table_name_map[table_name]
         if isinstance(alias, Tree) and alias.data == "alias_string":
             alias = str(alias.children[0])
+        table_value_from_map = self._table_map[true_name]
+        assert isinstance(table_value_from_map, Table)
         table = Table(
-            value=self._table_map[true_name].get_table_expr(),
+            value=table_value_from_map.get_table_expr(),
             name=true_name,
             alias=alias,
         )
@@ -138,7 +160,7 @@ class SQLTransformer(TransformerBaseClass):
             self._alias_registry.add_to_registry(alias, table)
         return table
 
-    def order_by_expression(self, rank_tree):
+    def order_by_expression(self, rank_tree: Tree[Tree[str]]) -> OrderByInfo:
         """
         Returns the column name for the order sql_object
         :param rank_tree: Tree containing order info
@@ -146,9 +168,12 @@ class SQLTransformer(TransformerBaseClass):
         """
         order_type = rank_tree.data
         ascending = order_type == "order_asc"
-        return OrderByInfo(rank_tree.children[0].children[0], ascending)
+        order_by_column_tree = rank_tree.children[0]
+        order_by_column_name = order_by_column_tree.children[0]
+        assert isinstance(order_by_column_name, str)
+        return OrderByInfo(order_by_column_name, ascending)
 
-    def integer_(self, integer_token):
+    def integer_(self, integer_token: Token) -> int:
         """
         Returns the integer value
         :param integer_token:
@@ -157,7 +182,7 @@ class SQLTransformer(TransformerBaseClass):
         integer_value = int(integer_token.value)
         return integer_value
 
-    def limit_count(self, limit_count_value):
+    def limit_count(self, limit_count_value: int) -> LimitExpression:
         """
         Returns a limit token_or_tree
         :param limit_count_value:
@@ -165,7 +190,9 @@ class SQLTransformer(TransformerBaseClass):
         """
         return LimitExpression(limit_count_value)
 
-    def query_expr(self, query_info: QueryInfo, *args):
+    def query_expr(
+        self, query_info: QueryInfo, *args: List[Union[OrderByInfo, LimitExpression]]
+    ) -> QueryInfo:
         """
         Handles the full query, including order and set operations such as union
         :param query_info: Map of all query information
@@ -194,7 +221,9 @@ class SQLTransformer(TransformerBaseClass):
         info.add_column(Column(name="*"))
         return info
 
-    def subquery(self, query_object: Union[QueryInfo, NestedJoinBase], alias: Tree):
+    def subquery(
+        self, query_object: Union[QueryInfo, NestedJoinBase], alias: Tree
+    ) -> Subquery:
         """
         Handle subqueries amd return a subquery object
         :param query_object:
@@ -215,11 +244,11 @@ class SQLTransformer(TransformerBaseClass):
             self._column_name_map[alias_name][column.lower()] = column
         return subquery
 
-    def column_name(self, *names):
-        full_name = ".".join([str(name) for name in names])
+    def column_name(self, *names: Optional[str]) -> Tree:
+        full_name = ".".join([str(name) for name in names if name is not None])
         return Tree("column_name", [full_name])
 
-    def join(self, join_expression):
+    def join(self, join_expression: NestedJoin) -> NestedJoin:
         """
         Handle join tree
         :param join_expression:
@@ -227,7 +256,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return join_expression
 
-    def comparison_type(self, comparison):
+    def comparison_type(self, comparison: Tree) -> Tree:
         """
         Return the comparison expression
         :param comparison:
@@ -235,25 +264,23 @@ class SQLTransformer(TransformerBaseClass):
         """
         return comparison
 
-    def join_expression(self, *args):
-        # There will only ever be four args if a join is specified and three if a
-        # join isn't specified
-        if len(args) == 3:
-            join_type = "inner"
-            table1 = args[0]
-            table2 = args[1]
-            join_condition = args[2]
-        else:
-            table1 = args[0]
-            join_type = args[1]
-            table2 = args[2]
-            join_condition = args[3]
-            if "outer" in join_type:
-                match = re.match(r"(?P<type>.*)\souter", join_type)
-                if match:
-                    join_type = match.group("type")
-            if join_type in {"full", "cross"}:
-                join_type = "outer"
+    def join_expression(self, *args: Union[NestedJoin, Table, str, Tree]) -> NestedJoin:
+        # There will only ever be four args
+        # args_with_join: Tuple[Table, Optional[str], Table, Tree] = args
+        table1 = args[0]
+        assert isinstance(table1, (Table, NestedJoin))
+        join_type = args[1] if args[1] is not None else "inner"
+        assert isinstance(join_type, str)
+        table2 = args[2]
+        assert isinstance(table2, Table)
+        join_condition = args[3]
+        assert isinstance(join_condition, Tree)
+        if "outer" in join_type:
+            match = re.match(r"(?P<type>.*)\souter", join_type)
+            if match:
+                join_type = match.group("type")
+        if join_type in {"full", "cross"}:
+            join_type = "outer"
         return NestedJoin(
             left_table=table1,
             right_table=table2,
@@ -261,7 +288,7 @@ class SQLTransformer(TransformerBaseClass):
             join_condition=join_condition,
         )
 
-    def select(self, *select_expressions: Tuple[Tree]) -> QueryInfo:
+    def select(self, *select_expressions: Tree[NestedJoinBase]) -> QueryInfo:
         """
         Forms the final sequence of methods that will be executed
         :param select_expressions:
@@ -283,7 +310,8 @@ class SQLTransformer(TransformerBaseClass):
                         isinstance(table_object, Tree)
                         and table_object.data == "cross_join_expression"
                     ):
-                        cross_join: NestedCrossJoin = table_object.children[0]
+                        cross_join = table_object.children[0]
+                        assert isinstance(cross_join, NestedCrossJoin)
                         tables += [
                             cross_join.right_table,
                             cross_join.left_table,
@@ -328,7 +356,7 @@ class SQLTransformer(TransformerBaseClass):
             distinct=distinct,
         )
 
-    def cross_join(self, table1: Table, table2: Table):
+    def cross_join(self, table1: Table, table2: Table) -> NestedCrossJoin:
         """
         Returns the crossjoin between two dataframes
         :param table1: TableExpr1
@@ -340,18 +368,20 @@ class SQLTransformer(TransformerBaseClass):
             right_table=table2,
         )
 
-    def from_item(self, item):
+    def from_item(self, item: Subquery) -> Subquery:
         return item
 
-    def _handle_count_star(self, aggregate: Aggregate, relation: TableExpr):
+    def _handle_count_star(
+        self, aggregate: Aggregate, relation: TableExpr
+    ) -> Aggregate:
         if isinstance(aggregate.value, CountStar):
             aggregate.value = relation.count()
         return aggregate
 
     def _get_aggregate_ibis_columns(
         self, aggregates: Dict[str, Aggregate], relation: TableExpr
-    ):
-        aggregate_ibis_columns = []
+    ) -> List[AnyColumn]:
+        aggregate_ibis_columns: List[AnyColumn] = []
         for aggregate_column_name in aggregates:
             aggregate_column = aggregates[aggregate_column_name]
             self._handle_count_star(aggregate_column, relation)
@@ -361,15 +391,17 @@ class SQLTransformer(TransformerBaseClass):
 
     def _handle_having_expressions(
         self,
-        having_expr: Tree,
+        having_expr: Optional[Tree],
         internal_transformer: InternalTransformer,
         table: TableExpr,
         aggregates: Dict[str, Aggregate],
         group_column_names: List[str],
-    ):
+    ) -> Optional[AnyColumn]:
         having = None
         if having_expr:
-            having = internal_transformer.transform(having_expr.children[0]).value
+            transform_result = internal_transformer.transform(having_expr.children[0])
+            assert isinstance(transform_result, Value)
+            having = transform_result.value
         if having is not None and not aggregates:
             for column in table.columns:
                 if column not in group_column_names:
@@ -381,10 +413,10 @@ class SQLTransformer(TransformerBaseClass):
         aggregates: Dict[str, Aggregate],
         group_columns: List[GroupByColumn],
         table: TableExpr,
-        having_expr: Tree,
+        having_expr: Optional[Tree],
         internal_transformer: InternalTransformer,
         selected_columns: List[Value],
-    ):
+    ) -> TableExpr:
         """
         Handles all aggregation operations when translating from dictionary info
         to dataframe
@@ -439,9 +471,9 @@ class SQLTransformer(TransformerBaseClass):
     def handle_filtering(
         self,
         ibis_table: TableExpr,
-        where_expr: Tree,
+        where_expr: Optional[Tree],
         internal_transformer: InternalTransformer,
-    ):
+    ) -> TableExpr:
         """
         Returns frame with appropriately selected and named columns
         :param ibis_table: Ibis expression table to manipulate
@@ -450,13 +482,12 @@ class SQLTransformer(TransformerBaseClass):
         :return: Filtered TableExpr
         """
         if where_expr is not None:
-            where_expression: WhereExpression = internal_transformer.transform(
-                where_expr
-            )
+            where_expression = internal_transformer.transform(where_expr)
+            assert isinstance(where_expression, WhereExpression)
             return ibis_table.filter(where_expression.value.get_value())
         return ibis_table
 
-    def subquery_in(self, column: Tree, subquery: Subquery):
+    def subquery_in(self, column: Tree, subquery: Subquery) -> TupleTree:
         return TupleTree("subquery_in", (column, subquery))
 
     def handle_selection(
@@ -473,16 +504,18 @@ class SQLTransformer(TransformerBaseClass):
         return ibis_table
 
     @staticmethod
-    def _columns_have_select_star(columns: List[Value]):
+    def _columns_have_select_star(columns: List[Value]) -> bool:
         for column in columns:
             if column.get_name() == "*":
                 return True
         return False
 
-    def _get_all_columns_rename_duplicates(self, tables: List[Table]):
+    def _get_all_columns_rename_duplicates(
+        self, tables: List[Table]
+    ) -> List[AnyColumn]:
         columns = {table: table.get_ibis_columns() for table in tables}
 
-        def set_dict_column_name(table: Table, col_name: str):
+        def set_dict_column_name(table: Table, col_name: str) -> None:
             index = table.column_names.index(col_name)
             columns[table][index] = columns[table][index].name(
                 f"{table.get_alias_else_name()}.{col_name}"
@@ -529,19 +562,22 @@ class SQLTransformer(TransformerBaseClass):
         def get_join_table(
             join: NestedJoin, left_table: TableExpr, right_table: TableExpr
         ) -> TableExpr:
-            compiled_condition: Value = internal_transformer.transform(
-                join.join_condition
-            )
+            compiled_condition = internal_transformer.transform(join.join_condition)
+            assert isinstance(compiled_condition, Value)
             return left_table.join(
                 right_table,
                 predicates=compiled_condition.get_value(),
                 how=join.join_type,
             )
 
-        def get_cross_table(join: CrossJoin, left_table, right_table) -> TableExpr:
+        def get_cross_table(
+            join: CrossJoin, left_table: TableExpr, right_table: TableExpr
+        ) -> TableExpr:
             return ibis.cross_join(left_table, right_table)
 
-        def rename_or_add_columns(table: Table, columns: TableWithColumnCollection):
+        def rename_or_add_columns(
+            table: Table, columns: TableWithColumnCollection
+        ) -> None:
             for column in table.column_names:
                 columns[column].append(
                     (table, table.get_table_expr().get_column(column))
@@ -550,7 +586,7 @@ class SQLTransformer(TransformerBaseClass):
         def resolve_table(
             table: TableOrJoinbase,
             columns: TableWithColumnCollection,
-        ):
+        ) -> TableExpr:
             if isinstance(table, NestedJoinBase):
                 left = resolve_table(table.left_table, columns)
                 right = resolve_table(table.right_table, columns)
@@ -576,9 +612,8 @@ class SQLTransformer(TransformerBaseClass):
         left_ibis_table = left_table.get_table_expr()
         right_ibis_table = right_table.get_table_expr()
         if isinstance(join, NestedJoin):
-            compiled_condition: Value = internal_transformer.transform(
-                join.join_condition
-            )
+            compiled_condition = internal_transformer.transform(join.join_condition)
+            assert isinstance(compiled_condition, Value)
             result = left_ibis_table.join(
                 right_ibis_table,
                 predicates=compiled_condition.get_value(),
@@ -611,7 +646,7 @@ class SQLTransformer(TransformerBaseClass):
             return result[all_columns]
         return result
 
-    def _set_casing_for_groupby_names(self, query_info: QueryInfo):
+    def _set_casing_for_groupby_names(self, query_info: QueryInfo) -> None:
         lower_case_to_true_column_name = {
             column.get_name().lower(): column.get_name()
             for column in query_info.columns
@@ -627,12 +662,14 @@ class SQLTransformer(TransformerBaseClass):
                     selection_statement_name
                 )
 
-    def get_table_value(self, table: Union[Table, NestedJoinBase, Subquery]):
-        assert isinstance(table, (Table, NestedJoinBase, Subquery))
+    def get_table_value(
+        self, table: Union[Table, NestedJoinBase, Subquery]
+    ) -> Optional[Union[TableExpr, NestedJoinBase]]:
         if isinstance(table, Table):
             return table.get_table_expr()
         if isinstance(table, NestedJoinBase):
             return table
+        return None
 
     def _get_relation(self, query_info: QueryInfo) -> TableExpr:
         tables = query_info.tables
@@ -655,7 +692,7 @@ class SQLTransformer(TransformerBaseClass):
             first_table = first_table[all_columns]
         return first_table
 
-    def _to_ibis_table(self, query_info: QueryInfo):
+    def _to_ibis_table(self, query_info: QueryInfo) -> TableExpr:
         """
         Returns the dataframe resulting from the SQL query
         :return:
@@ -690,7 +727,6 @@ class SQLTransformer(TransformerBaseClass):
                 for column in query_info.columns
                 if column.get_name() in remaining_columns
             ]
-        # new_table = self.materialize_join_if_needed(relation, all_columns_pre_join)
         new_table = self.handle_filtering(
             relation,
             query_info.where_expr,
@@ -718,7 +754,7 @@ class SQLTransformer(TransformerBaseClass):
 
         return new_table
 
-    def set_expr(self, query_info):
+    def set_expr(self, query_info: QueryInfo) -> TableExpr:
         """
         Return different sql_object with set relational operations performed
         :param query_info:
@@ -730,7 +766,7 @@ class SQLTransformer(TransformerBaseClass):
         self,
         expr1: TableExpr,
         expr2: TableExpr,
-    ):
+    ) -> TableExpr:
         """
         Return union distinct of two TableExpr
         :param expr1: Left TableExpr
@@ -743,7 +779,7 @@ class SQLTransformer(TransformerBaseClass):
         self,
         expr1: TableExpr,
         expr2: TableExpr,
-    ):
+    ) -> TableExpr:
         """
         Return union distinct of two TableExpr
         :param expr1: Left TableExpr
@@ -752,7 +788,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.union(expr2, distinct=True)
 
-    def intersect_distinct(self, expr1: TableExpr, expr2: TableExpr):
+    def intersect_distinct(self, expr1: TableExpr, expr2: TableExpr) -> TableExpr:
         """
         Return distinct intersection of two TableExpr
         :param expr1: Left TableExpr
@@ -761,7 +797,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.intersect(expr2)
 
-    def except_distinct(self, expr1: TableExpr, expr2: TableExpr):
+    def except_distinct(self, expr1: TableExpr, expr2: TableExpr) -> TableExpr:
         """
         Return distinct set difference of two TableExpr
         :param expr1: Left TableExpr
@@ -770,7 +806,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.difference(expr2).distinct()
 
-    def except_all(self, expr1: TableExpr, expr2: TableExpr):
+    def except_all(self, expr1: TableExpr, expr2: TableExpr) -> TableExpr:
         """
         Return set difference of two TableExpr
         :param expr1: Left TableExpr
@@ -779,7 +815,7 @@ class SQLTransformer(TransformerBaseClass):
         """
         return expr1.difference(expr2)
 
-    def final(self, table):
+    def final(self, table: TableExpr) -> TableExpr:
         """
         Returns the final dataframe
         :param table:
