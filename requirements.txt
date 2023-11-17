@@ -1,2 +1,2 @@
-ibis-framework==2.1.1
+ibis-framework==7.1.0
 lark==1.1.2
