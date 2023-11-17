@@ -24,7 +24,7 @@ setup(
     maintainer_email="zachb1996@yahoo.com",
     description="A package for converting sql into ibis expressions",
     python_requires=">=3.8.0",
-    install_requires=["lark-parser==1.1.2", "ibis-framework==2.1.1"],
+    install_requires=["lark-parser==1.1.2", "ibis-framework==7.1.0"],
     project_urls={
         "Source Code": "https://github.com/zbrookle/sql_to_ibis",
         "Documentation": "https://github.com/zbrookle/sql_to_ibis",
